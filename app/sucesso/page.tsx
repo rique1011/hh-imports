@@ -1,101 +1,49 @@
 'use client'
-
-import { useEffect, Suspense } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { CheckCircle2, ShoppingBag, ArrowRight, Camera, Sparkles } from 'lucide-react'
 import Link from 'next/link'
+import { CheckCircle2, Clock3, Loader2 } from 'lucide-react'
 import { useCart } from '@/lib/store'
 
-function ConteudoSucesso() {
-  const searchParams = useSearchParams()
-  const { limparCarrinho } = useCart() as any
-  const pedidoId = searchParams.get('external_reference')
-
+const pagos = new Set(['pago','confirmado','processando','enviado','entregue'])
+function Confirmacao() {
+  const id = useSearchParams().get('external_reference')
+  const limpar = useCart(state => state.limparCarrinho)
+  const [estado, setEstado] = useState<{ status?: string; erro?: string; carregando: boolean }>({ carregando: true })
+  const [tentativa, setTentativa] = useState(0)
   useEffect(() => {
-    if (limparCarrinho) limparCarrinho()
-  }, [limparCarrinho])
-
-  return (
-    <main className="min-h-[85vh] flex items-center justify-center bg-hb-black px-4 md:px-6 py-10 md:py-12">
-      <div className="max-w-md w-full text-center space-y-6 md:space-y-8 animate-in fade-in zoom-in slide-in-from-bottom-4 duration-700">
-        
-        {/* ÍCONE DE SUCESSO ANIMADO */}
-        <div className="flex justify-center">
-          <div className="relative">
-            <div className="absolute inset-0 bg-green-500/20 rounded-full animate-ping opacity-30"></div>
-            <div className="bg-green-900/30 p-3 md:p-4 rounded-full relative z-10 border border-green-800">
-              <CheckCircle2 size={48} className="text-green-400 md:w-16 md:h-16" />
-            </div>
-          </div>
-        </div>
-
-        {/* MENSAGEM PRINCIPAL */}
-        <div className="space-y-3 md:space-y-4">
-          <h1 className="text-2xl md:text-3xl font-light uppercase tracking-widest text-white italic">
-            Compra Aprovada
-          </h1>
-          <p className="text-gray-400 text-xs md:text-sm leading-relaxed px-2 md:px-4 font-light">
-            Sua joia exclusiva da <strong className="text-hb-gold font-normal">H&H IMPORTS</strong> já está sendo separada e embalada com todo o cuidado. Enviamos os detalhes e o recibo para o seu e-mail.
-          </p>
-        </div>
-
-        {/* NÚMERO DO PEDIDO */}
-        {pedidoId && (
-          <div className="bg-gradient-to-r from-hb-gray to-hb-black border border-hb-gold/30 p-4 md:p-5 rounded-xl shadow-sm">
-            <p className="text-[9px] md:text-[10px] font-bold text-hb-gold uppercase tracking-widest mb-1">Número do Pedido</p>
-            <p className="text-lg md:text-xl font-black text-white tracking-widest">#{pedidoId.toUpperCase()}</p>
-          </div>
-        )}
-
-        {/* BANNER CLUBE VIP */}
-        <div className="bg-hb-gray border border-gray-800 p-4 md:p-5 rounded-xl flex items-start gap-3 md:gap-4 text-left">
-          <div className="bg-hb-black border border-gray-700 p-2 rounded-lg shadow-sm shrink-0">
-            <Camera size={18} className="text-hb-gold md:w-5 md:h-5" />
-          </div>
-          <div>
-            <h3 className="text-[10px] md:text-xs font-bold text-white uppercase tracking-widest flex items-center gap-1 mb-1">
-              Clube VIP <Sparkles size={10} className="text-hb-gold md:w-3 md:h-3" />
-            </h3>
-            <p className="text-[9px] md:text-[10px] text-gray-400 leading-relaxed">
-              Quando sua joia chegar, poste uma foto nos stories marcando <strong className="text-hb-gold">o perfil da H&H IMPORTS</strong> e ganhe um cupom de <strong className="text-white">10% OFF</strong> para a próxima compra!
-            </p>
-          </div>
-        </div>
-
-        {/* BOTÕES DE AÇÃO */}
-        <div className="flex flex-col gap-2 md:gap-3 pt-2">
-          <Link 
-            href="/minha-conta" 
-            className="w-full bg-hb-gold text-hb-black py-3 md:py-4 font-bold text-[10px] md:text-xs uppercase tracking-widest hover:bg-hb-goldLight transition flex items-center justify-center gap-2 rounded shadow-md"
-          >
-            Acompanhar Entrega <ArrowRight size={14} className="md:w-4 md:h-4" />
-          </Link>
-          
-          <Link 
-            href="/" 
-            className="w-full bg-transparent border border-gray-700 text-white py-3 md:py-4 font-bold text-[10px] md:text-xs uppercase tracking-widest hover:border-hb-gold hover:text-hb-gold transition flex items-center justify-center gap-2 rounded"
-          >
-            <ShoppingBag size={14} className="md:w-4 md:h-4" /> Continuar Comprando
-          </Link>
-        </div>
-
-        <p className="text-[8px] md:text-[10px] text-gray-500 uppercase font-bold tracking-widest px-4">
-          Dúvidas? Entre em contato pelo nosso WhatsApp.
-        </p>
-      </div>
-    </main>
-  )
+    if (!id) return
+    const controller = new AbortController()
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let chamadas = 0
+    async function consultar() {
+      if (document.hidden) { timer = setTimeout(consultar, 1500); return }
+      try {
+        const response = await fetch('/api/pedidos/' + encodeURIComponent(id!), { cache: 'no-store', signal: controller.signal })
+        const pedido = await response.json()
+        if (!response.ok) { setEstado({ carregando: false, erro: response.status === 401 ? 'Entre na sua conta para consultar o pedido.' : 'Pedido indisponível para esta conta.' }); return }
+        const status = String(pedido.status || '').toLowerCase()
+        setEstado({ status, carregando: false })
+        if (pagos.has(status)) { limpar(); return }
+        if (status === 'pendente' && ++chamadas < 20) timer = setTimeout(consultar, 1500)
+      } catch {
+        if (!controller.signal.aborted) setEstado({ carregando: false, erro: 'Não foi possível consultar o pagamento. Tente novamente.' })
+      }
+    }
+    consultar()
+    return () => { controller.abort(); clearTimeout(timer) }
+  }, [id, tentativa, limpar])
+  const confirmado = pagos.has(estado.status || '')
+  return <main className="min-h-[75vh] px-4 py-12 flex items-center justify-center">
+    <section className="w-full max-w-md text-center space-y-6" aria-live="polite">
+      {estado.carregando && id ? <Loader2 className="animate-spin mx-auto text-hb-gold" size={40} /> : confirmado ? <CheckCircle2 className="mx-auto text-green-400" size={48} /> : <Clock3 className="mx-auto text-hb-gold" size={48} />}
+      <h1 className="text-2xl uppercase tracking-wide">{!id ? 'Pedido não informado' : confirmado ? 'Pagamento confirmado' : estado.carregando ? 'Consultando pagamento' : 'Confirmação do pedido'}</h1>
+      <p className="text-sm text-gray-400">{!id ? 'Acesse sua conta para localizar sua compra.' : estado.erro || (confirmado ? 'Recebemos a confirmação do pagamento. Você pode acompanhar sua compra na sua conta.' : estado.status === 'cancelado' ? 'Este pedido foi cancelado.' : 'O pagamento ainda não foi confirmado. A aprovação será exibida após a atualização do pedido.')}</p>
+      {id && <p className="break-all text-sm text-hb-gold">Pedido #{id}</p>}
+      {id && !confirmado && !estado.carregando && <button className="min-h-11 w-full border border-gray-700 px-4 py-3 rounded" onClick={() => setTentativa(t => t + 1)}>Atualizar status</button>}
+      <Link className="min-h-11 flex items-center justify-center bg-hb-gold text-hb-black rounded px-4 py-3 font-bold" href="/minha-conta">Acompanhar pedido</Link>
+      <Link className="min-h-11 flex items-center justify-center text-gray-400" href="/login">Entrar na conta</Link>
+    </section>
+  </main>
 }
-
-export default function PaginaSucesso() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-[85vh] bg-hb-black flex flex-col items-center justify-center gap-4">
-        <div className="w-8 h-8 border-4 border-gray-800 border-t-hb-gold rounded-full animate-spin"></div>
-        <p className="text-[10px] md:text-xs uppercase tracking-widest font-bold text-gray-500">Verificando pagamento...</p>
-      </div>
-    }>
-      <ConteudoSucesso />
-    </Suspense>
-  )
-}
+export default function Sucesso() { return <Suspense fallback={<div className="min-h-[70vh] grid place-items-center"><Loader2 className="animate-spin" /></div>}><Confirmacao /></Suspense> }

@@ -1,42 +1,43 @@
 'use client'
+import type { Pedido, Cupom } from '@/types/loja'
 
 import { useState, useEffect } from 'react'
-import { DollarSign, TrendingUp, TrendingDown, Ticket, Loader2, ArrowUpRight, ArrowDownRight, Wallet, Receipt } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import {  TrendingUp, TrendingDown, Ticket, Loader2, ArrowUpRight, ArrowDownRight, Wallet, Receipt } from 'lucide-react'
+import { supabaseAdmin as supabase } from '@/lib/admin-client'
 
 export default function TelaFinanceiro() {
-  const [pedidos, setPedidos] = useState<any[]>([])
-  const [cupons, setCupons] = useState<any[]>([])
+  const [pedidos, setPedidos] = useState<Pedido[]>([])
+  const [cupons, setCupons] = useState<Cupom[]>([])
   const [carregando, setCarregando] = useState(true)
 
   useEffect(() => {
+    async function carregarDadosFinanceiros() {
+      try {
+        const [resPedidos, resCupons] = await Promise.all([
+          // 🚨 AQUI ESTÁ A CORREÇÃO: Filtrando apenas os status que representam pagamentos aprovados
+          supabase
+            .from('pedidos')
+            .select('*')
+            .in('status', ['pago', 'enviado', 'entregue', 'confirmado'])
+            .order('created_at', { ascending: false }),
+
+          supabase
+            .from('cupons')
+            .select('*')
+            .order('criado_em', { ascending: false })
+        ])
+
+        setPedidos(resPedidos.data || [])
+        setCupons(resCupons.data || [])
+      } catch (error) {
+        console.error("Erro ao carregar dados financeiros:", error)
+      } finally {
+        setCarregando(false)
+      }
+    }
+
     carregarDadosFinanceiros()
   }, [])
-
-  async function carregarDadosFinanceiros() {
-    try {
-      const [resPedidos, resCupons] = await Promise.all([
-        // 🚨 AQUI ESTÁ A CORREÇÃO: Filtrando apenas os status que representam pagamentos aprovados
-        supabase
-          .from('pedidos')
-          .select('*')
-          .in('status', ['pago', 'enviado', 'entregue', 'confirmado'])
-          .order('created_at', { ascending: false }),
-        
-        supabase
-          .from('cupons')
-          .select('*')
-          .order('criado_em', { ascending: false })
-      ])
-
-      setPedidos(resPedidos.data || [])
-      setCupons(resCupons.data || [])
-    } catch (error) {
-      console.error("Erro ao carregar dados financeiros:", error)
-    } finally {
-      setCarregando(false)
-    }
-  }
 
   const faturamentoBruto = pedidos.reduce((acc, curr) => acc + Number(curr.total || 0), 0)
   const totalReembolsos = cupons.reduce((acc, curr) => acc + Number(curr.valor_fixo || 0), 0)
@@ -46,7 +47,7 @@ export default function TelaFinanceiro() {
   return (
     <div className="text-gray-300 bg-hb-black min-h-screen">
       <header className="mb-10">
-        <h1 className="text-3xl font-light text-white uppercase tracking-widest mb-2">Visão Financeira</h1>
+        <h1 className="text-2xl sm:text-3xl break-words font-light text-white uppercase tracking-widest mb-2">Visão Financeira</h1>
         <p className="text-sm text-gray-400">Acompanhe seu faturamento real, ticket médio e reembolsos gerados.</p>
       </header>
 
@@ -56,7 +57,7 @@ export default function TelaFinanceiro() {
         <div className="space-y-8 animate-in fade-in duration-500">
           
           {/* CARDS DE MÉTRICAS TOP */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
             
             <div className="bg-hb-gray p-6 rounded-xl border border-gray-800 shadow-sm relative overflow-hidden">
               <div className="absolute top-0 right-0 p-4 opacity-5 text-green-500"><TrendingUp size={64} /></div>

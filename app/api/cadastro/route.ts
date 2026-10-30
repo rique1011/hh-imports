@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import bcrypt from 'bcryptjs'
 import { Resend } from 'resend'
 
@@ -8,6 +8,7 @@ const resend = new Resend(process.env.RESEND_API_KEY || 're_placeholder_for_buil
 
 export async function POST(request: Request) {
   try {
+    const supabase = getSupabaseAdmin()
     const { nome, email, senha } = await request.json()
 
     if (!nome || !email || !senha) {
@@ -66,7 +67,7 @@ export async function POST(request: Request) {
 
     // 6. ENVIO DO E-MAIL VIA RESEND
     try {
-      const { data, error: resendError } = await resend.emails.send({
+      const { error: resendError } = await resend.emails.send({
         from: 'H&H IMPORTS <onboarding@resend.dev>', // REMETENTE DE TESTE DO RESEND
         to: [emailFormatado],
         subject: `${codigoVerificacao} é o seu código de verificação H&H IMPORTS`,

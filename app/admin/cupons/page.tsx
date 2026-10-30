@@ -1,11 +1,12 @@
 'use client'
+import type { Cupom } from '@/types/loja'
 
 import { useState, useEffect } from 'react'
 import { Plus, Ticket, Loader2, Trash2, CheckCircle2, XCircle, X } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin as supabase } from '@/lib/admin-client'
 
 export default function TelaCupons() {
-  const [cupons, setCupons] = useState<any[]>([])
+  const [cupons, setCupons] = useState<Cupom[]>([])
   const [carregando, setCarregando] = useState(true)
   const [modalAberta, setModalAberta] = useState(false)
   const [salvando, setSalvando] = useState(false)
@@ -51,7 +52,7 @@ export default function TelaCupons() {
       setModalAberta(false)
       setForm({ codigo: '', desconto: '' })
       carregarCupons()
-    } catch (error: any) {
+    } catch {
       alert("Erro ao criar cupom. Verifique se o código já existe.")
     } finally {
       setSalvando(false)
@@ -62,7 +63,7 @@ export default function TelaCupons() {
     try {
       await supabase.from('cupons').update({ ativo: !ativoAtual }).eq('id', id)
       carregarCupons()
-    } catch (error) {
+    } catch {
       alert("Erro ao alterar status.")
     }
   }
@@ -72,7 +73,7 @@ export default function TelaCupons() {
     try {
       await supabase.from('cupons').delete().eq('id', id)
       carregarCupons()
-    } catch (error) {
+    } catch {
       alert("Erro ao excluir.")
     }
   }
@@ -81,7 +82,7 @@ export default function TelaCupons() {
     <div className="text-gray-300 bg-hb-black min-h-screen">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
         <div>
-          <h1 className="text-3xl font-light text-white uppercase tracking-widest mb-2">Cupons Promocionais</h1>
+          <h1 className="text-2xl sm:text-3xl break-words font-light text-white uppercase tracking-widest mb-2">Cupons Promocionais</h1>
           <p className="text-sm text-gray-400">Crie cupons de desconto para incentivar compras na sua loja.</p>
         </div>
         <button onClick={() => setModalAberta(true)} className="bg-hb-gold text-hb-black px-6 py-3 rounded-full font-bold uppercase tracking-widest text-[10px] flex items-center gap-2 hover:bg-hb-goldLight transition shadow-md">
@@ -98,7 +99,7 @@ export default function TelaCupons() {
           <p className="text-xs text-gray-500">Clique no botão acima para criar o seu primeiro cupom.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {cupons.map((cupom) => (
             <div key={cupom.id} className={`p-6 rounded-xl border relative overflow-hidden transition ${cupom.ativo ? 'bg-hb-gray border-gray-800 shadow-sm shadow-hb-gold/5' : 'bg-neutral-900 border-neutral-800 opacity-45'}`}>
               <div className="flex justify-between items-start mb-4">
@@ -128,7 +129,7 @@ export default function TelaCupons() {
       {/* MODAL NOVO CUPOM */}
       {modalAberta && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-hb-gray border border-gray-800 rounded-2xl max-w-sm w-full p-8 shadow-2xl relative text-white">
+          <div className="bg-hb-gray border border-gray-800 rounded-2xl max-w-sm w-full p-6 sm:p-8 shadow-2xl relative max-h-[90dvh] overflow-y-auto text-white">
             <button onClick={() => setModalAberta(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white transition"><X size={20} /></button>
             <h2 className="text-lg font-light uppercase tracking-widest text-white mb-6">Criar Cupom</h2>
             <form onSubmit={handleSalvarCupom} className="space-y-6">

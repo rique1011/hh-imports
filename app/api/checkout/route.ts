@@ -1,3 +1,6 @@
+import { validarCotacao } from '@/lib/frete'
+import { validarCupom } from '@/lib/cupons'
+import { ErroHttp, validarOrigem } from '@/lib/autorizacao'
 import { NextResponse, after } from 'next/server'
 import { Preference } from 'mercadopago'
 import { BRAND_NAME } from '@/lib/brand'
@@ -16,19 +19,9 @@ function valor(value: unknown) {
   return Math.round(number * 100) / 100
 }
 
-async function podeUsarBoasVindas(db: ReturnType<typeof getSupabaseAdmin>, email: string) {
-  const { data: cadastro, error: cadastroError } = await db.from('usuarios')
-    .select('created_at').eq('email', email).single()
-  const { count, error: comprasError } = await db.from('pedidos')
-    .select('id', { count: 'exact', head: true }).eq('cliente_email', email)
-    .in('status', ['pago', 'confirmado', 'processando', 'enviado', 'entregue'])
-  if (cadastroError || comprasError || !cadastro) throw new Error('Falha ao validar elegibilidade do cupom.')
-  const idade = Date.now() - new Date(cadastro.created_at).getTime()
-  return Number.isFinite(idade) && idade >= 0 && idade <= 7 * 86400000 && count === 0
-}
-
 export async function POST(request: Request) {
   try {
+    validarOrigem(request)
     const user = await getRequestUser(request)
     if (!user) return NextResponse.json({ error: 'Faca login para comprar.' }, { status: 401 })
     const body = await request.json()
@@ -43,48 +36,29 @@ export async function POST(request: Request) {
     // Usa os precos do catalogo, evitando confirmar um pedido com valores adulterados.
     const ids = [...new Set(body.itens.map((item: { id: string | number }) => item.id))]
     const { data: produtos, error: produtosError } = await db.from('produtos')
-      .select('id, nome, preco').in('id', ids)
+      .select('id, nome, preco, fotos, slug').in('id', ids)
     if (produtosError) throw new Error('Falha ao consultar produtos.')
     const itens = body.itens.map((item: { id: string | number; quantidade: number; foto?: string; slug?: string }) => {
       const produto = produtos?.find(produto => String(produto.id) === String(item.id))
       if (!produto) throw new Error('Produto indisponivel.')
       return { id: item.id, nome: produto.nome, preco: valor(produto.preco),
-        quantidade: Number(item.quantidade), foto: item.foto || '', slug: item.slug || '' }
+        quantidade: Number(item.quantidade), foto: produto.fotos?.[0] || '', slug: produto.slug || '' }
     })
     const subtotal = valor(itens.reduce((sum: number, item: { preco: number; quantidade: number }) =>
       sum + item.preco * item.quantidade, 0))
-    const frete = subtotal >= 100 ? 0 : valor(body.frete)
-    const embalagem = body.embalagemPresente ? 15 : 0
-    // O percentual do cupom e validado no servidor; valores enviados pelo cliente sao ignorados.
-    let desconto = 0
-    if (body.codigoCupom) {
-      const { data: cupom, error: cupomError } = await db.from('cupons').select('desconto')
-        .eq('codigo', String(body.codigoCupom).toUpperCase().trim()).eq('ativo', true).maybeSingle()
-      if (cupomError) throw new Error('Falha ao consultar cupom.')
-      const codigo = String(body.codigoCupom).toUpperCase().trim()
-      let percentual = Number(cupom?.desconto || 0)
-      if (codigo === 'BEMVINDO10') {
-        if (!await podeUsarBoasVindas(db, user.email)) {
-          return NextResponse.json({ error: 'Cupom exclusivo para primeira compra em ate 7 dias.' }, { status: 400 })
-        }
-        percentual = percentual || 10
-      }
-      // A oferta extra de 5% precisa partir de um cupom real ou de boas-vindas elegivel.
-      if (!percentual && codigo === 'NAOVAEMBORA') percentual = 5
-      if (!percentual && /^OFERTA\d+$/.test(codigo)) {
-        const solicitado = Number(codigo.slice(6))
-        const { data: bases, error: baseError } = await db.from('cupons').select('desconto')
-          .eq('ativo', true).eq('desconto', solicitado - 5).limit(1)
-        if (baseError) throw new Error('Falha ao validar oferta.')
-        if (bases?.length || (solicitado === 15 && await podeUsarBoasVindas(db, user.email))) {
-          percentual = solicitado
-        }
-      }
-      if (!Number.isFinite(percentual) || percentual <= 0 || percentual > 100) {
-        return NextResponse.json({ error: 'Cupom invalido. Remova-o ou escolha um cupom ativo.' }, { status: 400 })
-      }
-      desconto = valor(subtotal * percentual / 100)
+    let frete = 0
+    if (subtotal < 100) {
+      const { data: cadastro, error: cadastroError } = await db.from('usuarios').select('endereco').eq('email', user.email).single()
+      if (cadastroError) throw cadastroError
+      let cep = ''
+      try { cep = String(JSON.parse(cadastro?.endereco || '{}').cep || '').replace(/\D/g, '') } catch {}
+      const cotacao = validarCotacao(body.freteToken, cep)
+      if (cotacao === null) return NextResponse.json({ error: 'Calcule novamente o frete para o CEP do seu cadastro.' }, { status: 400 })
+      frete = cotacao
     }
+    const embalagem = body.embalagemPresente ? 15 : 0
+    const cupom = body.codigoCupom ? await validarCupom(db, user.email, body.codigoCupom) : null
+    const desconto = cupom ? valor(subtotal * cupom.desconto / 100) : 0
     const cashback = valor(body.cashbackUsado)
     const antesCashback = valor(subtotal + frete + embalagem - desconto)
     if (cashback > antesCashback) {
@@ -98,6 +72,7 @@ export async function POST(request: Request) {
       p_email: user.email, p_nome: user.name, p_total: total,
       p_itens: itens, p_cashback: cashback,
     })
+    if (pedidoError && /Estoque insuficiente|Produto indisponivel/.test(pedidoError.message)) return NextResponse.json({ error: 'Estoque insuficiente. Atualize sua sacola.' }, { status: 409 })
     if (pedidoError || !pedido) throw new Error('Falha ao criar pedido: ' + (pedidoError?.message || 'Sem resultado.'))
 
     // O trigger ja registrou cliente e admin; falha SMTP nao desfaz a compra.
@@ -123,6 +98,7 @@ export async function POST(request: Request) {
     if (!preference.init_point) throw new Error('Mercado Pago nao retornou o link de pagamento.')
     return NextResponse.json({ pedidoId: pedido.id, urlPagamento: preference.init_point })
   } catch (error) {
+    if (error instanceof ErroHttp) return NextResponse.json({ error: error.message }, { status: error.status })
     console.error('[checkout] Falha:', error)
     return NextResponse.json({ error: 'Nao foi possivel criar o pagamento. Tente novamente.' }, { status: 500 })
   }

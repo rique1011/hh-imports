@@ -1,157 +1,83 @@
 'use client'
-
 import Link from 'next/link'
-import { ShoppingBag, Search, User, Menu, X, LogOut, Shield } from 'lucide-react'
-import { useCart } from '@/lib/store'
-import { useEffect, useState } from 'react'
-import { useSession, signOut } from 'next-auth/react'
+import { Menu, Search, ShoppingBag, User, X, LogOut, Shield } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { signOut, useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { useCart } from '@/lib/store'
+import { useHidratado } from '@/lib/use-hidratado'
+
+const links = [{ href: '/', nome: 'Home' }, { href: '/colecoes', nome: 'Coleções' }, { href: '/sobre', nome: 'Sobre' }]
+const alvo = 'min-h-11 min-w-11 inline-flex items-center justify-center rounded hover:text-hb-gold focus-visible:outline-2 focus-visible:outline-hb-gold'
 
 export default function Header() {
-  const itens = useCart((state: any) => state.itens)
-  const [montado, setMontado] = useState(false)
-  const [menuAberto, setMenuAberto] = useState(false)
-  
-  const [termoBusca, setTermoBusca] = useState('')
-  const [buscaAberta, setBuscaAberta] = useState(false)
-  const router = useRouter()
-  
   const { data: session } = useSession()
-
+  const router = useRouter()
+  const hidratado = useHidratado()
+  const quantidade = useCart(state => state.itens.reduce((sum, item) => sum + item.quantidade, 0))
+  const [menu, setMenu] = useState(false)
+  const [busca, setBusca] = useState(false)
+  const [termo, setTermo] = useState('')
+  const abrirRef = useRef<HTMLButtonElement>(null)
+  const painelRef = useRef<HTMLDivElement>(null)
+  const fechar = useCallback(() => { setMenu(false); abrirRef.current?.focus() }, [])
   useEffect(() => {
-    setMontado(true)
-  }, [])
-
-  const totalItens = itens?.reduce((acc: number, item: any) => acc + item.quantidade, 0) || 0
-  const fecharMenu = () => setMenuAberto(false)
-
-  const primeiroNome = session?.user?.name?.split(' ')[0]
-  const isAdmin = (session?.user as any)?.role === 'admin'
-
-  const fazerPesquisa = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (termoBusca.trim() !== '') {
-      router.push(`/pesquisa?q=${termoBusca}`)
-      setBuscaAberta(false)
-      setTermoBusca('')
+    if (!menu) return
+    const anterior = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    painelRef.current?.querySelector<HTMLButtonElement>('button')?.focus()
+    const keyboard = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') fechar()
+      if (event.key !== 'Tab') return
+      const items = painelRef.current?.querySelectorAll<HTMLElement>('a[href], button:not([disabled])')
+      if (!items?.length) return
+      const primeiro = items[0], ultimo = items[items.length - 1]
+      if (event.shiftKey && document.activeElement === primeiro) { event.preventDefault(); ultimo.focus() }
+      else if (!event.shiftKey && document.activeElement === ultimo) { event.preventDefault(); primeiro.focus() }
     }
+    document.addEventListener('keydown', keyboard)
+    return () => { document.body.style.overflow = anterior; document.removeEventListener('keydown', keyboard) }
+  }, [menu, fechar])
+  function pesquisar(event: React.FormEvent) {
+    event.preventDefault()
+    if (!termo.trim()) return
+    router.push('/pesquisa?q=' + encodeURIComponent(termo.trim()))
+    setBusca(false); setTermo('')
   }
-
-  return (
-    <header className="bg-hb-black border-b border-hb-gray sticky top-0 z-50">
-      
-      {/* 🚨 OVERLAY DE PESQUISA ELEGANTE (Abre por cima do Header) */}
-      {buscaAberta && (
-        <div className="absolute inset-0 bg-hb-black z-50 flex items-center px-4 md:px-6 animate-in fade-in slide-in-from-top-2 duration-300">
-          <form onSubmit={fazerPesquisa} className="flex items-center w-full max-w-6xl mx-auto border-b border-hb-gold pb-2">
-            <Search size={20} className="text-gray-500 mr-3 shrink-0" />
-            <input 
-              type="text"
-              autoFocus
-              value={termoBusca}
-              onChange={(e) => setTermoBusca(e.target.value)}
-              placeholder="Pesquisar joias..."
-              className="w-full outline-none text-sm md:text-base text-gray-200 bg-transparent placeholder-gray-600"
-            />
-            <button type="button" onClick={() => setBuscaAberta(false)} className="p-2 ml-2 shrink-0">
-              <X size={24} className="text-gray-500 hover:text-red-500 transition" />
-            </button>
-          </form>
-        </div>
-      )}
-
-      <div className="max-w-6xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between relative">
-        
-        {/* ESQUERDA: Menu Hambúrguer (Mobile) / Links (Desktop) */}
-        <div className="flex-1 flex items-center justify-start">
-          <button 
-            className="md:hidden text-gray-300 hover:text-hb-gold transition p-2 -ml-2"
-            onClick={() => setMenuAberto(true)}
-          >
-            <Menu size={24} />
-          </button>
-
-          <nav className="hidden md:flex gap-8 text-sm font-medium text-gray-400">
-            <Link href="/" className="hover:text-hb-gold transition duration-300">HOME</Link>
-            <Link href="/colecoes" className="hover:text-hb-gold transition duration-300">COLEÇÕES</Link>
-            <Link href="/sobre" className="hover:text-hb-gold transition duration-300">SOBRE</Link>
-          </nav>
-        </div>
-
-        {/* CENTRO: Logo Absoluta (Garante que nunca sairá do meio) */}
-        <Link href="/" className="absolute left-1/2 -translate-x-1/2 text-lg md:text-xl font-bold tracking-widest text-hb-gold whitespace-nowrap">
-          H&H IMPORTS
+  return <header className="sticky top-0 z-50 border-b border-hb-gray bg-hb-black text-gray-300">
+    <div className="relative max-w-6xl mx-auto h-16 px-3 sm:px-6 flex items-center gap-1 xl:gap-6">
+      <button ref={abrirRef} className={`${alvo} xl:hidden shrink-0`} aria-label="Abrir menu" aria-controls="menu-mobile" aria-expanded={menu} onClick={() => setMenu(true)}><Menu size={24} /></button>
+      <nav className="hidden xl:flex flex-1 min-w-0 gap-6 text-sm uppercase">{links.map(link => <Link key={link.href} href={link.href} className="min-h-11 inline-flex items-center hover:text-hb-gold">{link.nome}</Link>)}</nav>
+      <Link href="/" className="min-w-0 flex-1 xl:flex-none text-center text-sm sm:text-xl font-bold tracking-wide sm:tracking-widest text-hb-gold whitespace-nowrap">H&H IMPORTS</Link>
+      <div className="shrink-0 xl:flex-1 flex items-center justify-end">
+        <button className={alvo} aria-label="Pesquisar" aria-expanded={busca} onClick={() => setBusca(true)}><Search size={20} /></button>
+        {session ? <div className="hidden xl:flex items-center gap-1">
+          {session.user?.role === 'admin' && <Link className={`${alvo} text-red-400 px-2 gap-1 text-xs`} href="/admin"><Shield size={16} /> Admin</Link>}
+          <Link className={`${alvo} px-2 gap-2 text-xs`} href="/minha-conta"><User size={16} /><span className="max-w-24 truncate">Olá, {session.user?.name?.split(' ')[0]}</span></Link>
+          <button className={alvo} aria-label="Sair da conta" onClick={() => signOut()}><LogOut size={18} /></button>
+        </div> : <Link className={`${alvo} hidden xl:inline-flex`} href="/login" aria-label="Entrar na conta"><User size={20} /></Link>}
+        <Link className={`${alvo} relative`} href="/carrinho" aria-label={`Sacola de compras${hidratado ? `, ${quantidade} itens` : ''}`}><ShoppingBag size={20} />
+          {hidratado && quantidade > 0 && <span className="absolute right-0 top-1 grid place-items-center min-w-4 h-4 px-1 rounded-full bg-hb-gold text-hb-black text-[10px] font-bold">{quantidade}</span>}
         </Link>
-
-        {/* DIREITA: Ícones (Pesquisa, Usuário e Carrinho) */}
-        <div className="flex-1 flex items-center justify-end gap-3 md:gap-5 text-gray-300">
-          
-          {/* Lupa de Pesquisa (Visível Mobile e Desktop) */}
-          <button onClick={() => setBuscaAberta(true)} className="hover:text-hb-gold transition p-1">
-            <Search size={20} className="w-5 h-5 md:w-5 md:h-5" />
-          </button>
-          
-          {/* Controle de Usuário (Apenas Desktop - no Mobile vai pro Menu Lateral) */}
-          {session ? (
-            <div className="hidden md:flex items-center gap-4">
-              {isAdmin && (
-                <Link href="/admin" className="text-xs font-bold text-red-500 uppercase tracking-widest flex items-center gap-1 hover:text-red-400 transition">
-                  <Shield size={16} /> Admin
-                </Link>
-              )}
-              
-              <Link href="/minha-conta" className="text-xs font-medium text-gray-400 hover:text-hb-gold uppercase tracking-widest border-l border-hb-gray pl-4 ml-1 transition flex items-center gap-2">
-                <User size={14} /> Olá, {primeiroNome}
-              </Link>
-
-              <button onClick={() => signOut()} className="hover:text-hb-gold transition flex items-center gap-1 text-gray-500">
-                <LogOut size={16} />
-              </button>
-            </div>
-          ) : (
-            <Link href="/login" className="hidden md:block hover:text-hb-gold transition p-1">
-              <User size={20} className="w-5 h-5" />
-            </Link>
-          )}
-          
-          {/* Carrinho (Sempre Visível) */}
-          <Link href="/carrinho" className="hover:text-hb-gold transition relative p-1 ml-1 md:ml-2">
-            <ShoppingBag size={20} className="w-5 h-5 md:w-5 md:h-5" />
-            {montado && totalItens > 0 && (
-              <span className="absolute -top-1 -right-1 bg-hb-gold text-hb-black text-[9px] md:text-[10px] font-black w-4 h-4 md:w-4 md:h-4 rounded-full flex items-center justify-center animate-bounce shadow-md">
-                {totalItens}
-              </span>
-            )}
-          </Link>
-
-        </div>
       </div>
-
-      {/* MENU LATERAL (Mobile) */}
-      {menuAberto && <div className="fixed inset-0 bg-black/80 z-40 md:hidden transition-opacity" onClick={fecharMenu} />}
-      <div className={`fixed top-0 left-0 h-full w-[80%] max-w-[300px] bg-hb-black border-r border-hb-gray z-50 shadow-2xl transform transition-transform duration-300 ease-in-out md:hidden flex flex-col ${menuAberto ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="h-16 flex items-center justify-between px-6 border-b border-hb-gray">
-          <span className="font-bold tracking-widest text-lg text-hb-gold">MENU</span>
-          <button onClick={fecharMenu} className="text-gray-500 hover:text-hb-gold transition p-2 -mr-2"><X size={24} /></button>
-        </div>
-        <nav className="flex flex-col p-6 gap-6 text-sm font-medium text-gray-300 tracking-widest uppercase overflow-y-auto">
-          <Link href="/" onClick={fecharMenu} className="hover:text-hb-gold transition">Home</Link>
-          <Link href="/colecoes" onClick={fecharMenu} className="hover:text-hb-gold transition">Coleções</Link>
-          <Link href="/sobre" onClick={fecharMenu} className="hover:text-hb-gold transition">Sobre</Link>
-          
-          <div className="h-[1px] bg-hb-gray my-2"></div>
-          
-          {session ? (
-            <>
-              <Link href="/minha-conta" onClick={fecharMenu} className="hover:text-hb-gold transition flex items-center gap-3"><User size={18} /> Minha Conta</Link>
-              {isAdmin && <Link href="/admin" onClick={fecharMenu} className="text-red-500 hover:text-red-400 transition flex items-center gap-3"><Shield size={18} /> Painel Admin</Link>}
-              <button onClick={() => { signOut(); fecharMenu(); }} className="text-left text-gray-500 hover:text-hb-gold transition flex items-center gap-3"><LogOut size={18} /> Sair</button>
-            </>
-          ) : (
-            <Link href="/login" onClick={fecharMenu} className="hover:text-hb-gold transition flex items-center gap-3 text-hb-gold"><User size={18} /> Entrar / Cadastrar</Link>
-          )}
-        </nav>
-      </div>
-    </header>
-  )
+      {busca && <form onSubmit={pesquisar} className="absolute inset-0 z-10 bg-hb-black flex items-center gap-1 px-3 sm:px-6" onKeyDown={e => { if (e.key === 'Escape') setBusca(false) }}>
+        <Search size={20} className="shrink-0" />
+        <input autoFocus type="search" aria-label="Pesquisar joias" placeholder="Pesquisar joias..." value={termo} onChange={e => setTermo(e.target.value)} className="flex-1 min-w-0 bg-transparent border-b border-hb-gold py-3 text-base outline-none" />
+        <button type="submit" className={`${alvo} text-xs px-2`}>Buscar</button>
+        <button type="button" className={alvo} aria-label="Fechar pesquisa" onClick={() => setBusca(false)}><X size={22} /></button>
+      </form>}
+    </div>
+    {menu && <div className="fixed inset-0 bg-black/80 z-40 xl:hidden" onClick={fechar} />}
+    <div ref={painelRef} id="menu-mobile" role={menu ? 'dialog' : undefined} aria-modal={menu || undefined} aria-label="Menu principal" inert={!menu}
+      className={`fixed left-0 top-0 z-50 h-dvh w-[min(85vw,320px)] overflow-y-auto bg-hb-black border-r border-gray-800 shadow-xl xl:hidden transition-transform ${menu ? 'translate-x-0' : '-translate-x-full'}`}>
+      <div className="h-16 px-5 flex items-center justify-between border-b border-gray-800"><span className="text-hb-gold tracking-widest font-bold">MENU</span><button className={alvo} aria-label="Fechar menu" onClick={fechar}><X /></button></div>
+      <nav className="p-5 flex flex-col gap-2 uppercase text-sm tracking-wide">
+        {links.map(link => <Link key={link.href} href={link.href} onClick={fechar} className="min-h-11 flex items-center">{link.nome}</Link>)}
+        <div className="border-t border-gray-800 my-3" />
+        {session ? <><Link className="min-h-11 flex items-center gap-3" href="/minha-conta" onClick={fechar}><User size={18} />Minha conta</Link>
+          {session.user?.role === 'admin' && <Link className="min-h-11 flex items-center gap-3 text-red-400" href="/admin" onClick={fechar}><Shield size={18} />Painel admin</Link>}
+          <button className="min-h-11 flex items-center gap-3" onClick={() => { fechar(); signOut() }}><LogOut size={18} />Sair</button></> : <Link className="min-h-11 flex items-center text-hb-gold" href="/login" onClick={fechar}>Entrar / Cadastrar</Link>}
+      </nav>
+    </div>
+  </header>
 }

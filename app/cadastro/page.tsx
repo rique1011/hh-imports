@@ -42,7 +42,7 @@ export default function PaginaCadastro() {
       } else {
         alert(data?.error || "Erro ao criar conta. Tente novamente.")
       }
-    } catch (error) {
+    } catch {
       alert("Erro de conexão ao tentar contatar o servidor.")
     } finally {
       setCarregando(false)

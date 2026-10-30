@@ -1,19 +1,22 @@
 'use client'
+import Image from 'next/image'
+import type { Pedido, Usuario, Endereco } from '@/types/loja'
+import { mensagemErro } from '@/lib/erros'
 
 import { useState, useEffect } from 'react'
 import { Search, Loader2, ShoppingBag, Eye, Truck, CheckCircle2, X, User, MapPin, Phone, FileText } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin as supabase } from '@/lib/admin-client'
 
 export default function TelaPedidos() {
-  const [pedidos, setPedidos] = useState<any[]>([])
+  const [pedidos, setPedidos] = useState<Pedido[]>([])
   const [carregando, setCarregando] = useState(true)
   const [busca, setBusca] = useState('')
 
   const [modalAberta, setModalAberta] = useState(false)
-  const [pedidoSelecionado, setPedidoSelecionado] = useState<any>(null)
+  const [pedidoSelecionado, setPedidoSelecionado] = useState<Pedido | null>(null)
   
   // 🚨 NOVOS ESTADOS PARA OS DADOS DO CLIENTE
-  const [dadosCliente, setDadosCliente] = useState<any>(null)
+  const [dadosCliente, setDadosCliente] = useState<(Usuario & { enderecoParsed: Endereco | null }) | null>(null)
   const [carregandoCliente, setCarregandoCliente] = useState(false)
 
   const [novoStatus, setNovoStatus] = useState('')
@@ -41,7 +44,7 @@ export default function TelaPedidos() {
   }
 
   // 🚨 ATUALIZADO: Agora ele busca os dados do cliente ao abrir a modal
-  const abrirDetalhes = async (pedido: any) => {
+  const abrirDetalhes = async (pedido: Pedido) => {
     setPedidoSelecionado(pedido)
     setNovoStatus(pedido.status || 'pendente')
     setNovoRastreio(pedido.codigo_rastreio || '')
@@ -61,7 +64,7 @@ export default function TelaPedidos() {
           let enderecoParsed = null
           if (usuarioDb.endereco) {
             try { enderecoParsed = JSON.parse(usuarioDb.endereco) } 
-            catch (e) { enderecoParsed = { logradouro: usuarioDb.endereco } }
+            catch { enderecoParsed = { logradouro: usuarioDb.endereco } }
           }
           setDadosCliente({ ...usuarioDb, enderecoParsed })
         }
@@ -74,6 +77,7 @@ export default function TelaPedidos() {
 
   const handleSalvarAlteracoes = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!pedidoSelecionado) return
     setSalvando(true)
 
     try {
@@ -96,8 +100,8 @@ export default function TelaPedidos() {
         : "Pedido atualizado. A notificacao sera retomada pela fila automatica.")
       setModalAberta(false)
       carregarPedidos() 
-    } catch (error: any) {
-      alert("Erro ao atualizar pedido: " + error.message)
+    } catch (error) {
+      alert("Erro ao atualizar pedido: " + mensagemErro(error))
     } finally {
       setSalvando(false)
     }
@@ -125,7 +129,7 @@ export default function TelaPedidos() {
     <div className="text-gray-300 bg-hb-black min-h-screen">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
         <div>
-          <h1 className="text-3xl font-light text-white uppercase tracking-widest mb-2">Pedidos Realizados</h1>
+          <h1 className="text-2xl sm:text-3xl break-words font-light text-white uppercase tracking-widest mb-2">Pedidos Realizados</h1>
           <p className="text-sm text-gray-400">Gerencie as vendas, atualize status e insira códigos de rastreio.</p>
         </div>
         <div className="bg-hb-gray border border-gray-800 rounded-full px-4 py-2 flex items-center gap-2 shadow-sm w-full md:w-64">
@@ -197,7 +201,7 @@ export default function TelaPedidos() {
       {/* MODAL DE DETALHES DO PEDIDO (AGORA COM OS DADOS DO CLIENTE) */}
       {modalAberta && pedidoSelecionado && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-hb-gray border border-gray-800 rounded-2xl max-w-3xl w-full p-0 shadow-2xl relative max-h-[90vh] flex flex-col overflow-hidden text-white">
+          <div className="bg-hb-gray border border-gray-800 rounded-2xl max-w-3xl w-full p-0 shadow-2xl relative max-h-[90dvh] flex flex-col overflow-hidden text-white">
             
             <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-gray-900/50">
               <div>
@@ -281,9 +285,9 @@ export default function TelaPedidos() {
                 <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4">Itens Comprados</h3>
                 <div className="space-y-4">
                   {pedidoSelecionado.itens && Array.isArray(pedidoSelecionado.itens) ? (
-                    pedidoSelecionado.itens.map((item: any, idx: number) => (
+                    pedidoSelecionado.itens.map((item, idx) => (
                       <div key={idx} className="flex items-center gap-4 border border-gray-800 p-3 rounded-lg bg-hb-black">
-                        <img src={item.foto || 'https://via.placeholder.com/50'} className="w-12 h-12 object-cover rounded border border-gray-700 bg-neutral-900" alt="Produto" />
+                        <Image width={48} height={48} sizes="48px" src={item.foto || '/icon.svg'} className="w-12 h-12 object-cover rounded border border-gray-700 bg-neutral-900" alt="Produto" />
                         <div className="flex-1">
                           <p className="text-xs font-bold text-gray-200 uppercase">{item.nome}</p>
                           <p className="text-[10px] text-gray-500 font-medium mt-1">Quantidade: {item.quantidade || 1}</p>
@@ -311,13 +315,13 @@ export default function TelaPedidos() {
                       onChange={(e) => setNovoStatus(e.target.value)} 
                       className="w-full bg-gray-900 border border-gray-800 text-white p-3 rounded text-sm outline-none focus:border-hb-gold font-medium"
                     >
-                      <option value="pendente">Pendente / Aguardando</option>
+                      <option value="pendente" disabled>Pendente / Aguardando</option>
                       <option value="confirmado" disabled>Pagamento confirmado</option>
                       <option value="pago" disabled>Pago</option>
                       <option value="processando">Processando (Separando)</option>
                       <option value="enviado">Enviado (Em trânsito)</option>
                       <option value="entregue">Entregue</option>
-                      <option value="cancelado">Cancelado</option>
+                      <option value="cancelado" disabled>Cancelado</option>
                     </select>
                   </div>
                   <div>

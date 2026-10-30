@@ -1,46 +1,48 @@
 'use client'
+import Image from 'next/image'
+import type { SolicitacaoTroca } from '@/types/loja'
 
 import { useState, useEffect } from 'react'
 import { ShieldAlert, RefreshCcw, Search, Image as ImageIcon, Truck, Ticket, Loader2 } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin as supabase } from '@/lib/admin-client'
 
 export default function TelaDevolucoes() {
-  const [solicitacoes, setSolicitacoes] = useState<any[]>([])
+  const [solicitacoes, setSolicitacoes] = useState<SolicitacaoTroca[]>([])
   const [carregando, setCarregando] = useState(true)
   const [rastreioInput, setRastreioInput] = useState<{ [key: string]: string }>({})
   const [enviandoEmailId, setEnviandoEmailId] = useState<string | null>(null) // Para o ícone de carregando do botão
 
   useEffect(() => {
+    async function carregarTrocas() {
+      try {
+        // Puxamos a troca e cruzamos com a tabela de usuários para pegar nome e e-mail reais
+        const { data, error } = await supabase
+          .from('trocas')
+          .select('*, usuarios(nome, email)')
+          .order('criado_em', { ascending: false })
+
+        if (error) throw error
+
+        const trocasCompletas = (data || []).map(troca => ({
+          ...troca,
+          cliente: {
+            nome: troca.usuarios?.nome || 'Cliente H&H IMPORTS',
+            email: troca.usuarios?.email || '',
+            historico_trocas: 0 // (Opcional) Podemos cruzar dados reais depois
+          },
+          produto: { nome: 'Produto H&H IMPORTS', preco: 199.90 } // Preço genérico para a troca
+        }))
+
+        setSolicitacoes(trocasCompletas)
+      } catch (error) {
+        console.error("Erro ao carregar trocas:", error)
+      } finally {
+        setCarregando(false)
+      }
+    }
+
     carregarTrocas()
   }, [])
-
-  async function carregarTrocas() {
-    try {
-      // Puxamos a troca e cruzamos com a tabela de usuários para pegar nome e e-mail reais
-      const { data, error } = await supabase
-        .from('trocas')
-        .select('*, usuarios(nome, email)')
-        .order('criado_em', { ascending: false })
-
-      if (error) throw error
-
-      const trocasCompletas = (data || []).map(troca => ({
-        ...troca,
-        cliente: { 
-          nome: troca.usuarios?.nome || 'Cliente H&H IMPORTS',
-          email: troca.usuarios?.email || '',
-          historico_trocas: 0 // (Opcional) Podemos cruzar dados reais depois
-        },
-        produto: { nome: 'Produto H&H IMPORTS', preco: 199.90 } // Preço genérico para a troca
-      }))
-
-      setSolicitacoes(trocasCompletas)
-    } catch (error) {
-      console.error("Erro ao carregar trocas:", error)
-    } finally {
-      setCarregando(false)
-    }
-  }
 
   const atualizarStatus = async (id: string, novoStatus: string) => {
     try {
@@ -48,7 +50,7 @@ export default function TelaDevolucoes() {
       if (error) throw error
       setSolicitacoes(solicitacoes.map(s => s.id === id ? { ...s, status: novoStatus } : s))
       alert(`Status atualizado para: ${novoStatus.toUpperCase()}`)
-    } catch (error) {
+    } catch {
       alert("Erro ao atualizar status.")
     }
   }
@@ -79,7 +81,7 @@ export default function TelaDevolucoes() {
       
       setSolicitacoes(solicitacoes.map(s => s.id === id ? { ...s, status: 'aguardando_retorno' } : s))
       alert(`Logística Reversa gerada! O código foi enviado para o e-mail do cliente.`)
-    } catch (error) {
+    } catch {
       alert("Erro ao salvar rastreio e notificar cliente.")
     } finally {
       setEnviandoEmailId(null)
@@ -107,7 +109,7 @@ export default function TelaDevolucoes() {
       setSolicitacoes(solicitacoes.map(s => s.id === id ? { ...s, status: 'concluido' } : s))
       alert(`Cupom ${codigoCupom} no valor de R$ ${valorComBonus.toFixed(2)} gerado com sucesso!`)
       
-    } catch (error) {
+    } catch {
       alert("Erro ao gerar cupom.")
     }
   }
@@ -116,7 +118,7 @@ export default function TelaDevolucoes() {
     <div className="text-gray-300 bg-hb-black min-h-screen">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
         <div>
-          <h1 className="text-3xl font-light text-white uppercase tracking-widest mb-2">Central de Trocas</h1>
+          <h1 className="text-2xl sm:text-3xl break-words font-light text-white uppercase tracking-widest mb-2">Central de Trocas</h1>
           <p className="text-sm text-gray-400">Aprove devoluções, gere logística reversa e emita cupons de crédito.</p>
         </div>
         <div className="bg-hb-gray border border-gray-800 rounded-full px-4 py-2 flex items-center gap-2 shadow-sm w-full md:w-auto">
@@ -160,7 +162,7 @@ export default function TelaDevolucoes() {
                 {solicitacao.foto_url ? (
                   <a href={solicitacao.foto_url} target="_blank" rel="noopener noreferrer" className="group flex flex-col items-center gap-2 cursor-pointer">
                     <div className="w-16 h-16 rounded-lg overflow-hidden border border-gray-700 bg-hb-black relative flex items-center justify-center">
-                      <img src={solicitacao.foto_url} alt="Item" className="w-full h-full object-cover group-hover:opacity-40 transition duration-300" />
+                      <Image width={64} height={64} sizes="64px" src={solicitacao.foto_url} alt="Item" className="w-full h-full object-cover group-hover:opacity-40 transition duration-300" />
                       <ImageIcon size={16} className="absolute m-auto text-hb-gold opacity-0 group-hover:opacity-100 transition" />
                     </div>
                     <span className="text-[9px] font-bold uppercase tracking-widest text-hb-gold group-hover:text-hb-goldLight">Ver Foto</span>

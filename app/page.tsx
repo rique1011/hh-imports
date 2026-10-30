@@ -1,3 +1,5 @@
+import type { Produto } from '@/types/loja'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import Link from 'next/link'
 import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
@@ -6,27 +8,20 @@ import { ArrowRight, ShieldCheck, Truck, Gem, Ticket } from 'lucide-react'
 export const revalidate = 0
 
 export default async function Home() {
-  const { data: produtos } = await supabase
-    .from('produtos')
-    .select('*')
-    .order('criado_em', { ascending: false })
-    .limit(12)
+  const [{ data: produtos }, { data: cupons }] = await Promise.all([
+    supabase.from('produtos').select('id,nome,slug,preco,fotos,material,estoque,estoque_reservado')
+      .order('criado_em', { ascending: false }).limit(12),
+    getSupabaseAdmin().from('cupons').select('codigo,desconto').eq('ativo', true).is('usuario_id', null).gt('desconto', 0)
+      .order('desconto', { ascending: false }).limit(1),
+  ])
 
-  const { data: cupons } = await supabase
-    .from('cupons')
-    .select('*')
-    .eq('ativo', true)
-    .gt('desconto', 0)
-    .order('desconto', { ascending: false })
-    .limit(1)
-    
   const cupomDestaque = cupons?.[0] || null
 
   const destaques = produtos?.slice(0, 4) || []
   const lancamentos = produtos?.slice(4, 8).length ? produtos?.slice(4, 8) : destaques
   const maisVendidos = produtos?.slice(8, 12).length ? produtos?.slice(8, 12) : destaques
 
-  const renderVitrine = (titulo: string, lista: any[], corFundo: string, idSecao: string) => (
+  const renderVitrine = (titulo: string, lista: Pick<Produto, 'id' | 'nome' | 'slug' | 'preco' | 'fotos' | 'material'>[], corFundo: string, idSecao: string) => (
     <section id={idSecao} className={`${corFundo} py-12 md:py-24 border-b border-hb-gray`}>
       <div className="max-w-6xl mx-auto px-4 md:px-6">
         

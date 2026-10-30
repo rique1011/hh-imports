@@ -67,7 +67,7 @@ async function setup(t, idType) {
     create: async (cashback = 0, total = 100) => {
       const result = await client.rpc('hh_criar_pedido', {
         p_email: email, p_nome: 'Cliente', p_total: total,
-        p_itens: [{ nome: 'Joia', quantidade: 1 }], p_cashback: cashback,
+        p_itens: [{ id: sku, nome: 'Joia', preco: 100, quantidade: 1 }], p_cashback: cashback,
       })
       assert.equal(result.error, null)
       return result.data
@@ -260,8 +260,31 @@ test('descontos arbitrarios nao criam venda gratuita; ofertas usam cupom real e 
   assert.equal((await s.db.query('SELECT count(*)::int AS n FROM pedidos')).rows[0].n, 0)
   assert.equal((await s.checkout.POST(request('BEMVINDO10'))).status, 200)
   assert.equal(s.getPreference().items[0].unit_price, 90)
-  await s.db.exec("INSERT INTO cupons VALUES('PROMO20',20,true)")
+  await s.db.exec("INSERT INTO cupons(codigo,desconto,ativo) VALUES('PROMO20',20,true)")
   assert.equal((await s.checkout.POST(request('OFERTA25'))).status, 200)
   assert.equal(s.getPreference().items[0].unit_price, 75)
 })
 
+
+test('checkout ignora frete adulterado e exige cotação assinada para o CEP do cadastro', async t => {
+  const s = await setup(t)
+  await s.db.exec("ALTER TABLE usuarios ADD COLUMN endereco text; UPDATE usuarios SET endereco='{\"cep\":\"01310100\"}'; UPDATE produtos SET preco=50")
+  const { assinarCotacao } = loadTs('lib/frete.ts')
+  const request = token => new Request('https://loja.example.test/api/checkout', { method: 'POST', body: JSON.stringify({
+    itens: [{ id: sku, quantidade: 1 }], frete: 0, freteToken: token,
+  }) })
+  assert.equal((await s.checkout.POST(request(undefined))).status, 400)
+  assert.equal((await s.checkout.POST(request(assinarCotacao('99999999', 17.37)))).status, 400)
+  assert.equal((await s.checkout.POST(request(assinarCotacao('01310100', 17.37)))).status, 200)
+  assert.equal(s.getPreference().items[0].unit_price, 67.37)
+})
+
+test('cupom de outra pessoa não é utilizável e checkout sem estoque retorna conflito', async t => {
+  const s = await setup(t)
+  await s.db.exec("INSERT INTO cupons(codigo,desconto,usuario_id) VALUES('PRIVADO',40,gen_random_uuid())")
+  const request = codigoCupom => new Request('https://loja.example.test/api/checkout', { method: 'POST', body: JSON.stringify({ itens: [{ id: sku, quantidade: 1 }], codigoCupom }) })
+  assert.equal((await s.checkout.POST(request('PRIVADO'))).status, 400)
+  await s.db.exec('UPDATE produtos SET estoque=0')
+  assert.equal((await s.checkout.POST(request(null))).status, 409)
+  assert.equal((await s.db.query('SELECT count(*)::int AS n FROM pedidos')).rows[0].n, 0)
+})

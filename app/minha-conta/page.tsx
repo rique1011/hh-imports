@@ -1,9 +1,9 @@
-// teste de alteracao
 'use client'
+import Image from 'next/image'
 
 import { useSession, signOut } from 'next-auth/react' 
-import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link' 
 import { 
   User, Package, Heart, Loader2, Lock, 
@@ -11,17 +11,20 @@ import {
   AlertCircle, CheckCircle2, Truck, DollarSign, Sparkles, MapPin, CreditCard, Receipt, Gift
 } from 'lucide-react'
 import { useCart } from '@/lib/store'
-import { supabase } from '@/lib/supabase'
+import { uploadImagem } from '@/lib/upload-imagem'
+import type { Identificador, Pedido, ItemPedido } from '@/types/loja'
+import { mensagemErro } from '@/lib/erros'
 
-export default function MinhaConta() {
+function ConteudoMinhaConta() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const searchParams = useSearchParams()
   
-  const [abaAtiva, setAbaAtiva] = useState('pedidos')
+  const [abaAtiva, setAbaAtiva] = useState(() => searchParams.get('aba') || 'pedidos')
   
-  const [pedidos, setPedidos] = useState<any[]>([])
-  const [carregandoPedidos, setCarregandoPedidos] = useState(false)
-  const { wishlist, toggleWishlist, adicionarAoCarrinho } = useCart() as any
+  const [pedidos, setPedidos] = useState<Pedido[]>([])
+  const [carregandoPedidos, setCarregandoPedidos] = useState(true)
+  const { wishlist, toggleWishlist, adicionarAoCarrinho } = useCart()
   
   const [form, setForm] = useState({ cpf_cnpj: '', whatsapp: '', data_nascimento: '' })
   const [endereco, setEndereco] = useState({ cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '' })
@@ -34,33 +37,22 @@ export default function MinhaConta() {
   const [carregando, setCarregando] = useState(true)
   const [salvando, setSalvando] = useState(false)
   
-  const [carregandoPagamentoId, setCarregandoPagamentoId] = useState<string | null>(null)
-  const [pedidoExpandido, setPedidoExpandido] = useState<string | null>(null)
+  const [carregandoPagamentoId, setCarregandoPagamentoId] = useState<Identificador | null>(null)
+  const [pedidoExpandido, setPedidoExpandido] = useState<Identificador | null>(null)
 
   const [modalAberta, setModalAberta] = useState(false)
-  const [itemSelecionado, setItemSelecionado] = useState<any>(null)
-  const [pedidoIdSelecionado, setPedidoIdSelecionado] = useState('')
+  const [itemSelecionado, setItemSelecionado] = useState<ItemPedido | null>(null)
+  const [pedidoIdSelecionado, setPedidoIdSelecionado] = useState<Identificador>('')
   const [motivo, setMotivo] = useState('arrependimento')
   const [fotoArquivo, setFotoArquivo] = useState<File | null>(null)
   const [carregandoTroca, setCarregandoTroca] = useState(false)
   const [mensagemSucesso, setMensagemSucesso] = useState('')
   const [erroTroca, setErroTroca] = useState('')
 
-  const [mostrarErros, setMostrarErros] = useState(false)
+  const [mostrarErros] = useState(() => searchParams.get('alerta') === 'campos_vazios')
 
   // Novo estado para controlar itens que já tiveram troca solicitada na sessão atual
   const [itensComTrocaSolicitada, setItensComTrocaSolicitada] = useState<string[]>([])
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search)
-      const aba = urlParams.get('aba')
-      const alerta = urlParams.get('alerta')
-      
-      if (aba) setAbaAtiva(aba)
-      if (alerta === 'campos_vazios') setMostrarErros(true)
-    }
-  }, [])
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -69,8 +61,12 @@ export default function MinhaConta() {
     }
 
     if (status === 'authenticated') {
-      fetch('/api/usuario')
-        .then(res => res.json())
+      const controller = new AbortController()
+      fetch('/api/usuario', { signal: controller.signal })
+        .then(res => {
+          if (!res.ok) throw new Error('Não foi possível carregar seu cadastro.')
+          return res.json()
+        })
         .then(data => {
           setForm({ 
             cpf_cnpj: data.cpf_cnpj || '', 
@@ -89,20 +85,25 @@ export default function MinhaConta() {
             try { 
               const endParsed = JSON.parse(data.endereco)
               setEndereco(endParsed) 
-            } catch (e) { 
+            } catch {
               setEndereco(prev => ({ ...prev, logradouro: data.endereco })) 
             }
           }
-          setCarregando(false)
         })
+        .catch(error => { if (!controller.signal.aborted) console.error(error) })
+        .finally(() => { if (!controller.signal.aborted) setCarregando(false) })
 
-      setCarregandoPedidos(true)
-      fetch('/api/pedidos')
-        .then(res => res.json())
+      fetch('/api/pedidos', { signal: controller.signal })
+        .then(res => {
+          if (!res.ok) throw new Error('Não foi possível carregar seus pedidos.')
+          return res.json()
+        })
         .then(data => {
           setPedidos(Array.isArray(data) ? data : [])
-          setCarregandoPedidos(false)
         })
+        .catch(error => { if (!controller.signal.aborted) console.error(error) })
+        .finally(() => { if (!controller.signal.aborted) setCarregandoPedidos(false) })
+      return () => controller.abort()
     }
   }, [status, router])
 
@@ -123,7 +124,7 @@ export default function MinhaConta() {
     }
   }
 
-  const handleSalvar = async (e: any) => {
+  const handleSalvar = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (mostrarErros) {
@@ -135,7 +136,8 @@ export default function MinhaConta() {
 
     setSalvando(true)
     try {
-      await fetch('/api/usuario', { method: 'POST', body: JSON.stringify({ ...form, endereco: JSON.stringify(endereco) }) })
+      const response = await fetch('/api/usuario', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, endereco: JSON.stringify(endereco) }) })
+      if (!response.ok) throw new Error('Não foi possível salvar seu cadastro.')
       if (form.cpf_cnpj) setPodeEditarCPF(false)
       
       alert("Perfil atualizado com sucesso!")
@@ -144,14 +146,14 @@ export default function MinhaConta() {
         router.push('/carrinho')
       }
       
-    } catch (error) {
+    } catch {
       alert("Erro ao salvar dados.")
     } finally {
       setSalvando(false)
     }
   }
 
-  const pagarPedidoPendente = async (pedidoId: string) => {
+  const pagarPedidoPendente = async (pedidoId: Identificador) => {
     setCarregandoPagamentoId(pedidoId)
     try {
       const res = await fetch('/api/pedidos/pagar', {
@@ -159,9 +161,9 @@ export default function MinhaConta() {
       })
       const dados = await res.json()
       if (!res.ok) throw new Error(dados.error || "Erro ao gerar link de pagamento")
-      if (dados.urlPagamento) window.location.href = dados.urlPagamento
-    } catch (error: any) {
-      alert(error.message || "Erro ao abrir o pagamento.")
+      if (dados.urlPagamento) window.location.assign(dados.urlPagamento)
+    } catch (error) {
+      alert(mensagemErro(error, "Erro ao abrir o pagamento."))
     } finally {
       setCarregandoPagamentoId(null)
     }
@@ -185,17 +187,18 @@ export default function MinhaConta() {
     return nivel
   }
 
-  const toggleDetalhes = (id: string) => {
+  const toggleDetalhes = (id: Identificador) => {
     setPedidoExpandido(prev => prev === id ? null : id)
   }
 
-  const abrirModalTroca = (pedidoId: string, item: any) => {
+  const abrirModalTroca = (pedidoId: Identificador, item: ItemPedido) => {
     setPedidoIdSelecionado(pedidoId); setItemSelecionado(item); setMotivo('arrependimento');
     setFotoArquivo(null); setMensagemSucesso(''); setErroTroca(''); setModalAberta(true);
   }
 
   const enviarSolicitacaoTroca = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!itemSelecionado) return
     setCarregandoTroca(true); setErroTroca('')
 
     if (motivo === 'defeito' && !fotoArquivo) {
@@ -207,12 +210,7 @@ export default function MinhaConta() {
     try {
       let urlFoto = null
       if (fotoArquivo) {
-        const extensao = fotoArquivo.name.split('.').pop()
-        const nomeArquivo = `trocas/${Math.random().toString(36).substring(2)}-${Date.now()}.${extensao}`
-        const { error: uploadError } = await supabase.storage.from('joias').upload(nomeArquivo, fotoArquivo)
-        if (uploadError) throw uploadError
-        const { data: publicUrlData } = supabase.storage.from('joias').getPublicUrl(nomeArquivo)
-        urlFoto = publicUrlData.publicUrl
+        urlFoto = await uploadImagem(fotoArquivo, 'trocas')
       }
 
       // Adicionamos o ID do produto real aqui
@@ -221,7 +219,6 @@ export default function MinhaConta() {
         body: JSON.stringify({ 
           pedidoId: pedidoIdSelecionado, 
           produtoId: itemSelecionado.id, 
-          usuarioId: (session?.user as any)?.id || null, 
           motivo, 
           // 👇 A MÁGICA AQUI: Se não tem foto do defeito, manda a foto do produto!
           fotoUrl: urlFoto || itemSelecionado.foto, 
@@ -238,8 +235,8 @@ export default function MinhaConta() {
       setItensComTrocaSolicitada(prev => [...prev, `${pedidoIdSelecionado}-${itemSelecionado.id}`])
 
       setTimeout(() => { setModalAberta(false); setMensagemSucesso(''); }, 5000)
-    } catch (err: any) {
-      setErroTroca(err.message || 'Ocorreu um erro ao processar sua solicitação.')
+    } catch (err) {
+      setErroTroca(mensagemErro(err, 'Ocorreu um erro ao processar sua solicitação.'))
     } finally {
       setCarregandoTroca(false)
     }
@@ -331,7 +328,7 @@ export default function MinhaConta() {
                         {mostrarErros && !form.cpf_cnpj && <span className="text-red-500">* Obrigatório</span>}
                       </label>
                       <input 
-                        value={form.cpf_cnpj} 
+                        inputMode="numeric" autoComplete="off" aria-label="CPF ou CNPJ" value={form.cpf_cnpj}
                         onChange={(e) => setForm({...form, cpf_cnpj: e.target.value})} 
                         disabled={!podeEditarCPF} 
                         className={`w-full border p-3 rounded text-base md:text-sm bg-transparent text-white focus:outline-none focus:border-hb-gold transition-colors ${!podeEditarCPF ? 'bg-gray-900/50 text-gray-500 border-gray-800' : (mostrarErros && !form.cpf_cnpj ? 'border-red-500 bg-red-900/10' : 'border-gray-700')}`} 
@@ -344,7 +341,7 @@ export default function MinhaConta() {
                         {mostrarErros && !form.whatsapp && <span className="text-red-500">* Obrigatório</span>}
                       </label>
                       <input 
-                        value={form.whatsapp} 
+                        type="tel" inputMode="tel" autoComplete="tel" aria-label="WhatsApp" value={form.whatsapp}
                         onChange={(e) => setForm({...form, whatsapp: e.target.value})} 
                         className={`w-full border p-3 rounded text-base md:text-sm bg-transparent text-white focus:outline-none focus:border-hb-gold transition-colors ${mostrarErros && !form.whatsapp ? 'border-red-500 bg-red-900/10' : 'border-gray-700'}`} 
                         placeholder="(00) 00000-0000" 
@@ -363,7 +360,7 @@ export default function MinhaConta() {
                         {mostrarErros && !endereco.cep && <span className="text-red-500">* Obrigatório</span>}
                       </label>
                       <input 
-                        value={endereco.cep} 
+                        inputMode="numeric" autoComplete="postal-code" aria-label="CEP" value={endereco.cep}
                         onChange={(e) => buscarCep(e.target.value)} 
                         className={`w-full border p-3 rounded text-base md:text-sm bg-transparent text-white focus:outline-none focus:border-hb-gold transition-colors ${mostrarErros && !endereco.cep ? 'border-red-500 bg-red-900/10' : 'border-gray-700'}`} 
                         placeholder="00000-000" 
@@ -389,7 +386,7 @@ export default function MinhaConta() {
                         {mostrarErros && !endereco.numero && <span className="text-red-500">* Obrigatório</span>}
                       </label>
                       <input 
-                        value={endereco.numero} 
+                        inputMode="numeric" autoComplete="address-line2" value={endereco.numero}
                         onChange={(e) => setEndereco({...endereco, numero: e.target.value})} 
                         className={`w-full border p-3 rounded text-base md:text-sm bg-transparent text-white focus:outline-none focus:border-hb-gold transition-colors ${mostrarErros && !endereco.numero ? 'border-red-500 bg-red-900/10' : 'border-gray-700'}`} 
                       />
@@ -463,9 +460,9 @@ export default function MinhaConta() {
                         
                         {/* CORPO DO PEDIDO */}
                         <div className="p-4 md:p-6 bg-hb-black">
-                          {pedido.itens?.map((item: any, idx: number) => (
+                          {pedido.itens?.map((item, idx) => (
                             <div key={idx} className="flex flex-col sm:flex-row gap-4 md:gap-6 border-b border-gray-800 pb-5 md:pb-6 mb-5 md:mb-6 last:border-0 last:pb-0 last:mb-0">
-                              <img src={item.foto} className="w-20 h-20 md:w-24 md:h-24 object-cover border border-gray-800 rounded shrink-0" />
+                              <Image width={96} height={96} sizes="96px" alt={item.nome} src={item.foto || '/icon.svg'} className="w-20 h-20 md:w-24 md:h-24 object-cover border border-gray-800 rounded shrink-0" />
                               <div className="flex-1">
                                 <h3 className="text-xs md:text-sm font-medium text-white uppercase tracking-wide leading-relaxed line-clamp-2">{item.nome}</h3>
                                 <p className="text-[10px] md:text-xs text-gray-400 mt-1 md:mt-2">{item.quantidade} un - R$ {Number(item.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
@@ -606,13 +603,13 @@ export default function MinhaConta() {
                       </div>
                       <div className="p-4 md:p-5">
                         <div className="space-y-4">
-                          {pedido.itens?.map((item: any, idx: number) => {
+                          {pedido.itens?.map((item, idx) => {
                             // 🚨 NOVA TRAVA VISUAL: Verifica se a troca já foi solicitada
                             const jaSolicitouTroca = item.troca_solicitada || itensComTrocaSolicitada.includes(`${pedido.id}-${item.id}`)
 
                             return (
                               <div key={`troca-item-${idx}`} className="flex items-center gap-3 md:gap-4 border-b border-gray-800 pb-4 last:border-0 last:pb-0">
-                                <img src={item.foto} className="w-10 h-10 md:w-12 md:h-12 object-cover rounded border border-gray-800 shrink-0" />
+                                <Image width={96} height={96} sizes="96px" alt={item.nome} src={item.foto || '/icon.svg'} className="w-10 h-10 md:w-12 md:h-12 object-cover rounded border border-gray-800 shrink-0" />
                                 <div className="flex-1 min-w-0"><p className="text-[10px] md:text-xs font-bold text-gray-200 uppercase tracking-tight truncate">{item.nome}</p></div>
                                 
                                 {jaSolicitouTroca ? (
@@ -644,9 +641,9 @@ export default function MinhaConta() {
                 <div className="text-center py-12"><Heart size={40} className="mx-auto text-gray-800 mb-4 md:w-12 md:h-12" /><p className="text-gray-500 uppercase text-[10px] font-bold tracking-widest">Sua lista está vazia.</p></div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
-                  {wishlist.map((item: any) => (
+                  {wishlist.map((item) => (
                     <div key={item.id} className="flex gap-3 md:gap-4 p-3 md:p-4 border border-gray-800 rounded-xl hover:border-gray-700 transition">
-                      <img src={item.foto} className="w-16 h-16 md:w-20 md:h-20 object-cover rounded-lg border border-gray-800 shrink-0" />
+                      <Image width={96} height={96} sizes="96px" alt={item.nome} src={item.foto || '/icon.svg'} className="w-16 h-16 md:w-20 md:h-20 object-cover rounded-lg border border-gray-800 shrink-0" />
                       <div className="flex flex-col justify-between flex-1 min-w-0">
                         <div>
                           <h3 className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-white truncate">{item.nome}</h3>
@@ -680,7 +677,7 @@ export default function MinhaConta() {
                 <div>
                   <p className="text-[9px] md:text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Item</p>
                   <div className="flex items-center gap-3 p-3 bg-gray-900 rounded border border-gray-800">
-                    <img src={itemSelecionado?.foto} className="w-10 h-10 object-cover rounded border border-gray-700 shrink-0" />
+                    <Image width={96} height={96} sizes="96px" alt={itemSelecionado?.nome || "Produto"} src={itemSelecionado?.foto || '/icon.svg'} className="w-10 h-10 object-cover rounded border border-gray-700 shrink-0" />
                     <p className="text-[10px] md:text-xs font-bold text-white uppercase truncate">{itemSelecionado?.nome}</p>
                   </div>
                 </div>
@@ -708,4 +705,8 @@ export default function MinhaConta() {
       )}
     </main>
   )
+}
+
+export default function MinhaConta() {
+  return <Suspense fallback={<div className="min-h-[70vh] grid place-items-center"><Loader2 className="animate-spin text-hb-gold" /></div>}><ConteudoMinhaConta /></Suspense>
 }

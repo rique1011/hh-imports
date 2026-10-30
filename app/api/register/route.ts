@@ -1,5 +1,6 @@
+import { mensagemErro } from '@/lib/erros'
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase' // Usa o cliente tratado
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import bcrypt from 'bcryptjs'
 import nodemailer from 'nodemailer'
 
@@ -14,6 +15,7 @@ const transporter = nodemailer.createTransport({
 
 export async function POST(request: Request) {
   try {
+    const supabase = getSupabaseAdmin()
     const { nome, email, senha } = await request.json()
 
     if (!nome || !email || !senha) {
@@ -123,8 +125,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ sucesso: true })
 
-  } catch (error: any) {
+  } catch (error) {
     console.error("Erro crítico no registro:", error)
-    return NextResponse.json({ error: error?.message || 'Erro ao criar conta no servidor.' }, { status: 500 })
+    return NextResponse.json({ error: mensagemErro(error, 'Erro ao criar conta no servidor.') }, { status: 500 })
   }
 }

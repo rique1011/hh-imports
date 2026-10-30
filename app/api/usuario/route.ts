@@ -1,46 +1,36 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from "next-auth"
-import { supabase } from '@/lib/supabase'
+import { exigirUsuario, validarOrigem, responderErro, ErroHttp } from '@/lib/autorizacao'
 
-// 1. BUSCAR DADOS DO USUÁRIO
-export async function GET() {
-  const session = await getServerSession()
-  if (!session?.user?.email) {
-    return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
-  }
+export const dynamic = 'force-dynamic'
+const CAMPOS = 'id,nome,email,cpf_cnpj,whatsapp,data_nascimento,endereco,saldo_cashback,created_at,perfil,role'
 
-  // Puxa todas as colunas (incluindo a nova coluna 'role', saldo_cashback e created_at)
-  const { data, error } = await supabase
-    .from('usuarios')
-    .select('*')
-    .eq('email', session.user.email)
-    .single()
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
+export async function GET(request: Request) {
+  try {
+    const user = await exigirUsuario(request)
+    const [{ data, error }, { count, error: ordersError }] = await Promise.all([
+      user.db.from('usuarios').select(CAMPOS).eq('id', user.id).single(),
+      user.db.from('pedidos').select('id', { count: 'exact', head: true }).eq('cliente_email', user.email),
+    ])
+    if (error || ordersError) throw error || ordersError
+    return NextResponse.json({ ...data, possui_pedidos: Boolean(count) }, { headers: { 'Cache-Control': 'private, no-store' } })
+  } catch (error) { return responderErro(error) }
 }
 
-// 2. ATUALIZAR DADOS DO USUÁRIO
 export async function POST(request: Request) {
-  const session = await getServerSession()
-  if (!session?.user?.email) {
-    return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
-  }
-
   try {
+    validarOrigem(request)
+    const user = await exigirUsuario(request)
     const body = await request.json()
-    const { cpf_cnpj, whatsapp, data_nascimento, endereco } = body
-
-    // 🔒 BLINDAGEM DE SEGURANÇA: Atualizamos estritamente as colunas de cadastro do cliente.
-    // Isso impede que qualquer requisição externa altere o campo 'role' diretamente.
-    const { error } = await supabase
-      .from('usuarios')
-      .update({ cpf_cnpj, whatsapp, data_nascimento, endereco })
-      .eq('email', session.user.email)
-
+    const campos = ['cpf_cnpj','whatsapp','data_nascimento','endereco'] as const
+    const update: Record<string, string> = {}
+    for (const campo of campos) {
+      if (typeof body[campo] !== 'string' || body[campo].length > (campo === 'endereco' ? 2000 : 100)) {
+        throw new ErroHttp(400, 'Dados de cadastro inválidos.')
+      }
+      update[campo] = body[campo]
+    }
+    const { error } = await user.db.from('usuarios').update(update).eq('id', user.id)
     if (error) throw error
     return NextResponse.json({ sucesso: true })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
+  } catch (error) { return responderErro(error) }
 }

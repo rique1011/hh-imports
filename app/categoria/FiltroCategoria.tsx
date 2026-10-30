@@ -1,17 +1,19 @@
 'use client'
+import Image from 'next/image'
+import type { Produto } from '@/types/loja'
 
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { SlidersHorizontal, X, ChevronRight } from 'lucide-react'
 
 // Recebe os produtos já carregados pelo servidor
-export default function FiltroCategoria({ produtosOriginais, tituloCategoria }: { produtosOriginais: any[], tituloCategoria: string }) {
+export default function FiltroCategoria({ produtosOriginais, tituloCategoria }: { produtosOriginais: Produto[], tituloCategoria: string }) {
   const [filtroMaterial, setFiltroMaterial] = useState('')
   const [filtroPreco, setFiltroPreco] = useState(10000)
 
   // Identifica os materiais existentes
   const materiaisDisponiveis = useMemo(() => {
-    const lista = produtosOriginais.map(p => p.material).filter(Boolean)
+    const lista = produtosOriginais.map(p => p.material).filter((material): material is string => Boolean(material))
     return Array.from(new Set(lista))
   }, [produtosOriginais])
 
@@ -50,7 +52,7 @@ export default function FiltroCategoria({ produtosOriginais, tituloCategoria }: 
             <div>
               <h3 className="text-[10px] font-black text-gray-400 uppercase mb-4 tracking-widest">Material</h3>
               <div className="flex flex-col gap-2">
-                {materiaisDisponiveis.map((m: any) => (
+                {materiaisDisponiveis.map((m) => (
                   <button
                     key={m}
                     onClick={() => setFiltroMaterial(filtroMaterial === m ? '' : m)}
@@ -73,7 +75,7 @@ export default function FiltroCategoria({ produtosOriginais, tituloCategoria }: 
               <span className="text-xs font-bold">R$ {filtroPreco}</span>
             </div>
             <input 
-              type="range" min="0" max="10000" step="50"
+              type="range" aria-label="Preço máximo" min="0" max="10000" step="50"
               value={filtroPreco}
               onChange={(e) => setFiltroPreco(Number(e.target.value))}
               className="w-full h-1 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-black"
@@ -92,7 +94,7 @@ export default function FiltroCategoria({ produtosOriginais, tituloCategoria }: 
         </aside>
 
         {/* LISTAGEM DE PRODUTOS */}
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           {produtosFiltrados.length === 0 ? (
             <div className="text-center text-gray-500 py-20 border border-dashed rounded-xl">
               <p className="text-sm font-light mb-4">Nenhum item encontrado com estes filtros.</p>
@@ -109,23 +111,23 @@ export default function FiltroCategoria({ produtosOriginais, tituloCategoria }: 
                 <Link 
                   href={`/produto/${produto.slug}`} 
                   key={produto.id} 
-                  className="group flex flex-col"
+                  className="group flex flex-col min-w-0"
                 >
                   <div className="relative w-full aspect-square bg-gray-50 overflow-hidden mb-4 border border-gray-100">
                     {produto.fotos && produto.fotos.length > 0 ? (
-                      <img 
+                      <Image width={600} height={750} sizes="(max-width: 768px) 50vw, 25vw"
                         src={produto.fotos[0]} 
                         alt={produto.nome} 
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                        loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs italic">Sem imagem</div>
                     )}
                   </div>
 
-                  <div className="flex flex-col items-center text-center px-2">
+                  <div className="flex flex-col items-center text-center px-2 min-w-0">
                     <p className="text-[9px] text-gray-400 uppercase font-bold mb-1 tracking-widest">{produto.material}</p>
-                    <h2 className="text-sm font-medium text-gray-700 uppercase tracking-wide group-hover:text-black transition">
+                    <h2 className="text-sm max-w-full break-words font-medium text-gray-700 uppercase tracking-wide group-hover:text-black transition">
                       {produto.nome}
                     </h2>
                     <p className="text-base font-bold text-gray-900 mt-2">

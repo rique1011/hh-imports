@@ -33,7 +33,7 @@ function FormularioVerificacao() {
         alert('Conta verificada com sucesso! Faça login para continuar.')
         router.push('/login')
       }
-    } catch (err) {
+    } catch {
       setErro('Erro de conexão. Tente novamente.')
     } finally {
       setCarregando(false)

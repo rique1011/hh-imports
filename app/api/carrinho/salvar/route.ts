@@ -1,37 +1,30 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
-
-// 🚨 TESTE DE VIDA: Isso permite abrir no navegador para testar
-export async function GET() {
-  return NextResponse.json({ status: 'Rota encontrada e funcionando perfeitamente!' })
-}
-
+import { exigirUsuario, validarOrigem, responderErro, ErroHttp } from '@/lib/autorizacao'
+export async function GET() { return NextResponse.json({ status: 'Rota disponível.' }) }
 export async function POST(request: Request) {
   try {
-    const { email, itens, total } = await request.json()
-
-    if (!email) return NextResponse.json({ error: 'E-mail não informado' }, { status: 400 })
-
-    if (!itens || itens.length === 0) {
-      await supabase.from('carrinhos_abandonados').delete().eq('cliente_email', email)
-      return NextResponse.json({ success: true })
+    validarOrigem(request)
+    const user = await exigirUsuario(request)
+    const { itens } = await request.json()
+    if (!Array.isArray(itens) || itens.length > 100) throw new ErroHttp(400, 'Carrinho inválido.')
+    if (!itens.length) {
+      const { error } = await user.db.from('carrinhos_abandonados').delete().eq('cliente_email', user.email)
+      if (error) throw error
+    } else {
+      if (itens.some(item => !item.id || !Number.isSafeInteger(item.quantidade) || item.quantidade < 1 || item.quantidade > 999)) throw new ErroHttp(400, 'Quantidade inválida.')
+      const { data: catalogo, error: catalogoError } = await user.db.from('produtos')
+        .select('id,nome,preco,fotos,slug').in('id', itens.map(item => item.id))
+      if (catalogoError) throw catalogoError
+      const validos = itens.map(item => {
+        const p = catalogo?.find(p => String(p.id) === String(item.id))
+        if (!p) throw new ErroHttp(400, 'Produto não encontrado.')
+        return { id: p.id, nome: p.nome, preco: Number(p.preco), foto: p.fotos?.[0] || '', slug: p.slug, quantidade: item.quantidade }
+      })
+      const total = Math.round(validos.reduce((sum, item) => sum + item.preco * item.quantidade, 0) * 100) / 100
+      const { error } = await user.db.from('carrinhos_abandonados').upsert({ cliente_email: user.email,
+        itens: validos, total, atualizado_em: new Date().toISOString(), email_enviado: false }, { onConflict: 'cliente_email' })
+      if (error) throw error
     }
-
-    const { error } = await supabase
-      .from('carrinhos_abandonados')
-      .upsert({ 
-        cliente_email: email, 
-        itens: itens, 
-        total: total,
-        atualizado_em: new Date().toISOString(),
-        email_enviado: false 
-      }, { onConflict: 'cliente_email' })
-
-    if (error) throw error
-
     return NextResponse.json({ success: true })
-  } catch (error) {
-    console.error('Erro ao salvar carrinho abandonado:', error)
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
-  }
+  } catch (error) { return responderErro(error) }
 }

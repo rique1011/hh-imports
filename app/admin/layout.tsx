@@ -1,52 +1,26 @@
 import Link from 'next/link'
-import { LayoutDashboard, Package, ShoppingBag, ArrowLeftRight, DollarSign, LogOut, Ticket } from 'lucide-react'
-
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="min-h-screen bg-hb-black flex font-sans">
-      
-      {/* MENU LATERAL ESCURO */}
-      <aside className="w-64 bg-hb-gray border-r border-gray-800 text-white flex flex-col fixed h-full z-10 shadow-xl">
-        <div className="p-6 border-b border-gray-800">
-          <h2 className="text-xl font-bold tracking-widest uppercase text-hb-gold">H&H IMPORTS Admin</h2>
-          <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-1">Painel de Controle</p>
-        </div>
-        
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          <Link href="/admin" className="flex items-center gap-3 p-3 rounded-lg bg-hb-gold text-hb-black font-bold uppercase text-xs tracking-widest transition shadow-md">
-            <LayoutDashboard size={18} /> Dashboard
-          </Link>
-          <Link href="/admin/pedidos" className="flex items-center gap-3 p-3 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white uppercase text-xs tracking-widest transition">
-            <ShoppingBag size={18} /> Pedidos
-          </Link>
-          <Link href="/admin/estoque" className="flex items-center gap-3 p-3 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white uppercase text-xs tracking-widest transition">
-            <Package size={18} /> Estoque
-          </Link>
-          <Link href="/admin/devolucoes" className="flex items-center gap-3 p-3 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white uppercase text-xs tracking-widest transition">
-            <ArrowLeftRight size={18} /> Devoluções
-          </Link>
-          
-          <Link href="/admin/cupons" className="flex items-center gap-3 p-3 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white uppercase text-xs tracking-widest transition">
-            <Ticket size={18} /> Cupons Promocionais
-          </Link>
-
-          <Link href="/admin/financeiro" className="flex items-center gap-3 p-3 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white uppercase text-xs tracking-widest transition">
-            <DollarSign size={18} /> Financeiro
-          </Link>
-        </nav>
-
-        <div className="p-4 border-t border-gray-800">
-          <button className="flex items-center gap-3 p-3 w-full rounded-lg text-red-400 hover:bg-red-900/20 hover:text-red-300 uppercase text-xs tracking-widest transition">
-            <LogOut size={18} /> Sair
-          </button>
-        </div>
-      </aside>
-
-      {/* ÁREA CENTRAL ONDE O CONTEÚDO APARECE */}
-      <main className="flex-1 ml-64 p-8 md:p-12 bg-hb-black min-h-screen">
-        {children}
-      </main>
-      
-    </div>
-  )
+import { headers } from 'next/headers'
+import { redirect } from 'next/navigation'
+import { LayoutDashboard, Package, ShoppingBag, ArrowLeftRight, DollarSign, Ticket } from 'lucide-react'
+import { exigirAdmin, ErroHttp } from '@/lib/autorizacao'
+const links = [
+  { href: '/admin', titulo: 'Dashboard', Icon: LayoutDashboard },
+  { href: '/admin/pedidos', titulo: 'Pedidos', Icon: ShoppingBag },
+  { href: '/admin/estoque', titulo: 'Estoque', Icon: Package },
+  { href: '/admin/devolucoes', titulo: 'Devoluções', Icon: ArrowLeftRight },
+  { href: '/admin/cupons', titulo: 'Cupons', Icon: Ticket },
+  { href: '/admin/financeiro', titulo: 'Financeiro', Icon: DollarSign },
+]
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  try { await exigirAdmin(new Request('https://hh.local/admin', { headers: await headers() })) }
+  catch (error) { if (error instanceof ErroHttp) redirect(error.status === 401 ? '/login' : '/minha-conta'); throw error }
+  return <div className="min-h-screen flex flex-col lg:flex-row bg-hb-black">
+    <aside className="w-full lg:w-64 shrink-0 self-start lg:sticky lg:top-16 lg:h-[calc(100dvh-4rem)] flex flex-col bg-hb-gray border-b lg:border-r border-gray-800">
+      <div className="p-4 lg:p-6 border-b border-gray-800"><h2 className="text-lg text-hb-gold tracking-wide">H&H IMPORTS Admin</h2><p className="text-[10px] uppercase text-gray-400 mt-2">Painel de controle</p></div>
+      <nav aria-label="Administração" className="grid grid-cols-2 sm:grid-cols-3 lg:flex lg:flex-col gap-1 p-3 lg:flex-1 overflow-y-auto">
+        {links.map(({ href, titulo, Icon }) => <Link key={href} href={href} className="min-h-11 min-w-0 flex items-center gap-2 rounded-lg px-3 py-3 text-xs text-gray-300 hover:bg-gray-800 hover:text-hb-gold"><Icon size={18} className="shrink-0" />{titulo}</Link>)}
+      </nav>
+    </aside>
+    <div className="flex-1 min-w-0 p-4 sm:p-6 xl:p-10">{children}</div>
+  </div>
 }

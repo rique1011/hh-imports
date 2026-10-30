@@ -1,4 +1,8 @@
 'use client'
+import Image from 'next/image'
+import type { ProdutoCarrinho } from '@/lib/store'
+import type { OpcaoFrete } from '@/lib/frete'
+import { mensagemErro } from '@/lib/erros'
 
 import { useCart } from '@/lib/store'
 import Link from 'next/link'
@@ -13,15 +17,16 @@ export default function PaginaCarrinho() {
   const { data: session } = useSession() 
   
   // 1. ESTADOS (HOOKS)
-  const { itens, cupom, adicionarAoCarrinho, removerDoCarrinho, atualizarQuantidade, limparCarrinho, aplicarCupom, removerCupom } = useCart() as any
+  const { itens, cupom, adicionarAoCarrinho, removerDoCarrinho, atualizarQuantidade, aplicarCupom, removerCupom } = useCart()
   
   const [inputCupom, setInputCupom] = useState('')
   const [carregando, setCarregando] = useState(false)
   const [validandoCupom, setValidandoCupom] = useState(false)
 
   const [cep, setCep] = useState('')
-  const [opcoesFrete, setOpcoesFrete] = useState<any[]>([])
+  const [opcoesFrete, setOpcoesFrete] = useState<OpcaoFrete[]>([])
   const [freteSelecionado, setFreteSelecionado] = useState<number>(0)
+  const [freteToken, setFreteToken] = useState('')
   const [carregandoFrete, setCarregandoFrete] = useState(false)
   const [erroFrete, setErroFrete] = useState('')
   
@@ -29,7 +34,7 @@ export default function PaginaCarrinho() {
 
   const [mostrarPopUpSaida, setMostrarPopUpSaida] = useState(false)
   const [popUpJaMostrado, setPopUpJaMostrado] = useState(false)
-  const [produtoBump, setProdutoBump] = useState<any>(null)
+  const [produtoBump, setProdutoBump] = useState<(ProdutoCarrinho & { preco_original: number }) | null>(null)
   
   const [elegivelBoasVindas, setElegivelBoasVindas] = useState(false)
   const [saldoCashback, setSaldoCashback] = useState(0)
@@ -38,7 +43,7 @@ export default function PaginaCarrinho() {
   const [perfilCompleto, setPerfilCompleto] = useState(true)
 
   // 2. CÁLCULOS GERAIS
-  const subtotal = itens.reduce((acc: any, item: any) => acc + (item.preco * item.quantidade), 0)
+  const subtotal = itens.reduce((acc, item) => acc + (item.preco * item.quantidade), 0)
   const freteGratis = subtotal >= 100 
   const freteFinal = freteGratis ? 0 : freteSelecionado
   const valorDesconto = cupom ? (subtotal * (cupom.desconto / 100)) : 0
@@ -63,11 +68,9 @@ export default function PaginaCarrinho() {
       if (!session?.user?.email) return
 
       try {
-        const { data: usuarioDb } = await supabase
-          .from('usuarios')
-          .select('*')
-          .eq('email', session.user.email)
-          .single()
+        const response = await fetch('/api/usuario', { cache: 'no-store' })
+        if (!response.ok) throw new Error('Falha ao carregar cadastro.')
+        const usuarioDb = await response.json()
 
         if (usuarioDb) {
           if (usuarioDb.saldo_cashback) {
@@ -81,7 +84,7 @@ export default function PaginaCarrinho() {
             try {
               const endParsed = JSON.parse(usuarioDb.endereco)
               temEndereco = Boolean(endParsed.cep && endParsed.logradouro && endParsed.numero && endParsed.bairro)
-            } catch (e) {
+            } catch {
               temEndereco = usuarioDb.endereco.length > 10
             }
           }
@@ -89,12 +92,7 @@ export default function PaginaCarrinho() {
           setPerfilCompleto(temEndereco && temDocumento)
         }
 
-        const { data: pedidos } = await supabase
-          .from('pedidos')
-          .select('id')
-          .eq('cliente_email', session.user.email)
-
-        if (pedidos && pedidos.length > 0) return 
+        if (usuarioDb.possui_pedidos) return
 
         if (usuarioDb && usuarioDb.created_at) {
           const diasDeConta = (new Date().getTime() - new Date(usuarioDb.created_at).getTime()) / (1000 * 3600 * 24)
@@ -116,7 +114,7 @@ export default function PaginaCarrinho() {
       try {
         const { data, error } = await supabase.from('produtos').select('*').limit(10)
         if (!error && data && data.length > 0) {
-          const idsNoCarrinho = itens.map((i: any) => i.id)
+          const idsNoCarrinho = itens.map((i) => i.id)
           const produtosDisponiveis = data.filter(p => !idsNoCarrinho.includes(p.id))
 
           if (produtosDisponiveis.length > 0) {
@@ -124,7 +122,7 @@ export default function PaginaCarrinho() {
             setProdutoBump({
               id: sorteado.id,
               nome: sorteado.nome,
-              foto: sorteado.fotos?.[0] || 'https://via.placeholder.com/200',
+              foto: sorteado.fotos?.[0] || '/icon.svg',
               preco_original: Number(sorteado.preco),
               preco: Number(sorteado.preco) * 0.80, 
               quantidade: 1
@@ -209,7 +207,8 @@ export default function PaginaCarrinho() {
     setCarregandoFrete(true)
     setErroFrete('')
     setOpcoesFrete([])
-    setFreteSelecionado(0) 
+    setFreteSelecionado(0)
+    setFreteToken('')
 
     try {
       const response = await fetch('/api/frete', {
@@ -222,13 +221,14 @@ export default function PaginaCarrinho() {
       if (!response.ok) {
         setErroFrete(data.error || 'Erro ao calcular frete.')
       } else {
-        const opcoesOrdenadas = data.opcoes.sort((a: any, b: any) => Number(a.preco) - Number(b.preco))
+        const opcoesOrdenadas = data.opcoes.sort((a: OpcaoFrete, b: OpcaoFrete) => Number(a.preco) - Number(b.preco))
         setOpcoesFrete(opcoesOrdenadas)
         if (opcoesOrdenadas.length > 0) {
           setFreteSelecionado(Number(opcoesOrdenadas[0].preco))
+          setFreteToken(opcoesOrdenadas[0].token || '')
         }
       }
-    } catch (err) {
+    } catch {
       setErroFrete('Erro de conexão ao calcular frete.')
     } finally {
       setCarregandoFrete(false)
@@ -248,30 +248,15 @@ export default function PaginaCarrinho() {
     }
 
     try {
-      const { data, error } = await supabase
-        .from('cupons')
-        .select('*')
-        .eq('codigo', codigo)
-        .eq('ativo', true)
-        .single()
-
-      if (error || !data) {
-        if (codigo.startsWith('OFERTA') || codigo === 'NAOVAEMBORA') {
-          const descontoExtraido = parseInt(codigo.replace(/\D/g, '')) || 5
-          aplicarCupom(codigo, descontoExtraido)
-          setInputCupom('')
-        } else if (codigo === 'BEMVINDO10' && elegivelBoasVindas) {
-          aplicarCupom(codigo, 10)
-          setInputCupom('')
-        } else {
-          alert("Cupom inválido ou expirado.")
-        }
-      } else {
-        aplicarCupom(data.codigo, data.desconto)
-        setInputCupom('')
-      }
+      const response = await fetch('/api/cupons/validar', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ codigo })
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Cupom indisponível.')
+      aplicarCupom(data.codigo, data.desconto)
+      setInputCupom('')
     } catch (err) {
-      alert("Erro ao verificar cupom. Tente novamente.")
+      alert(err instanceof Error ? err.message : "Erro ao verificar cupom. Tente novamente.")
     } finally {
       setValidandoCupom(false)
     }
@@ -295,7 +280,8 @@ export default function PaginaCarrinho() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           itens, 
-          frete: freteFinal, 
+          frete: freteFinal,
+          freteToken,
           codigoCupom: cupom?.codigo || null,
           embalagemPresente,
           cashbackUsado: valorCashbackAplicado
@@ -307,8 +293,8 @@ export default function PaginaCarrinho() {
       if (!resposta.ok) throw new Error(dados.error || "Erro ao gerar pagamento")
       
       if (dados.urlPagamento) window.location.href = dados.urlPagamento
-    } catch (error: any) {
-      alert(error.message || "Erro ao processar. Tente novamente.")
+    } catch (error) {
+      alert(mensagemErro(error, "Erro ao processar. Tente novamente."))
     } finally { 
       setCarregando(false) 
     }
@@ -335,22 +321,22 @@ export default function PaginaCarrinho() {
         <div className="flex flex-col lg:flex-row gap-6 lg:gap-12">
           
           {/* LADO ESQUERDO (ITENS E FRETE) */}
-          <div className="flex-1 space-y-6">
+          <div className="flex-1 min-w-0 space-y-6">
             <div className="bg-hb-gray p-4 md:p-6 rounded-xl border border-gray-800 shadow-sm">
-                {itens.map((item: any) => (
+                {itens.map((item) => (
                   <div key={item.id} className="flex gap-4 md:gap-6 py-4 md:py-6 border-b border-gray-800 last:border-0">
-                    <img src={item.foto} className="w-20 h-20 md:w-24 md:h-24 object-cover rounded border border-gray-700 shrink-0" />
-                    <div className="flex-1 flex flex-col justify-between gap-3">
+                    <Image width={96} height={96} sizes="96px" src={item.foto || '/icon.svg'} alt={item.nome} loading="lazy" decoding="async" className="w-20 h-20 md:w-24 md:h-24 object-cover rounded border border-gray-700 shrink-0" />
+                    <div className="flex-1 min-w-0 flex flex-col justify-between gap-3">
                       <div className="flex justify-between items-start gap-2">
                         <h3 className="text-[10px] md:text-xs font-bold uppercase tracking-wider text-gray-200 line-clamp-2">{item.nome}</h3>
-                        <button onClick={() => removerDoCarrinho(item.id)} className="text-gray-500 hover:text-red-500 transition shrink-0 p-1 -mt-1 -mr-1"><Trash2 size={16} /></button>
+                        <button onClick={() => removerDoCarrinho(item.id)} aria-label={`Remover ${item.nome} da sacola`} className="text-gray-500 hover:text-red-500 transition shrink-0 min-w-11 min-h-11 grid place-items-center -mt-2 -mr-2"><Trash2 size={16} /></button>
                       </div>
                       
                       <div className="flex flex-wrap justify-between items-center gap-3 w-full">
-                        <div className="flex items-center border border-gray-700 rounded overflow-hidden h-8">
-                          <button onClick={() => atualizarQuantidade(item.id, Math.max(1, item.quantidade - 1))} className="px-3 md:px-2 py-1 h-full bg-hb-black text-gray-400 hover:text-white transition text-xs flex items-center justify-center">-</button>
+                        <div className="flex items-center border border-gray-700 rounded overflow-hidden min-h-11">
+                          <button aria-label={`Diminuir quantidade de ${item.nome}`} onClick={() => atualizarQuantidade(item.id, Math.max(1, item.quantidade - 1))} className="min-w-11 min-h-11 px-2 py-1 h-full bg-hb-black text-gray-400 hover:text-white transition text-xs flex items-center justify-center">-</button>
                           <span className="px-3 py-1 text-xs font-bold text-white flex items-center justify-center h-full border-x border-gray-700">{item.quantidade}</span>
-                          <button onClick={() => atualizarQuantidade(item.id, item.quantidade + 1)} className="px-3 md:px-2 py-1 h-full bg-hb-black text-gray-400 hover:text-white transition text-xs flex items-center justify-center">+</button>
+                          <button aria-label={`Aumentar quantidade de ${item.nome}`} onClick={() => atualizarQuantidade(item.id, item.quantidade + 1)} className="min-w-11 min-h-11 px-2 py-1 h-full bg-hb-black text-gray-400 hover:text-white transition text-xs flex items-center justify-center">+</button>
                         </div>
                         <p className="text-xs md:text-sm font-bold text-hb-gold ml-auto">
                           R$ {(item.preco * item.quantidade).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -377,7 +363,7 @@ export default function PaginaCarrinho() {
                 <>
                   <form onSubmit={calcularFrete} className="flex gap-2 mb-5 md:mb-6">
                     <input
-                      type="text"
+                      type="text" inputMode="numeric" autoComplete="postal-code" aria-label="CEP de entrega"
                       value={cep}
                       onChange={handleCepChange}
                       maxLength={9}
@@ -411,7 +397,7 @@ export default function PaginaCarrinho() {
                               name="frete" 
                               value={opcao.preco} 
                               checked={freteSelecionado === Number(opcao.preco)}
-                              onChange={() => setFreteSelecionado(Number(opcao.preco))}
+                              onChange={() => { setFreteSelecionado(Number(opcao.preco)); setFreteToken(opcao.token || '') }}
                               className="w-4 h-4 text-hb-gold focus:ring-hb-gold accent-hb-gold cursor-pointer shrink-0"
                             />
                             <div>
@@ -453,7 +439,7 @@ export default function PaginaCarrinho() {
                   <input 
                     type="checkbox" 
                     className="sr-only peer" 
-                    checked={usarCashback} 
+                    aria-label="Usar saldo de cashback" checked={usarCashback}
                     onChange={() => setUsarCashback(!usarCashback)} 
                   />
                   <div className="w-10 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-hb-black after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-hb-gold"></div>
@@ -489,7 +475,7 @@ export default function PaginaCarrinho() {
                   </div>
                   
                   <div className="flex gap-3 md:gap-4 items-center">
-                    <img 
+                    <Image width={96} height={96} sizes="96px"
                       src={produtoBump.foto} 
                       alt={produtoBump.nome} 
                       className="w-16 h-16 md:w-20 md:h-20 object-cover rounded-lg border border-gray-700 shrink-0" 
@@ -555,7 +541,7 @@ export default function PaginaCarrinho() {
                   <input 
                     type="checkbox" 
                     className="sr-only peer" 
-                    checked={embalagemPresente} 
+                    aria-label="Embalagem para presente" checked={embalagemPresente}
                     onChange={() => setEmbalagemPresente(!embalagemPresente)} 
                   />
                   <div className="w-8 h-4 md:w-9 md:h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-hb-black after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 md:after:h-4 md:after:w-4 after:transition-all peer-checked:bg-hb-gold"></div>

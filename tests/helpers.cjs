@@ -30,12 +30,14 @@ exports.createDb = async function createDb(idType = 'uuid') {
   await db.exec(
     'CREATE TABLE usuarios(id uuid primary key default gen_random_uuid(),email text unique,nome text,perfil text,role text,' +
     'saldo_cashback numeric default 0,created_at timestamptz default now());' +
-    'CREATE TABLE produtos(id uuid primary key,nome text,preco numeric);' +
-    'CREATE TABLE cupons(codigo text primary key,desconto numeric,ativo boolean default true);' +
+    'CREATE TABLE produtos(id uuid primary key,nome text,preco numeric,estoque integer default 1000,estoque_reservado integer default 0,fotos text[],slug text);' +
+    'CREATE TABLE cupons(codigo text primary key,desconto numeric,ativo boolean default true,usuario_id uuid);' +
     'CREATE TABLE pedidos(id ' + (idType === 'uuid' ? 'uuid primary key default gen_random_uuid()' : 'bigint generated always as identity primary key') +
     ',cliente_email text,cliente_nome text,status text,total numeric,itens jsonb,codigo_rastreio text,created_at timestamptz default now());'
   )
   await db.exec(fs.readFileSync(path.join(root, 'supabase/migrations/20261013040238_hh_notifications.sql'), 'utf8'))
+  const estoque = fs.readdirSync(path.join(root, 'supabase/migrations')).find(name => name.endsWith('_estoque_transacional.sql'))
+  await db.exec(fs.readFileSync(path.join(root, 'supabase/migrations', estoque), 'utf8'))
   return db
 }
 
@@ -46,6 +48,7 @@ exports.adapter = function adapter(db) {
     update(values) { this.values = values; return this }
     limit(value) { this.maxRows = Number(value); return this }
     eq(key, value) { this.params.push(value); this.filters.push('"' + key + '"=$' + this.params.length); return this }
+    is(key, value) { if (value !== null) throw new Error("Fixture supports only IS NULL"); this.filters.push('"' + key + '" IS NULL'); return this }
     in(key, values) {
       const markers = values.map(value => { this.params.push(value); return '$' + this.params.length })
       this.filters.push('"' + key + '" IN (' + markers.join(',') + ')'); return this

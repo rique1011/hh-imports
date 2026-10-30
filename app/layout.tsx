@@ -15,6 +15,7 @@ const inter = Inter({
 const playfair = Playfair_Display({
   subsets: ['latin'],
   variable: '--font-playfair',
+  style: ['normal', 'italic'],
 });
 
 export const metadata: Metadata = {
@@ -41,17 +42,6 @@ export default function RootLayout({
       lang="pt-BR"
       className={`${inter.variable} ${playfair.variable} antialiased`}
     >
-      <head>
-        {/* 👑 BLINDAGEM DE RENDERIZAÇÃO: Importação nativa direta pelo HTML */}
-        {/* Isso faz o navegador renderizar as fontes antes mesmo de carregar o CSS do Tailwind v4 */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link 
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap" 
-          rel="stylesheet" 
-        />
-      </head>
-
       <body className="bg-hb-black text-gray-100 font-sans flex flex-col min-h-screen selection:bg-hb-gold selection:text-hb-black">
         
         <Toaster 
@@ -81,9 +71,9 @@ export default function RootLayout({
         <Providers>
           <Header />
           
-          <main className="flex-grow">
+          <div className="flex-grow min-w-0">
             {children}
-          </main>
+          </div>
 
           <Footer />
         </Providers>

@@ -1,6 +1,6 @@
 import NextAuth from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
-import { supabase } from "@/lib/supabase"
+import { getSupabaseAdmin } from "@/lib/supabase-admin"
 import bcrypt from "bcryptjs"
 
 const handler = NextAuth({
@@ -16,10 +16,10 @@ const handler = NextAuth({
           throw new Error('Preencha todos os campos.')
         }
 
-        const { data: usuario } = await supabase
+        const { data: usuario } = await getSupabaseAdmin()
           .from('usuarios')
-          .select('*')
-          .eq('email', credentials.email)
+          .select('id,nome,email,senha,perfil,role,email_verificado')
+          .eq('email', credentials.email.toLowerCase().trim())
           .single()
 
         if (!usuario) {
@@ -39,24 +39,24 @@ const handler = NextAuth({
 
         // Retorna o perfil (admin ou cliente) junto com os dados
         return { 
-          id: usuario.id, 
+          id: String(usuario.id),
           name: usuario.nome, 
           email: usuario.email,
-          role: usuario.perfil // Etiqueta do banco de dados
-        } as any
+          role: [usuario.perfil, usuario.role].includes('admin') ? 'admin' : 'cliente'
+        }
       }
     })
   ],
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.role = (user as any).role
+        token.role = user.role
       }
       return token
     },
     async session({ session, token }) {
       if (session?.user) {
-        (session.user as any).role = token.role
+        session.user.role = token.role
       }
       return session
     }

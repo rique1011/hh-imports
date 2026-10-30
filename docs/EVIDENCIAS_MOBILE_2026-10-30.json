@@ -1,0 +1,79 @@
+{
+  "data": "2026-10-30",
+  "ambiente": "build de produção local, Supabase/SMTP/Mercado Pago simulados; Chromium headless",
+  "viewports": [
+    320,
+    360,
+    390,
+    768,
+    1024,
+    1440,
+    2560
+  ],
+  "rotas": [
+    "/",
+    "/colecoes",
+    "/categoria/colares",
+    "/produtos",
+    "/pesquisa?q=colar",
+    "/produto/joia-fixture",
+    "/carrinho",
+    "/minha-conta",
+    "/admin",
+    "/admin/pedidos",
+    "/admin/estoque",
+    "/admin/devolucoes",
+    "/admin/cupons",
+    "/admin/financeiro",
+    "/sucesso?external_reference=17"
+  ],
+  "verificacoes_layout": 105,
+  "overflows": [],
+  "interacoes": [
+    "menu mobile abre",
+    "Escape fecha menu",
+    "galeria muda imagem",
+    "CTA mobile visível e ≥44px",
+    "quantidade da sacola persiste",
+    "pedido pendente não anuncia aprovação",
+    "pedido pendente mantém sacola",
+    "pagamento confirmado limpa sacola",
+    "API privada nega anônimo",
+    "painel anônimo redireciona ao login"
+  ],
+  "erros_javascript": [],
+  "falhas_api_preexistentes": [
+    {
+      "url": "/api/visitas",
+      "status": 404
+    },
+    {
+      "url": "/api/visitas",
+      "status": 404
+    },
+    {
+      "url": "/api/visitas",
+      "status": 404
+    },
+    {
+      "url": "/api/visitas",
+      "status": 404
+    },
+    {
+      "url": "/api/visitas",
+      "status": 404
+    },
+    {
+      "url": "/api/visitas",
+      "status": 404
+    },
+    {
+      "url": "/api/visitas",
+      "status": 404
+    },
+    {
+      "url": "/api/visitas",
+      "status": 404
+    }
+  ]
+}

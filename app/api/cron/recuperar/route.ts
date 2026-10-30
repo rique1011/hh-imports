@@ -1,13 +1,16 @@
+import { mensagemErro } from '@/lib/erros'
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { Resend } from 'resend'
 
 export const dynamic = 'force-dynamic'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
 
-export async function GET() {
+export async function GET(request: Request) {
+  if (!process.env.CRON_SECRET || request.headers.get('authorization') !== 'Bearer ' + process.env.CRON_SECRET) return NextResponse.json({ error: 'Não autorizado.' }, { status: 401 })
   try {
+    const supabase = getSupabaseAdmin()
+    const resend = new Resend(process.env.RESEND_API_KEY)
     // 🚨 REGRA DE PRODUÇÃO: Busca carrinhos abandonados há mais de 30 minutos
     const trintaMinutosAtras = new Date(Date.now() - 30 * 60 * 1000).toISOString()
 
@@ -60,8 +63,8 @@ export async function GET() {
     }
 
     return NextResponse.json({ success: true, disparos: disparos })
-  } catch (error: any) {
+  } catch (error) {
     console.error('Erro no cron de recuperação:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: mensagemErro(error) }, { status: 500 })
   }
 }

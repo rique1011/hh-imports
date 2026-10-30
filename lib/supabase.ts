@@ -14,7 +14,7 @@ try {
     const urlObj = new URL(supabaseUrl)
     supabaseUrl = urlObj.origin // Mantém APENAS a base: https://fvcbdrvpvbdmmirzffgl.supabase.co
   }
-} catch (e) {
+} catch {
   // Ignora o erro silenciosamente se a URL vier vazia no build
 }
 

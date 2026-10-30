@@ -28,7 +28,7 @@ export default function PaginaEsqueciSenha() {
         const data = await res.json()
         setErro(data.error || "Não encontramos uma conta com este e-mail.")
       }
-    } catch (error) {
+    } catch {
       setErro("Erro de conexão. Tente novamente.")
     } finally {
       setCarregando(false)

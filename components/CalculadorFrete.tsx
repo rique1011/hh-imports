@@ -1,4 +1,5 @@
 'use client'
+import type { OpcaoFrete } from '@/lib/frete'
 
 import { useState } from 'react'
 import { Truck, Loader2 } from 'lucide-react'
@@ -6,7 +7,7 @@ import { Truck, Loader2 } from 'lucide-react'
 export default function CalculadorFrete() {
 
   const [cep, setCep] = useState('')
-  const [opcoesFrete, setOpcoesFrete] = useState<any[]>([])
+  const [opcoesFrete, setOpcoesFrete] = useState<OpcaoFrete[]>([])
   const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState('')
 
@@ -32,7 +33,7 @@ export default function CalculadorFrete() {
       } else {
         setOpcoesFrete(data.opcoes)
       }
-    } catch (err) {
+    } catch {
       setErro('Erro de conexão ao calcular frete.')
     } finally {
       setCarregando(false)
@@ -55,9 +56,9 @@ export default function CalculadorFrete() {
         </h3>
       </div>
 
-      <form onSubmit={calcularFrete} className="flex gap-2">
+      <form onSubmit={calcularFrete} className="flex flex-wrap sm:flex-nowrap gap-2">
         <input
-          type="text"
+          type="text" inputMode="numeric" autoComplete="postal-code" aria-label="CEP de entrega"
           value={cep}
           onChange={handleCepChange}
           maxLength={9}

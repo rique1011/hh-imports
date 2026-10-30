@@ -26,22 +26,25 @@ export default async function PaginaProduto({ params }: PageProps) {
     notFound()
   }
 
+  const produtoCompra = { id: produto.id, nome: produto.nome, slug: produto.slug, preco: produto.preco, fotos: produto.fotos, estoque: produto.estoque, estoque_reservado: produto.estoque_reservado }
+
   return (
-    <main className="min-h-screen bg-hb-black relative">
+    <main className="min-h-screen bg-hb-black relative pb-28 md:pb-0">
       <ContadorVisitas slug={slug} />
 
       <div className="max-w-6xl mx-auto px-4 py-8 md:p-12">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 mb-16 md:mb-20">
           
           {/* LADO ESQUERDO: GALERIA DE MÍDIA */}
-          <div className="space-y-4 md:space-y-4 w-full">
+          <div className="space-y-4 min-w-0 w-full">
             <div className="w-full">
               {produto.fotos && produto.fotos.length > 0 ? (
                 <div className="w-full relative rounded-2xl overflow-hidden shadow-lg border border-gray-800">
                   <ZoomImagem 
                     src={produto.fotos[0]} 
                     alt={produto.nome} 
-                    material={produto.material} 
+                    material={produto.material}
+                    fotos={produto.fotos}
                   />
                 </div>
               ) : (
@@ -60,7 +63,7 @@ export default async function PaginaProduto({ params }: PageProps) {
                 <div className="relative rounded-2xl overflow-hidden bg-black aspect-[9/16] md:aspect-video max-h-[400px] md:max-h-[500px] border border-gray-800 shadow-lg w-full">
                   <video 
                     src={produto.video_url}
-                    controls loop muted autoPlay playsInline
+                    controls loop muted playsInline preload="none"
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute top-3 right-3 md:top-4 md:right-4 bg-black/40 backdrop-blur-md px-2 py-1 md:px-3 md:py-1 rounded-full border border-white/10">
@@ -76,11 +79,11 @@ export default async function PaginaProduto({ params }: PageProps) {
             <span className="text-[10px] md:text-sm text-gray-500 uppercase tracking-[0.3em] mb-2 font-medium">H&H IMPORTS</span>
             
             <div className="flex items-start justify-between gap-4 mb-3 md:mb-4">
-              <h1 className="text-3xl md:text-4xl lg:text-5xl font-light text-white uppercase tracking-tight leading-none break-words flex-1">
+              <h1 className="text-3xl md:text-4xl lg:text-5xl font-light text-white uppercase tracking-tight leading-none break-words flex-1 min-w-0">
                 {produto.nome}
               </h1>
               <div className="flex-shrink-0 mt-1 md:mt-2">
-                <BotaoFavorito produto={produto} />
+                <BotaoFavorito produto={produtoCompra} />
               </div>
             </div>
             
@@ -111,7 +114,7 @@ export default async function PaginaProduto({ params }: PageProps) {
             </div>
 
             <div className="w-full">
-              <BotaoAdicionar produto={produto} />
+              <BotaoAdicionar produto={produtoCompra} />
             </div>
 
             <div className="mt-5 md:mt-6 w-full">

@@ -1,8 +1,11 @@
+import { exigirAdmin, validarOrigem, responderErro } from '@/lib/autorizacao'
 import { NextResponse } from 'next/server'
 import { enviarEmailStatus } from '@/lib/mail'
 
 export async function POST(request: Request) {
   try {
+    validarOrigem(request)
+    await exigirAdmin(request)
     const { email, nome, codigoRastreio } = await request.json()
 
     if (!email || !codigoRastreio) {
@@ -15,8 +18,5 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ sucesso: true })
-  } catch (error) {
-    console.error("Erro ao enviar email de reversa:", error)
-    return NextResponse.json({ error: 'Erro interno ao enviar e-mail.' }, { status: 500 })
-  }
+  } catch (error) { return responderErro(error) }
 }

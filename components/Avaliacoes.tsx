@@ -8,7 +8,7 @@ import { useSession } from 'next-auth/react'
 
 export default function Avaliacoes({ produtoId }: { produtoId: string }) {
   const { data: session } = useSession()
-  const [reviews, setReviews] = useState<any[]>([])
+  const [reviews, setReviews] = useState<{ id: number; nota: number; usuario_nome: string; comentario: string }[]>([])
   const [nota, setNota] = useState(5)
   const [comentario, setComentario] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -17,9 +17,9 @@ export default function Avaliacoes({ produtoId }: { produtoId: string }) {
     async function carregar() {
       const { data } = await supabase
         .from('avaliacoes')
-        .select('*')
+        .select('id,nota,usuario_nome,comentario')
         .eq('produto_id', produtoId)
-        .order('created_at', { ascending: false })
+        .order('created_at', { ascending: false }).limit(50)
       setReviews(data || [])
     }
     carregar()
@@ -30,24 +30,21 @@ export default function Avaliacoes({ produtoId }: { produtoId: string }) {
     if (!session) return alert("Faça login para avaliar!")
     setEnviando(true)
 
-    const nomeUsuario = session?.user?.name || 'Cliente Verificado'
-
-    const { error } = await supabase.from('avaliacoes').insert({
-      produto_id: produtoId,
-      usuario_nome: nomeUsuario,
-      nota: nota,
-      comentario: comentario
-    })
-
-    if (error) {
-      alert(`Erro ao salvar no banco: ${error.message}`)
-      console.error(error)
-    } else {
+    try {
+      const response = await fetch('/api/avaliacoes', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ produtoId, nota, comentario })
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Falha ao publicar avaliação.')
+      const { data: atualizadas } = await supabase.from('avaliacoes')
+        .select('id,nota,usuario_nome,comentario').eq('produto_id', produtoId)
+        .order('created_at', { ascending: false }).limit(50)
+      setReviews(atualizadas || [])
       setComentario('')
-      alert("Avaliação publicada com sucesso!")
-      window.location.reload()
-    }
-    setEnviando(false)
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Falha de conexão.')
+    } finally { setEnviando(false) }
   }
 
   return (
@@ -58,8 +55,8 @@ export default function Avaliacoes({ produtoId }: { produtoId: string }) {
         {/* Lista de Reviews */}
         <div className="space-y-6 md:space-y-8">
           {reviews.length === 0 && <p className="text-neutral-500 italic text-sm">Este produto ainda não recebeu avaliações.</p>}
-          {reviews.map((r, i) => (
-            <div key={i} className="border-b border-neutral-800 pb-5 md:pb-6">
+          {reviews.map((r) => (
+            <div key={r.id} className="border-b border-neutral-800 pb-5 md:pb-6">
               <div className="flex gap-1 mb-2">
                 {[...Array(5)].map((_, index) => (
                   <Star 
@@ -71,7 +68,7 @@ export default function Avaliacoes({ produtoId }: { produtoId: string }) {
                 ))}
               </div>
               <p className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-neutral-200">{r.usuario_nome}</p>
-              <p className="text-xs md:text-sm text-neutral-400 mt-1 md:mt-2 italic leading-relaxed">"{r.comentario}"</p>
+              <p className="text-xs md:text-sm text-neutral-400 mt-1 md:mt-2 italic leading-relaxed break-words">&ldquo;{r.comentario}&rdquo;</p>
             </div>
           ))}
         </div>
@@ -83,9 +80,9 @@ export default function Avaliacoes({ produtoId }: { produtoId: string }) {
             <form onSubmit={enviarReview} className="space-y-5 md:space-y-6">
               <div>
                 <p className="text-[9px] md:text-[10px] text-neutral-400 uppercase tracking-widest mb-2 font-bold">Sua Nota</p>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-1">
                   {[1, 2, 3, 4, 5].map((n) => (
-                    <button type="button" key={n} onClick={() => setNota(n)} className="hover:scale-110 transition">
+                    <button type="button" key={n} onClick={() => setNota(n)} aria-label={`${n} estrela(s)`} aria-pressed={nota === n} className="min-w-11 min-h-11 grid place-items-center hover:scale-110 transition">
                       <Star 
                         size={20} 
                         className={`md:w-6 md:h-6 ${n <= nota ? "text-hb-gold" : "text-neutral-700"}`}
@@ -98,7 +95,7 @@ export default function Avaliacoes({ produtoId }: { produtoId: string }) {
               
               <div>
                 <p className="text-[9px] md:text-[10px] text-neutral-400 uppercase tracking-widest mb-2 font-bold">Seu Comentário</p>
-                <textarea 
+                <textarea aria-label="Seu comentário" maxLength={3000}
                   value={comentario}
                   onChange={(e) => setComentario(e.target.value)}
                   placeholder="O que você achou da qualidade da joia?"

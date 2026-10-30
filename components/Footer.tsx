@@ -1,11 +1,10 @@
-import { CONTACT_EMAIL } from '@/lib/brand'
 import Link from 'next/link'
 import { Mail, MapPin, Phone } from 'lucide-react'
 
 export default function Footer() {
   return (
     <footer className="bg-hb-black text-gray-400 py-12 md:py-16 border-t border-hb-gray">
-      <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-10 md:gap-12 text-center md:text-left">
+      <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-10 text-center md:text-left">
         
         {/* Coluna 1: Sobre a Marca */}
         <div className="flex flex-col items-center md:items-start">
@@ -53,7 +52,7 @@ export default function Footer() {
           <div className="flex flex-col gap-3 md:gap-4 text-xs md:text-sm text-gray-500 font-light">
             <div className="flex items-center justify-center md:justify-start gap-3 hover:text-hb-goldLight transition-colors">
               <Mail size={16} className="text-hb-gold" />
-              <span>H&H IMPORTS@gmail.com</span>
+              <span className="min-w-0 break-words">H&H IMPORTS@gmail.com</span>
             </div>
             <div className="flex items-center justify-center md:justify-start gap-3 hover:text-hb-goldLight transition-colors">
               <Phone size={16} className="text-hb-gold" />
@@ -74,7 +73,7 @@ export default function Footer() {
           © {new Date().getFullYear()} H&H IMPORTS. Todos os direitos reservados.
         </p>
         <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
-          <div className="text-[9px] md:text-[10px] text-gray-500 flex gap-3 md:gap-4 font-bold uppercase tracking-widest">
+          <div className="text-[9px] md:text-[10px] text-gray-500 flex flex-wrap justify-center gap-3 md:gap-4 font-bold uppercase tracking-widest">
             <span className="text-hb-gold">Ambiente 100% Seguro</span>
             <span className="text-gray-700 hidden sm:inline">•</span>
             <span className="text-hb-gold">Compra Garantida</span>

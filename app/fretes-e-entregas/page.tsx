@@ -31,7 +31,7 @@ export default function FretesEntregas() {
 
         <div>
           <h2 className="text-xl font-light uppercase tracking-widest text-white mb-4 border-l-2 border-hb-gold pl-4">2. Rastreamento</h2>
-          <p>Você receberá o código de rastreamento no seu e-mail assim que a caixa for despachada. Você poderá acompanhar cada passo da entrega diretamente na aba "Meus Pedidos" em sua conta na H&H IMPORTS.</p>
+          <p>Você receberá o código de rastreamento no seu e-mail assim que a caixa for despachada. Você poderá acompanhar cada passo da entrega diretamente na aba &quot;Meus Pedidos&quot; em sua conta na H&H IMPORTS.</p>
         </div>
 
         <div>

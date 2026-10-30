@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 export async function POST(request: Request) {
   try {
+    const supabase = getSupabaseAdmin()
     const { email, codigo } = await request.json()
 
     // 1. Busca o usuário com este e-mail e código específico

@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import Link from 'next/link'
 
 const CATEGORIAS = [
@@ -49,7 +50,7 @@ export default function Categorias() {
               {/* O Círculo da Imagem */}
               <div className="w-20 h-20 md:w-28 md:h-28 rounded-full overflow-hidden p-1 border border-transparent group-hover:border-black transition-colors duration-300">
                 <div className="w-full h-full rounded-full overflow-hidden">
-                  <img 
+                  <Image width={600} height={750} sizes="(max-width: 768px) 50vw, 25vw"
                     src={categoria.imagem} 
                     alt={categoria.nome}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"

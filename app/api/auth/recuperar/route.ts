@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import crypto from 'crypto'
 
 export async function POST(request: Request) {
   try {
+    const supabase = getSupabaseAdmin()
     const { email } = await request.json()
-    console.log("Tentando recuperar para:", email)
 
     // 1. Busca o usuário
     const { data: usuario, error } = await supabase
@@ -15,12 +15,10 @@ export async function POST(request: Request) {
       .single()
 
     if (error || !usuario) {
-      console.log("Usuário não encontrado no Supabase ou erro no banco:", error?.message)
       // Retornamos sucesso por segurança, mas o log nos avisa aqui
       return NextResponse.json({ success: true })
     }
 
-    console.log("Usuário encontrado:", usuario.nome)
 
     const token = crypto.randomBytes(32).toString('hex')
     const expiracao = new Date(Date.now() + 3600000).toISOString()
@@ -35,19 +33,15 @@ export async function POST(request: Request) {
       .eq('id', usuario.id)
 
     if (updateError) {
-      console.log("Erro ao salvar token no Supabase:", updateError.message)
       return NextResponse.json({ error: 'Erro ao salvar dados' }, { status: 500 })
     }
 
     // 3. Importa o e-mail dinamicamente para evitar erro de inicialização no build
-    console.log("Disparando e-mail via Nodemailer/Gmail...")
     const { enviarEmailStatus } = await import('@/lib/mail')
     const emailRes = await enviarEmailStatus(usuario.email, usuario.nome, 'recuperacao', token)
     
     if (!emailRes.sucesso) {
-      console.log("O Nodemailer rejeitou o envio:", emailRes.error)
     } else {
-      console.log("E-mail enviado com sucesso pelo Gmail!")
     }
 
     return NextResponse.json({ success: true })

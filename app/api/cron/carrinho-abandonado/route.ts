@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { Resend } from 'resend'
 
 // Instanciamos o Resend (garanta que a RESEND_API_KEY está no seu .env)
-const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function GET(request: Request) {
+  if (!process.env.CRON_SECRET || request.headers.get('authorization') !== 'Bearer ' + process.env.CRON_SECRET) return NextResponse.json({ error: 'Não autorizado.' }, { status: 401 })
   try {
+    const supabase = getSupabaseAdmin()
+    const resend = new Resend(process.env.RESEND_API_KEY)
     // 1. Calcular o horário de 1 hora atrás
     const umaHoraAtras = new Date(Date.now() - 60 * 60 * 1000).toISOString()
 

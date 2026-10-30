@@ -1,7 +1,9 @@
 'use client'
+import Image from 'next/image'
+import type { Pedido, Produto } from '@/types/loja'
 
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin as supabase } from '@/lib/admin-client'
 import { 
   TrendingUp, DollarSign, ShoppingBag, Eye, 
   Package, Loader2, ArrowUpRight, Clock, CheckCircle2 
@@ -10,8 +12,8 @@ import {
 export default function AdminDashboard() {
   const [carregando, setCarregando] = useState(true)
   
-  const [pedidos, setPedidos] = useState<any[]>([])
-  const [produtosPopulares, setProdutosPopulares] = useState<any[]>([])
+  const [pedidos, setPedidos] = useState<Pedido[]>([])
+  const [produtosPopulares, setProdutosPopulares] = useState<Produto[]>([])
   const [receitaTotal, setReceitaTotal] = useState(0)
   const [vendasConcluidas, setVendasConcluidas] = useState(0)
 
@@ -75,7 +77,7 @@ export default function AdminDashboard() {
         {/* CABEÇALHO */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-light text-white uppercase tracking-widest italic mb-1 md:mb-2">Visão Geral</h1>
+            <h1 className="text-2xl md:text-2xl sm:text-3xl break-words font-light text-white uppercase tracking-widest italic mb-1 md:mb-2">Visão Geral</h1>
             <p className="text-[10px] md:text-sm text-gray-400 uppercase tracking-widest font-medium">Acompanhe o desempenho da loja</p>
           </div>
           <div className="text-[9px] md:text-[10px] font-bold text-gray-300 uppercase tracking-widest flex items-center gap-2 bg-gray-900 px-3 py-1.5 md:px-4 md:py-2 rounded-full border border-gray-800 shadow-sm">
@@ -84,7 +86,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* CARDS DE MÉTRICAS GERAIS */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
           <div className="bg-hb-gray p-5 md:p-6 rounded-2xl border border-gray-800 shadow-sm relative overflow-hidden group hover:border-hb-gold transition-colors">
             <div className="absolute -right-6 -top-6 bg-hb-gold/10 w-24 h-24 rounded-full group-hover:scale-110 transition-transform"></div>
             <div className="flex justify-between items-start mb-3 md:mb-4 relative z-10">
@@ -123,7 +125,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* ÁREA INFERIOR */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 md:gap-8">
           
           <div className="bg-hb-gray rounded-2xl border border-gray-800 shadow-sm flex flex-col">
             <div className="p-4 md:p-6 border-b border-gray-800 flex justify-between items-center">
@@ -140,7 +142,7 @@ export default function AdminDashboard() {
                     <div key={produto.id} className="flex items-center justify-between group">
                       <div className="flex items-center gap-3 md:gap-4 min-w-0">
                         <div className="relative shrink-0">
-                          <img src={produto.fotos?.[0] || 'https://via.placeholder.com/100'} className="w-10 h-10 md:w-12 md:h-12 rounded object-cover border border-gray-700" />
+                          <Image width={48} height={48} sizes="48px" alt={produto.nome} src={produto.fotos?.[0] || '/icon.svg'} className="w-10 h-10 md:w-12 md:h-12 rounded object-cover border border-gray-700" />
                           <div className="absolute -top-2 -left-2 w-4 h-4 md:w-5 md:h-5 bg-hb-gold text-hb-black text-[9px] md:text-[10px] font-bold flex items-center justify-center rounded-full shadow-md">
                             {index + 1}
                           </div>
@@ -160,7 +162,7 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="lg:col-span-2 bg-hb-gray rounded-2xl border border-gray-800 shadow-sm overflow-hidden flex flex-col">
+          <div className="xl:col-span-2 bg-hb-gray rounded-2xl border border-gray-800 shadow-sm overflow-hidden flex flex-col">
             <div className="p-4 md:p-6 border-b border-gray-800 flex justify-between items-center bg-gray-900/50">
               <h2 className="text-[11px] md:text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
                 <Clock size={16} className="text-hb-gold md:w-[18px] md:h-[18px]" /> Últimos Pedidos

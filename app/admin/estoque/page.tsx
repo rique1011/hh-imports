@@ -1,11 +1,16 @@
 'use client'
+import Image from 'next/image'
+import type { Produto } from '@/types/loja'
+import { mensagemErro } from '@/lib/erros'
+
+import { uploadImagem } from '@/lib/upload-imagem'
 
 import { useState, useEffect } from 'react'
 import { Plus, Search, Edit, Trash2, Loader2, Image as ImageIcon, Box, X } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin as supabase } from '@/lib/admin-client'
 
 export default function TelaEstoque() {
-  const [produtos, setProdutos] = useState<any[]>([])
+  const [produtos, setProdutos] = useState<Produto[]>([])
   const [carregando, setCarregando] = useState(true)
   const [busca, setBusca] = useState('')
 
@@ -19,6 +24,7 @@ export default function TelaEstoque() {
   const [form, setForm] = useState({
     nome: '',
     preco: '',
+    estoque: '0',
     material: 'Ouro 18k',
     descricao: '',
     video_url: ''
@@ -47,17 +53,18 @@ export default function TelaEstoque() {
   const abrirModalNovo = () => {
     setProdutoEditandoId(null)
     setFotosAntigas([])
-    setForm({ nome: '', preco: '', material: 'Ouro 18k', descricao: '', video_url: '' })
+    setForm({ nome: '', preco: '', estoque: '0', material: 'Ouro 18k', descricao: '', video_url: '' })
     setFotoArquivo(null)
     setModalAberta(true)
   }
 
-  const abrirModalEditar = (produto: any) => {
+  const abrirModalEditar = (produto: Produto) => {
     setProdutoEditandoId(produto.id)
     setFotosAntigas(produto.fotos || [])
     setForm({
       nome: produto.nome || '',
       preco: produto.preco?.toString() || '',
+      estoque: String(produto.estoque ?? 0),
       material: produto.material || 'Ouro 18k',
       descricao: produto.descricao || '',
       video_url: produto.video_url || ''
@@ -78,20 +85,14 @@ export default function TelaEstoque() {
       let fotosArray = [...fotosAntigas]
 
       if (fotoArquivo) {
-        const extensao = fotoArquivo.name.split('.').pop()
-        const nomeArquivo = `produtos/${gerarSlug(form.nome)}-${Date.now()}.${extensao}`
-        
-        const { error: uploadError } = await supabase.storage.from('joias').upload(nomeArquivo, fotoArquivo)
-        if (uploadError) throw uploadError
-        
-        const { data: publicUrlData } = supabase.storage.from('joias').getPublicUrl(nomeArquivo)
-        fotosArray = [publicUrlData.publicUrl]
+        fotosArray = [await uploadImagem(fotoArquivo, 'produtos')]
       }
 
       const dadosProduto = {
         nome: form.nome,
         slug: gerarSlug(form.nome),
         preco: Number(form.preco),
+        estoque: Number(form.estoque),
         material: form.material,
         descricao: form.descricao,
         video_url: form.video_url || null,
@@ -110,8 +111,8 @@ export default function TelaEstoque() {
 
       setModalAberta(false)
       carregarProdutos()
-    } catch (error: any) {
-      alert("Erro ao salvar produto: " + error.message)
+    } catch (error) {
+      alert("Erro ao salvar produto: " + mensagemErro(error))
     } finally {
       setSalvando(false)
     }
@@ -124,7 +125,7 @@ export default function TelaEstoque() {
       const { error } = await supabase.from('produtos').delete().eq('id', id)
       if (error) throw error
       setProdutos(produtos.filter(p => p.id !== id))
-    } catch (error) {
+    } catch {
       alert("Erro ao excluir produto.")
     }
   }
@@ -135,18 +136,18 @@ export default function TelaEstoque() {
     <div className="text-gray-300 bg-hb-black min-h-screen">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
         <div>
-          <h1 className="text-3xl font-light text-white uppercase tracking-widest mb-2">Controle de Estoque</h1>
+          <h1 className="text-2xl sm:text-3xl break-words font-light text-white uppercase tracking-widest mb-2">Controle de Estoque</h1>
           <p className="text-sm text-gray-400">Cadastre suas joias, ajuste preços e organize a vitrine.</p>
         </div>
-        <div className="flex gap-4 w-full md:w-auto">
-          <div className="bg-hb-gray border border-gray-800 rounded-full px-4 py-2 flex items-center gap-2 shadow-sm flex-1 md:w-64">
+        <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto min-w-0">
+          <div className="bg-hb-gray border border-gray-800 rounded-full px-4 py-2 flex items-center gap-2 shadow-sm flex-1 min-w-0 md:w-64">
             <Search size={16} className="text-gray-500" />
             <input 
               type="text" 
               placeholder="Buscar peça..." 
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
-              className="outline-none text-sm text-white bg-transparent w-full placeholder-gray-600" 
+              className="outline-none text-sm text-white bg-transparent w-full min-w-0 placeholder-gray-600"
             />
           </div>
           <button onClick={abrirModalNovo} className="bg-hb-gold text-hb-black px-6 py-2 rounded-full font-bold uppercase tracking-widest text-[10px] flex items-center gap-2 hover:bg-hb-goldLight transition shadow-md">
@@ -161,7 +162,7 @@ export default function TelaEstoque() {
         <div className="bg-hb-gray p-12 rounded-2xl border border-gray-800 text-center shadow-sm">
           <Box size={48} className="mx-auto text-gray-600 mb-4" />
           <p className="text-gray-400 uppercase tracking-widest text-sm font-bold mb-2">Nenhum produto encontrado.</p>
-          <p className="text-xs text-gray-500">Clique em "Novo Produto" para adicionar sua primeira joia.</p>
+          <p className="text-xs text-gray-500">Clique em &quot;Novo Produto&quot; para adicionar sua primeira joia.</p>
         </div>
       ) : (
         <div className="bg-hb-gray border border-gray-800 rounded-xl shadow-sm overflow-hidden">
@@ -181,7 +182,7 @@ export default function TelaEstoque() {
                     <td className="p-4">
                       <div className="flex items-center gap-3">
                         {produto.fotos && produto.fotos[0] ? (
-                          <img src={produto.fotos[0]} alt={produto.nome} className="w-10 h-10 object-cover rounded border border-gray-700" />
+                          <Image width={40} height={40} sizes="40px" src={produto.fotos[0]} alt={produto.nome} className="w-10 h-10 object-cover rounded border border-gray-700" />
                         ) : (
                           <div className="w-10 h-10 rounded bg-hb-black border border-gray-800 flex items-center justify-center text-gray-600"><ImageIcon size={16}/></div>
                         )}
@@ -214,7 +215,7 @@ export default function TelaEstoque() {
       {/* MODAL ADICIONAR / EDITAR PRODUTO */}
       {modalAberta && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-hb-gray border border-gray-800 rounded-2xl max-w-2xl w-full p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto text-white">
+          <div className="bg-hb-gray border border-gray-800 rounded-2xl max-w-2xl w-full p-8 shadow-2xl relative max-h-[90dvh] overflow-y-auto text-white">
             <button onClick={() => setModalAberta(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white transition"><X size={20} /></button>
             <h2 className="text-lg font-light uppercase tracking-widest text-white mb-6 border-b border-gray-800 pb-4">
               {produtoEditandoId ? 'Editar Joia' : 'Cadastrar Nova Joia'}
@@ -254,6 +255,11 @@ export default function TelaEstoque() {
                 <textarea rows={4} value={form.descricao} onChange={e => setForm({...form, descricao: e.target.value})} className="w-full bg-hb-black border border-gray-700 p-3 rounded text-sm text-white outline-none focus:border-hb-gold resize-none placeholder-gray-600" placeholder="Conte a história e os detalhes do acabamento desta peça..."></textarea>
               </div>
 
+              <div>
+                <label htmlFor="estoque-disponivel" className="block text-xs text-gray-400 mb-2">Estoque físico (unidades)</label>
+                <input id="estoque-disponivel" type="number" inputMode="numeric" min="0" step="1" required value={form.estoque} onChange={e => setForm({ ...form, estoque: e.target.value })} className="min-h-11 w-full bg-hb-black border border-gray-700 rounded p-3" />
+                <p className="mt-2 text-xs text-gray-500">O estoque físico deve cobrir as unidades já reservadas por pedidos.</p>
+              </div>
               <div className="bg-hb-black p-4 rounded-xl border border-gray-800">
                 <label className="flex items-center gap-2 text-[10px] font-bold text-gray-300 uppercase tracking-widest mb-2"><ImageIcon size={14} className="text-hb-gold" /> Foto Principal</label>
                 {produtoEditandoId && fotosAntigas.length > 0 && !fotoArquivo && (

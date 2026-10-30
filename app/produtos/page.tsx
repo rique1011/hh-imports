@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
@@ -28,7 +29,7 @@ export default async function PaginaTodosProdutos() {
               <Link key={produto.id} href={`/produto/${produto.slug}`} className="group block">
                 <div className="relative bg-hb-gray aspect-[4/5] rounded-xl overflow-hidden mb-4 border border-gray-800 shadow-sm">
                   {produto.fotos && produto.fotos[0] ? (
-                    <img src={produto.fotos[0]} alt={produto.nome} className="w-full h-full object-cover group-hover:scale-105 opacity-80 group-hover:opacity-100 transition duration-700" />
+                    <Image width={600} height={750} sizes="(max-width: 768px) 50vw, 25vw" src={produto.fotos[0]} alt={produto.nome} className="w-full h-full object-cover group-hover:scale-105 opacity-80 group-hover:opacity-100 transition duration-700" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs uppercase tracking-widest">Sem foto</div>
                   )}

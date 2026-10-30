@@ -34,7 +34,7 @@ function ConteudoRedefinir() {
         alert("Link inválido ou expirado. Peça um novo link.")
         setCarregando(false)
       }
-    } catch (error) {
+    } catch {
       alert("Erro ao conectar com o servidor.")
       setCarregando(false)
     }

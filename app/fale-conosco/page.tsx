@@ -1,4 +1,3 @@
-import { CONTACT_EMAIL } from '@/lib/brand'
 import { Mail, Phone, MapPin, Send } from 'lucide-react'
 
 export default function FaleConosco() {
