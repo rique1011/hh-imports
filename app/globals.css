@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+/* 1. SEU TEMA DO TAILWIND V4 VINCULADO ÀS FONTES INJETADAS */
+@theme inline {
+  --font-sans: 'Inter', sans-serif;
+  --font-serif: 'Playfair Display', serif;
+  
+  /* Cores de Luxo H&H IMPORTS */
+  --color-hb-black: #0a0a0a;
+  --color-hb-gold: #D4AF37;
+  --color-hb-goldLight: #F3E5AB;
+  --color-hb-goldDark: #AA7C11;
+  --color-hb-gray: #1a1a1a;
+}
+
+/* 2. REGRAS DE RENDERIZAÇÃO MANDATÓRIAS */
+* {
+  font-family: 'Inter', sans-serif;
+}
+
+body {
+  background-color: #0a0a0a !important;
+  color: #f5f5f5 !important;
+  font-family: 'Inter', sans-serif !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Aplica o peso de alta grife para todos os títulos */
+h1, h2, h3, h4, h5, h6, .font-serif {
+  font-family: 'Playfair Display', serif !important;
+}
+
+/* 3. SEU PLANO B UTILITIES SLOTS */
+@layer utilities {
+  .bg-hb-black { background-color: #0a0a0a !important; }
+  .bg-hb-gray { background-color: #1a1a1a !important; }
+  .bg-hb-gold { background-color: #D4AF37 !important; }
+  
+  .text-hb-gold { color: #D4AF37 !important; }
+  .text-hb-black { color: #0a0a0a !important; }
+  
+  .border-hb-gray { border-color: #1a1a1a !important; }
+  .border-hb-gold { border-color: #D4AF37 !important; }
+  
+  .font-inter-fix { font-family: 'Inter', sans-serif !important; }
+  .font-serif-fix { font-family: 'Playfair Display', serif !important; }
+}

@@ -1,0 +1,67 @@
+import { NextResponse } from 'next/server'
+import { supabase } from '@/lib/supabase'
+import { Resend } from 'resend'
+
+export const dynamic = 'force-dynamic'
+
+const resend = new Resend(process.env.RESEND_API_KEY)
+
+export async function GET() {
+  try {
+    // 🚨 REGRA DE PRODUÇÃO: Busca carrinhos abandonados há mais de 30 minutos
+    const trintaMinutosAtras = new Date(Date.now() - 30 * 60 * 1000).toISOString()
+
+    const { data: carrinhos, error } = await supabase
+      .from('carrinhos_abandonados')
+      .select('*')
+      .lt('atualizado_em', trintaMinutosAtras)
+      .eq('email_enviado', false)
+
+    if (error) throw error
+    if (!carrinhos || carrinhos.length === 0) {
+      return NextResponse.json({ message: 'Nenhum carrinho abandonado elegível no momento.' })
+    }
+
+    let disparos = 0
+
+    // Dispara os e-mails
+    for (const carrinho of carrinhos) {
+      await resend.emails.send({
+        from: 'H&H IMPORTS <onboarding@resend.dev>', // Quando tiver domínio próprio validado no Resend, mude aqui!
+        to: carrinho.cliente_email,
+        subject: 'Você deixou algo especial para trás... ✨',
+        html: `
+          <div style="font-family: sans-serif; max-w: 600px; margin: 0 auto; text-align: center; color: #111827;">
+            <h1 style="font-weight: 300; text-transform: uppercase; letter-spacing: 2px;">H&H IMPORTS</h1>
+            <hr style="border-top: 1px solid #f3f4f6; margin: 20px 0;" />
+            <h2 style="font-size: 20px;">Notamos que algumas joias ficaram na sua sacola!</h2>
+            <p style="color: #6b7280; line-height: 1.6;">
+              As peças que você escolheu são exclusivas e nosso estoque é muito limitado. 
+              Para te ajudar a finalizar essa compra, liberamos um presente especial válido pelas próximas 24 horas.
+            </p>
+            <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 30px 0;">
+              <p style="text-transform: uppercase; font-size: 12px; font-weight: bold; color: #9ca3af; margin-bottom: 8px;">Use o cupom abaixo no carrinho:</p>
+              <p style="font-size: 24px; font-weight: 900; letter-spacing: 4px; margin: 0;">VOLTEI10</p>
+            </div>
+            <a href="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/carrinho" style="display: inline-block; background-color: #000; color: #fff; padding: 16px 32px; text-decoration: none; text-transform: uppercase; font-size: 12px; font-weight: bold; letter-spacing: 2px; border-radius: 4px;">
+              Finalizar Minha Compra
+            </a>
+          </div>
+        `
+      })
+
+      // Marca como enviado
+      await supabase
+        .from('carrinhos_abandonados')
+        .update({ email_enviado: true })
+        .eq('id', carrinho.id)
+        
+      disparos++
+    }
+
+    return NextResponse.json({ success: true, disparos: disparos })
+  } catch (error: any) {
+    console.error('Erro no cron de recuperação:', error)
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+}

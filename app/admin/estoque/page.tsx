@@ -1,0 +1,274 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { Plus, Search, Edit, Trash2, Loader2, Image as ImageIcon, Box, X } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+
+export default function TelaEstoque() {
+  const [produtos, setProdutos] = useState<any[]>([])
+  const [carregando, setCarregando] = useState(true)
+  const [busca, setBusca] = useState('')
+
+  const [modalAberta, setModalAberta] = useState(false)
+  const [salvando, setSalvando] = useState(false)
+  const [fotoArquivo, setFotoArquivo] = useState<File | null>(null)
+  
+  const [produtoEditandoId, setProdutoEditandoId] = useState<string | null>(null)
+  const [fotosAntigas, setFotosAntigas] = useState<string[]>([])
+
+  const [form, setForm] = useState({
+    nome: '',
+    preco: '',
+    material: 'Ouro 18k',
+    descricao: '',
+    video_url: ''
+  })
+
+  useEffect(() => {
+    carregarProdutos()
+  }, [])
+
+  async function carregarProdutos() {
+    try {
+      const { data, error } = await supabase
+        .from('produtos')
+        .select('*')
+        .order('criado_em', { ascending: false })
+
+      if (error) throw error
+      setProdutos(data || [])
+    } catch (error) {
+      console.error("Erro ao carregar estoque:", error)
+    } finally {
+      setCarregando(false)
+    }
+  }
+
+  const abrirModalNovo = () => {
+    setProdutoEditandoId(null)
+    setFotosAntigas([])
+    setForm({ nome: '', preco: '', material: 'Ouro 18k', descricao: '', video_url: '' })
+    setFotoArquivo(null)
+    setModalAberta(true)
+  }
+
+  const abrirModalEditar = (produto: any) => {
+    setProdutoEditandoId(produto.id)
+    setFotosAntigas(produto.fotos || [])
+    setForm({
+      nome: produto.nome || '',
+      preco: produto.preco?.toString() || '',
+      material: produto.material || 'Ouro 18k',
+      descricao: produto.descricao || '',
+      video_url: produto.video_url || ''
+    })
+    setFotoArquivo(null)
+    setModalAberta(true)
+  }
+
+  const gerarSlug = (texto: string) => {
+    return texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')
+  }
+
+  const handleSalvarProduto = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSalvando(true)
+
+    try {
+      let fotosArray = [...fotosAntigas]
+
+      if (fotoArquivo) {
+        const extensao = fotoArquivo.name.split('.').pop()
+        const nomeArquivo = `produtos/${gerarSlug(form.nome)}-${Date.now()}.${extensao}`
+        
+        const { error: uploadError } = await supabase.storage.from('joias').upload(nomeArquivo, fotoArquivo)
+        if (uploadError) throw uploadError
+        
+        const { data: publicUrlData } = supabase.storage.from('joias').getPublicUrl(nomeArquivo)
+        fotosArray = [publicUrlData.publicUrl]
+      }
+
+      const dadosProduto = {
+        nome: form.nome,
+        slug: gerarSlug(form.nome),
+        preco: Number(form.preco),
+        material: form.material,
+        descricao: form.descricao,
+        video_url: form.video_url || null,
+        fotos: fotosArray
+      }
+
+      if (produtoEditandoId) {
+        const { error } = await supabase.from('produtos').update(dadosProduto).eq('id', produtoEditandoId)
+        if (error) throw error
+        alert("Produto atualizado com sucesso!")
+      } else {
+        const { error } = await supabase.from('produtos').insert([dadosProduto])
+        if (error) throw error
+        alert("Produto adicionado com sucesso!")
+      }
+
+      setModalAberta(false)
+      carregarProdutos()
+    } catch (error: any) {
+      alert("Erro ao salvar produto: " + error.message)
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  const excluirProduto = async (id: string, nome: string) => {
+    if (!confirm(`Tem certeza que deseja EXCLUIR "${nome}" da loja? Essa ação não pode ser desfeita.`)) return
+
+    try {
+      const { error } = await supabase.from('produtos').delete().eq('id', id)
+      if (error) throw error
+      setProdutos(produtos.filter(p => p.id !== id))
+    } catch (error) {
+      alert("Erro ao excluir produto.")
+    }
+  }
+
+  const produtosFiltrados = produtos.filter(p => p.nome.toLowerCase().includes(busca.toLowerCase()))
+
+  return (
+    <div className="text-gray-300 bg-hb-black min-h-screen">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+        <div>
+          <h1 className="text-3xl font-light text-white uppercase tracking-widest mb-2">Controle de Estoque</h1>
+          <p className="text-sm text-gray-400">Cadastre suas joias, ajuste preços e organize a vitrine.</p>
+        </div>
+        <div className="flex gap-4 w-full md:w-auto">
+          <div className="bg-hb-gray border border-gray-800 rounded-full px-4 py-2 flex items-center gap-2 shadow-sm flex-1 md:w-64">
+            <Search size={16} className="text-gray-500" />
+            <input 
+              type="text" 
+              placeholder="Buscar peça..." 
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              className="outline-none text-sm text-white bg-transparent w-full placeholder-gray-600" 
+            />
+          </div>
+          <button onClick={abrirModalNovo} className="bg-hb-gold text-hb-black px-6 py-2 rounded-full font-bold uppercase tracking-widest text-[10px] flex items-center gap-2 hover:bg-hb-goldLight transition shadow-md">
+            <Plus size={16} /> Novo Produto
+          </button>
+        </div>
+      </header>
+
+      {carregando ? (
+        <div className="flex justify-center py-20"><Loader2 className="animate-spin text-hb-gold" size={32} /></div>
+      ) : produtosFiltrados.length === 0 ? (
+        <div className="bg-hb-gray p-12 rounded-2xl border border-gray-800 text-center shadow-sm">
+          <Box size={48} className="mx-auto text-gray-600 mb-4" />
+          <p className="text-gray-400 uppercase tracking-widest text-sm font-bold mb-2">Nenhum produto encontrado.</p>
+          <p className="text-xs text-gray-500">Clique em "Novo Produto" para adicionar sua primeira joia.</p>
+        </div>
+      ) : (
+        <div className="bg-hb-gray border border-gray-800 rounded-xl shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-900/50 border-b border-gray-800 text-[10px] uppercase tracking-widest text-gray-500">
+                  <th className="p-4 font-bold">Produto</th>
+                  <th className="p-4 font-bold">Material</th>
+                  <th className="p-4 font-bold">Preço</th>
+                  <th className="p-4 font-bold text-center">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-800">
+                {produtosFiltrados.map((produto) => (
+                  <tr key={produto.id} className="hover:bg-gray-800/40 transition">
+                    <td className="p-4">
+                      <div className="flex items-center gap-3">
+                        {produto.fotos && produto.fotos[0] ? (
+                          <img src={produto.fotos[0]} alt={produto.nome} className="w-10 h-10 object-cover rounded border border-gray-700" />
+                        ) : (
+                          <div className="w-10 h-10 rounded bg-hb-black border border-gray-800 flex items-center justify-center text-gray-600"><ImageIcon size={16}/></div>
+                        )}
+                        <div>
+                          <p className="text-xs font-bold text-gray-200 uppercase">{produto.nome}</p>
+                          <p className="text-[10px] text-gray-500">Slug: /{produto.slug}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <span className="px-2 py-1 bg-hb-black text-gray-400 rounded text-[9px] font-bold uppercase tracking-widest border border-gray-800">{produto.material || 'N/A'}</span>
+                    </td>
+                    <td className="p-4 text-xs font-bold text-hb-gold">
+                      R$ {Number(produto.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="p-4">
+                      <div className="flex items-center justify-center gap-2">
+                        <button onClick={() => abrirModalEditar(produto)} className="p-2 text-gray-500 hover:text-hb-gold transition" title="Editar"><Edit size={16} /></button>
+                        <button onClick={() => excluirProduto(produto.id, produto.nome)} className="p-2 text-gray-500 hover:text-red-400 transition" title="Excluir"><Trash2 size={16} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL ADICIONAR / EDITAR PRODUTO */}
+      {modalAberta && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-hb-gray border border-gray-800 rounded-2xl max-w-2xl w-full p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto text-white">
+            <button onClick={() => setModalAberta(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white transition"><X size={20} /></button>
+            <h2 className="text-lg font-light uppercase tracking-widest text-white mb-6 border-b border-gray-800 pb-4">
+              {produtoEditandoId ? 'Editar Joia' : 'Cadastrar Nova Joia'}
+            </h2>
+            
+            <form onSubmit={handleSalvarProduto} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Nome do Produto</label>
+                  <input required value={form.nome} onChange={e => setForm({...form, nome: e.target.value})} className="w-full bg-hb-black border border-gray-700 p-3 rounded text-sm text-white outline-none focus:border-hb-gold placeholder-gray-600" placeholder="Ex: Colar Riviera Diamantes" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Preço (R$)</label>
+                  <input required type="number" step="0.01" value={form.preco} onChange={e => setForm({...form, preco: e.target.value})} className="w-full bg-hb-black border border-gray-700 p-3 rounded text-sm text-white outline-none focus:border-hb-gold placeholder-gray-600" placeholder="Ex: 1499.90" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Material / Composição</label>
+                  <select value={form.material} onChange={e => setForm({...form, material: e.target.value})} className="w-full bg-hb-black border border-gray-700 p-3 rounded text-sm text-white outline-none focus:border-hb-gold">
+                    <option value="Ouro 18k">Ouro 18k</option>
+                    <option value="Prata 925">Prata 925</option>
+                    <option value="Banhado a Ouro">Banhado a Ouro</option>
+                    <option value="Aço Inoxidável">Aço Inoxidável</option>
+                    <option value="Couro Premium">Couro Premium</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">URL do Vídeo (Opcional)</label>
+                  <input value={form.video_url} onChange={e => setForm({...form, video_url: e.target.value})} className="w-full bg-hb-black border border-gray-700 p-3 rounded text-sm text-white outline-none focus:border-hb-gold placeholder-gray-600" placeholder="Link do vídeo MP4" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Descrição da Peça</label>
+                <textarea rows={4} value={form.descricao} onChange={e => setForm({...form, descricao: e.target.value})} className="w-full bg-hb-black border border-gray-700 p-3 rounded text-sm text-white outline-none focus:border-hb-gold resize-none placeholder-gray-600" placeholder="Conte a história e os detalhes do acabamento desta peça..."></textarea>
+              </div>
+
+              <div className="bg-hb-black p-4 rounded-xl border border-gray-800">
+                <label className="flex items-center gap-2 text-[10px] font-bold text-gray-300 uppercase tracking-widest mb-2"><ImageIcon size={14} className="text-hb-gold" /> Foto Principal</label>
+                {produtoEditandoId && fotosAntigas.length > 0 && !fotoArquivo && (
+                  <p className="text-[10px] text-gray-500 mb-2 italic">A joia já possui uma foto. Envie uma nova apenas se quiser substituir.</p>
+                )}
+                <input type="file" accept="image/*" onChange={(e) => setFotoArquivo(e.target.files?.[0] || null)} className="w-full text-xs text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-bold file:uppercase file:bg-gray-800 file:text-gray-200 hover:file:bg-gray-700 cursor-pointer" />
+              </div>
+
+              <button type="submit" disabled={salvando} className="w-full bg-hb-gold text-hb-black py-4 text-xs font-bold uppercase tracking-widest hover:bg-hb-goldLight transition disabled:opacity-50 flex items-center justify-center gap-2 rounded">
+                {salvando ? <Loader2 size={16} className="animate-spin" /> : (produtoEditandoId ? 'SALVAR ALTERAÇÕES' : 'SALVAR PRODUTO')}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
