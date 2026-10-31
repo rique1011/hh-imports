@@ -27,22 +27,22 @@ export default function FiltroCategoria({ produtosOriginais, tituloCategoria }: 
   }, [produtosOriginais, filtroMaterial, filtroPreco])
 
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-dvh bg-hb-black text-gray-200">
       {/* Header */}
-      <div className="bg-gray-50 py-16 border-b border-gray-100">
-        <div className="max-w-6xl mx-auto px-6 text-center">
-          <h1 className="text-4xl font-light text-gray-900 uppercase tracking-widest">
+      <div className="bg-hb-gray py-8 md:py-12 border-b border-gray-800">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 text-center">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-light text-white uppercase tracking-wide [overflow-wrap:anywhere]">
             {tituloCategoria}
           </h1>
-          <div className="w-12 h-[1px] bg-black mx-auto mt-6"></div>
+          <div className="w-12 h-[1px] bg-hb-gold mx-auto mt-4"></div>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-12 flex flex-col md:flex-row gap-12">
+      <div className="max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-12 flex flex-col md:flex-row gap-6 md:gap-10">
         
         {/* BARRA LATERAL DE FILTROS */}
-        <aside className="w-full md:w-56 flex-shrink-0 space-y-10">
-          <div className="flex items-center gap-2 border-b border-gray-900 pb-4">
+        <aside className="w-full md:w-52 flex-shrink-0 min-w-0 space-y-5 md:space-y-8">
+          <div className="flex items-center gap-2 border-b border-gray-800 pb-3">
             <SlidersHorizontal size={16} />
             <span className="text-xs font-black uppercase tracking-widest">Filtros</span>
           </div>
@@ -50,17 +50,17 @@ export default function FiltroCategoria({ produtosOriginais, tituloCategoria }: 
           {/* Filtro de Material */}
           {materiaisDisponiveis.length > 0 && (
             <div>
-              <h3 className="text-[10px] font-black text-gray-400 uppercase mb-4 tracking-widest">Material</h3>
-              <div className="flex flex-col gap-2">
+              <h3 className="text-[10px] font-black text-gray-400 uppercase mb-3 tracking-widest">Material</h3>
+              <div className="flex flex-wrap md:flex-col gap-2">
                 {materiaisDisponiveis.map((m) => (
                   <button
                     key={m}
                     onClick={() => setFiltroMaterial(filtroMaterial === m ? '' : m)}
-                    className={`text-left text-xs py-1 transition-all flex items-center gap-2 ${
-                      filtroMaterial === m ? 'text-black font-bold translate-x-1' : 'text-gray-500 hover:text-black'
+                    className={`min-h-11 text-left text-xs px-3 py-2 rounded-lg border transition-colors flex items-center gap-2 ${
+                      filtroMaterial === m ? 'text-hb-gold border-hb-gold bg-hb-gold/10 font-bold' : 'text-gray-300 border-gray-700 hover:border-hb-gold'
                     }`}
                   >
-                    {filtroMaterial === m && <div className="w-1 h-1 bg-black rounded-full" />}
+                    {filtroMaterial === m && <div className="w-1 h-1 bg-hb-gold rounded-full" />}
                     {m}
                   </button>
                 ))}
@@ -78,7 +78,7 @@ export default function FiltroCategoria({ produtosOriginais, tituloCategoria }: 
               type="range" aria-label="Preço máximo" min="0" max="10000" step="50"
               value={filtroPreco}
               onChange={(e) => setFiltroPreco(Number(e.target.value))}
-              className="w-full h-1 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-black"
+              className="price-range"
             />
           </div>
 
@@ -86,7 +86,7 @@ export default function FiltroCategoria({ produtosOriginais, tituloCategoria }: 
           {(filtroMaterial || filtroPreco < 10000) && (
             <button 
               onClick={() => { setFiltroMaterial(''); setFiltroPreco(10000); }}
-              className="flex items-center gap-1 text-[10px] font-bold text-red-500 uppercase hover:text-red-700 transition"
+              className="flex items-center gap-1 min-h-11 text-xs font-bold text-red-400 uppercase hover:text-red-300 transition"
             >
               <X size={14} /> Limpar Filtros
             </button>
@@ -100,22 +100,22 @@ export default function FiltroCategoria({ produtosOriginais, tituloCategoria }: 
               <p className="text-sm font-light mb-4">Nenhum item encontrado com estes filtros.</p>
               <button 
                 onClick={() => { setFiltroMaterial(''); setFiltroPreco(10000); }}
-                className="text-xs font-bold uppercase border-b border-black text-black pb-1"
+                className="min-h-11 text-xs font-bold uppercase border-b border-hb-gold text-hb-gold pb-1"
               >
                 Resetar Filtros
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-12">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-x-3 sm:gap-x-6 gap-y-6 md:gap-y-10">
               {produtosFiltrados.map((produto) => (
                 <Link 
                   href={`/produto/${produto.slug}`} 
                   key={produto.id} 
                   className="group flex flex-col min-w-0"
                 >
-                  <div className="relative w-full aspect-square bg-gray-50 overflow-hidden mb-4 border border-gray-100">
+                  <div className="relative w-full aspect-square bg-hb-gray overflow-hidden mb-3 border border-gray-800 rounded-lg">
                     {produto.fotos && produto.fotos.length > 0 ? (
-                      <Image width={600} height={750} sizes="(max-width: 768px) 50vw, 25vw"
+                      <Image width={600} height={600} sizes="(max-width: 767px) calc(50vw - 22px), (max-width: 1023px) 32vw, 280px"
                         src={produto.fotos[0]} 
                         alt={produto.nome} 
                         loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
@@ -127,13 +127,13 @@ export default function FiltroCategoria({ produtosOriginais, tituloCategoria }: 
 
                   <div className="flex flex-col items-center text-center px-2 min-w-0">
                     <p className="text-[9px] text-gray-400 uppercase font-bold mb-1 tracking-widest">{produto.material}</p>
-                    <h2 className="text-sm max-w-full break-words font-medium text-gray-700 uppercase tracking-wide group-hover:text-black transition">
+                    <h2 className="text-xs md:text-sm max-w-full break-words line-clamp-2 min-h-8 font-medium text-gray-200 uppercase tracking-wide group-hover:text-hb-gold transition">
                       {produto.nome}
                     </h2>
-                    <p className="text-base font-bold text-gray-900 mt-2">
+                    <p className="text-sm md:text-base font-bold text-hb-gold mt-2">
                       R$ {Number(produto.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
-                    <span className="mt-3 text-[9px] font-bold uppercase tracking-[0.2em] text-black opacity-0 group-hover:opacity-100 transition-all flex items-center gap-1">
+                    <span className="mt-3 min-h-11 text-[10px] font-bold uppercase tracking-wide text-gray-400 group-hover:text-hb-gold transition-colors flex items-center gap-1">
                       Ver detalhes <ChevronRight size={10} />
                     </span>
                   </div>

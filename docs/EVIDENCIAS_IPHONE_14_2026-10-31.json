@@ -1,0 +1,99 @@
+{
+  "data": "2026-10-31",
+  "commit_base": "d424991b116de9b6de2b7fe70421f9b44e7491bc",
+  "ambiente": "Build de produção local; fixtures de catálogo, usuário administrador e pedidos; Chromium com viewport, toque e DPR do iPhone 14. Não é Safari físico.",
+  "validacao": {
+    "lint": "aprovado, --max-warnings 0",
+    "typescript": "aprovado, tsc --noEmit",
+    "build": "aprovado, Next.js 16.2.4",
+    "backend": {
+      "testes": 20,
+      "aprovados": 20,
+      "falhas": 0
+    },
+    "combinacoes_paginas": 90,
+    "verificacoes": 277,
+    "overflows": 0,
+    "erros_javascript": [],
+    "ocorrencias_campos_visiveis_menores_16px": 0
+  },
+  "tamanhos": [
+    {
+      "width": 390,
+      "height": 664
+    },
+    {
+      "width": 390,
+      "height": 844
+    },
+    {
+      "width": 844,
+      "height": 390
+    },
+    {
+      "width": 320,
+      "height": 568
+    },
+    {
+      "width": 768,
+      "height": 1024
+    },
+    {
+      "width": 1440,
+      "height": 900
+    }
+  ],
+  "rotas": [
+    "/",
+    "/colecoes",
+    "/categoria/colares",
+    "/categoria/colecao-com-nome-muitolongosemespacosABCDEFGHIJKLMNOPQRSTUVWXYZ",
+    "/produtos",
+    "/pesquisa?q=colar",
+    "/produto/joia-fixture",
+    "/carrinho",
+    "/minha-conta?aba=dados",
+    "/minha-conta?aba=trocas",
+    "/admin/estoque",
+    "/admin/pedidos",
+    "/admin/cupons",
+    "/login",
+    "/sucesso?external_reference=17"
+  ],
+  "interacoes": [
+    "menu abre por toque",
+    "galeria avança por toque",
+    "galeria responde a swipe horizontal",
+    "galeria preserva imagem na rotação",
+    "menu fecha ao mudar para desktop",
+    "mudança de tela libera a rolagem",
+    "quantidade não repete busca da sugestão",
+    "sacola preserva quantidade após reload",
+    "modal administrativo acessível",
+    "modal cabe com viewport reduzida pelo teclado",
+    "Escape fecha modal",
+    "modal devolve rolagem à página",
+    "troca continua acessível pelo celular",
+    "defeito mantém upload obrigatório",
+    "avaliações diferidas mantêm seleção de estrelas",
+    "pedido pendente mantém sacola",
+    "confirmação real continua limpando sacola",
+    "filtro de material permanece funcional",
+    "filtro de preço e reset preservam catálogo",
+    "original de zoom não carrega antes da interação",
+    "zoom original continua disponível com mouse"
+  ],
+  "performance_produto": {
+    "metodo": "Soma gzip dos scripts externos presentes na primeira visualização, incluindo runtime compartilhado; mesmo fixture e viewport 390x664; não representa latência real nem teste de carga.",
+    "antes_bytes": 269748,
+    "depois_bytes": 217164,
+    "reducao_percentual": 19.5
+  },
+  "limitacoes": [
+    "ZIP fornecido contém apenas a pasta monile vazia, sem capturas.",
+    "Sem Safari real ou hardware iPhone nesta rodada.",
+    "Pagamento, upload, e-mails e banco reais não receberam gravações de teste.",
+    "A chamada preexistente /api/visitas continua retornando 404.",
+    "A redução de JavaScript é específica da página de produto; não se afirma redução em todas as páginas."
+  ]
+}

@@ -1,4 +1,6 @@
 'use client'
+import Modal from '@/components/Modal'
+
 import Image from 'next/image'
 
 import { useSession, signOut } from 'next-auth/react' 
@@ -11,6 +13,7 @@ import {
   AlertCircle, CheckCircle2, Truck, DollarSign, Sparkles, MapPin, CreditCard, Receipt, Gift
 } from 'lucide-react'
 import { useCart } from '@/lib/store'
+import { useShallow } from 'zustand/react/shallow'
 import { uploadImagem } from '@/lib/upload-imagem'
 import type { Identificador, Pedido, ItemPedido } from '@/types/loja'
 import { mensagemErro } from '@/lib/erros'
@@ -24,7 +27,7 @@ function ConteudoMinhaConta() {
   
   const [pedidos, setPedidos] = useState<Pedido[]>([])
   const [carregandoPedidos, setCarregandoPedidos] = useState(true)
-  const { wishlist, toggleWishlist, adicionarAoCarrinho } = useCart()
+  const { wishlist, toggleWishlist, adicionarAoCarrinho } = useCart(useShallow(state => ({ wishlist: state.wishlist, toggleWishlist: state.toggleWishlist, adicionarAoCarrinho: state.adicionarAoCarrinho })))
   
   const [form, setForm] = useState({ cpf_cnpj: '', whatsapp: '', data_nascimento: '' })
   const [endereco, setEndereco] = useState({ cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '' })
@@ -261,16 +264,16 @@ function ConteudoMinhaConta() {
         
         {/* MENU LATERAL / SUPERIOR NO MOBILE */}
         <aside className="w-full lg:w-64 flex-shrink-0">
-          <nav className="flex flex-row lg:flex-col gap-2 lg:gap-1 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0 scrollbar-hide lg:sticky lg:top-24">
-            <button onClick={() => setAbaAtiva('pedidos')} className={`flex items-center justify-center lg:justify-start gap-2 px-4 py-3 md:py-4 text-[10px] md:text-[11px] font-bold uppercase tracking-widest transition border lg:border-0 lg:border-b border-gray-900 rounded-full lg:rounded-none whitespace-nowrap shrink-0 ${abaAtiva === 'pedidos' ? 'text-hb-gold border-hb-gold lg:border-l-2 lg:border-l-hb-gold lg:border-t-0 lg:border-r-0 lg:border-b-gray-900 bg-hb-gold/10 lg:bg-gray-900/50' : 'text-gray-500 hover:text-white hover:bg-gray-900/30'}`}><Package size={14} className="md:w-4 md:h-4" /> Meus Pedidos</button>
-            <button onClick={() => setAbaAtiva('dados')} className={`flex items-center justify-center lg:justify-start gap-2 px-4 py-3 md:py-4 text-[10px] md:text-[11px] font-bold uppercase tracking-widest transition border lg:border-0 lg:border-b border-gray-900 rounded-full lg:rounded-none whitespace-nowrap shrink-0 ${abaAtiva === 'dados' ? 'text-hb-gold border-hb-gold lg:border-l-2 lg:border-l-hb-gold lg:border-t-0 lg:border-r-0 lg:border-b-gray-900 bg-hb-gold/10 lg:bg-gray-900/50' : 'text-gray-500 hover:text-white hover:bg-gray-900/30'}`}><User size={14} className="md:w-4 md:h-4" /> Meus Dados</button>
-            <button onClick={() => setAbaAtiva('trocas')} className={`flex items-center justify-center lg:justify-start gap-2 px-4 py-3 md:py-4 text-[10px] md:text-[11px] font-bold uppercase tracking-widest transition border lg:border-0 lg:border-b border-gray-900 rounded-full lg:rounded-none whitespace-nowrap shrink-0 ${abaAtiva === 'trocas' ? 'text-hb-gold border-hb-gold lg:border-l-2 lg:border-l-hb-gold lg:border-t-0 lg:border-r-0 lg:border-b-gray-900 bg-hb-gold/10 lg:bg-gray-900/50' : 'text-gray-500 hover:text-white hover:bg-gray-900/30'}`}><RefreshCcw size={14} className="md:w-4 md:h-4" /> Trocas e Devoluções</button>
-            <button onClick={() => setAbaAtiva('desejos')} className={`flex items-center justify-center lg:justify-start gap-2 px-4 py-3 md:py-4 text-[10px] md:text-[11px] font-bold uppercase tracking-widest transition border lg:border-0 lg:border-b border-gray-900 rounded-full lg:rounded-none whitespace-nowrap shrink-0 ${abaAtiva === 'desejos' ? 'text-hb-gold border-hb-gold lg:border-l-2 lg:border-l-hb-gold lg:border-t-0 lg:border-r-0 lg:border-b-gray-900 bg-hb-gold/10 lg:bg-gray-900/50' : 'text-gray-500 hover:text-white hover:bg-gray-900/30'}`}><Heart size={14} className="md:w-4 md:h-4" /> Desejos</button>
+          <nav className="grid grid-cols-2 sm:grid-cols-3 lg:flex lg:flex-col gap-2 lg:gap-1 lg:sticky lg:top-24">
+            <button onClick={() => setAbaAtiva('pedidos')} className={`flex items-center justify-center lg:justify-start gap-2 px-4 py-3 md:py-4 text-xs font-bold uppercase tracking-wide transition border lg:border-0 lg:border-b border-gray-900 rounded-full lg:rounded-none min-w-0 min-h-12 whitespace-normal leading-relaxed ${abaAtiva === 'pedidos' ? 'text-hb-gold border-hb-gold lg:border-l-2 lg:border-l-hb-gold lg:border-t-0 lg:border-r-0 lg:border-b-gray-900 bg-hb-gold/10 lg:bg-gray-900/50' : 'text-gray-500 hover:text-white hover:bg-gray-900/30'}`}><Package size={14} className="md:w-4 md:h-4" /> Meus Pedidos</button>
+            <button onClick={() => setAbaAtiva('dados')} className={`flex items-center justify-center lg:justify-start gap-2 px-4 py-3 md:py-4 text-xs font-bold uppercase tracking-wide transition border lg:border-0 lg:border-b border-gray-900 rounded-full lg:rounded-none min-w-0 min-h-12 whitespace-normal leading-relaxed ${abaAtiva === 'dados' ? 'text-hb-gold border-hb-gold lg:border-l-2 lg:border-l-hb-gold lg:border-t-0 lg:border-r-0 lg:border-b-gray-900 bg-hb-gold/10 lg:bg-gray-900/50' : 'text-gray-500 hover:text-white hover:bg-gray-900/30'}`}><User size={14} className="md:w-4 md:h-4" /> Meus Dados</button>
+            <button onClick={() => setAbaAtiva('trocas')} className={`flex items-center justify-center lg:justify-start gap-2 px-4 py-3 md:py-4 text-xs font-bold uppercase tracking-wide transition border lg:border-0 lg:border-b border-gray-900 rounded-full lg:rounded-none min-w-0 min-h-12 whitespace-normal leading-relaxed ${abaAtiva === 'trocas' ? 'text-hb-gold border-hb-gold lg:border-l-2 lg:border-l-hb-gold lg:border-t-0 lg:border-r-0 lg:border-b-gray-900 bg-hb-gold/10 lg:bg-gray-900/50' : 'text-gray-500 hover:text-white hover:bg-gray-900/30'}`}><RefreshCcw size={14} className="md:w-4 md:h-4" /> Trocas e Devoluções</button>
+            <button onClick={() => setAbaAtiva('desejos')} className={`flex items-center justify-center lg:justify-start gap-2 px-4 py-3 md:py-4 text-xs font-bold uppercase tracking-wide transition border lg:border-0 lg:border-b border-gray-900 rounded-full lg:rounded-none min-w-0 min-h-12 whitespace-normal leading-relaxed ${abaAtiva === 'desejos' ? 'text-hb-gold border-hb-gold lg:border-l-2 lg:border-l-hb-gold lg:border-t-0 lg:border-r-0 lg:border-b-gray-900 bg-hb-gold/10 lg:bg-gray-900/50' : 'text-gray-500 hover:text-white hover:bg-gray-900/30'}`}><Heart size={14} className="md:w-4 md:h-4" /> Desejos</button>
             
             {isAdmin && (
               <Link 
                 href="/admin" 
-                className="flex items-center justify-center lg:justify-start gap-2 px-4 py-3 md:py-4 text-[10px] md:text-[11px] font-black uppercase tracking-widest text-black bg-hb-gold hover:bg-yellow-600 transition-all lg:mt-6 rounded-full lg:rounded shrink-0 whitespace-nowrap"
+                className="flex items-center justify-center lg:justify-start gap-2 px-4 py-3 md:py-4 text-xs font-black uppercase tracking-wide text-black bg-hb-gold hover:bg-yellow-600 transition-all lg:mt-6 rounded-full lg:rounded min-w-0 min-h-12 whitespace-normal leading-relaxed"
               >
                 <Lock size={14} className="md:w-4 md:h-4" /> <span className="hidden lg:inline">Painel Admin</span><span className="lg:hidden">Admin</span>
               </Link>
@@ -665,10 +668,9 @@ function ConteudoMinhaConta() {
 
       {/* --- MODAL DE TROCA --- */}
       {modalAberta && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-950 border border-gray-800 rounded-2xl max-w-md w-full p-6 md:p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto">
-            <button onClick={() => setModalAberta(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white transition p-1"><X size={20} /></button>
-            <h2 className="text-base md:text-lg font-light uppercase tracking-widest text-white mb-5 md:mb-6 flex items-center gap-2"><RefreshCcw size={16} className="text-hb-gold md:w-5 md:h-5" /> Solicitar Troca</h2>
+        <Modal onClose={() => setModalAberta(false)} labelledBy="titulo-troca" className="bg-gray-950 border border-gray-800 rounded-2xl max-w-md p-5 sm:p-8 shadow-2xl relative">
+            <button onClick={() => setModalAberta(false)} aria-label="Fechar janela" className="absolute top-3 right-3 min-w-11 min-h-11 grid place-items-center text-gray-400 hover:text-white transition"><X size={20} /></button>
+            <h2 id="titulo-troca" className="text-base md:text-lg font-light uppercase tracking-widest text-white mb-5 md:mb-6 flex items-center gap-2"><RefreshCcw size={16} className="text-hb-gold md:w-5 md:h-5" /> Solicitar Troca</h2>
             {mensagemSucesso ? (
               <div className="bg-green-900/20 text-green-400 p-5 md:p-6 rounded-xl border border-green-900/50 text-center space-y-3 md:space-y-4"><CheckCircle2 size={32} className="mx-auto md:w-10 md:h-10" /><p className="text-xs md:text-sm font-medium">{mensagemSucesso}</p></div>
             ) : (
@@ -700,8 +702,7 @@ function ConteudoMinhaConta() {
                 </button>
               </form>
             )}
-          </div>
-        </div>
+        </Modal>
       )}
     </main>
   )

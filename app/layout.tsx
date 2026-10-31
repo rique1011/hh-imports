@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Playfair_Display } from "next/font/google"; // Mantido para compatibilidade do Next
 import "./globals.css";
 import Header from "@/components/Header";
@@ -32,6 +32,13 @@ export const metadata: Metadata = {
   icons: { icon: "/icon.svg" },
 };
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: '#0a0a0a',
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -42,7 +49,7 @@ export default function RootLayout({
       lang="pt-BR"
       className={`${inter.variable} ${playfair.variable} antialiased`}
     >
-      <body className="bg-hb-black text-gray-100 font-sans flex flex-col min-h-screen selection:bg-hb-gold selection:text-hb-black">
+      <body className="bg-hb-black text-gray-100 font-sans flex flex-col min-h-dvh selection:bg-hb-gold selection:text-hb-black">
         
         <Toaster 
           position="bottom-center"

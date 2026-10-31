@@ -1,4 +1,6 @@
 'use client'
+import Modal from '@/components/Modal'
+
 import type { Cupom } from '@/types/loja'
 
 import { useState, useEffect } from 'react'
@@ -128,10 +130,9 @@ export default function TelaCupons() {
 
       {/* MODAL NOVO CUPOM */}
       {modalAberta && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-hb-gray border border-gray-800 rounded-2xl max-w-sm w-full p-6 sm:p-8 shadow-2xl relative max-h-[90dvh] overflow-y-auto text-white">
-            <button onClick={() => setModalAberta(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white transition"><X size={20} /></button>
-            <h2 className="text-lg font-light uppercase tracking-widest text-white mb-6">Criar Cupom</h2>
+        <Modal onClose={() => setModalAberta(false)} labelledBy="titulo-cupom" className="bg-hb-gray border border-gray-800 rounded-2xl max-w-sm p-5 sm:p-8 shadow-2xl relative text-white">
+            <button onClick={() => setModalAberta(false)} aria-label="Fechar janela" className="absolute top-3 right-3 min-w-11 min-h-11 grid place-items-center text-gray-400 hover:text-white transition"><X size={20} /></button>
+            <h2 id="titulo-cupom" className="text-lg font-light uppercase tracking-widest text-white mb-6">Criar Cupom</h2>
             <form onSubmit={handleSalvarCupom} className="space-y-6">
               <div>
                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Código (Ex: BEMVINDO10)</label>
@@ -145,8 +146,7 @@ export default function TelaCupons() {
                 {salvando ? <Loader2 size={16} className="animate-spin" /> : 'CRIAR E ATIVAR CUPOM'}
               </button>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

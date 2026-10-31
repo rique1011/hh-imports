@@ -21,7 +21,7 @@ export default async function PaginaCategoria({ params }: PageProps) {
 
   const { data: produtos } = await supabase
     .from('produtos')
-    .select('*')
+    .select('id,nome,slug,preco,fotos,material')
     .eq('categoria_slug', slug)
 
   return (

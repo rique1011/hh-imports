@@ -23,7 +23,7 @@ export default function BotaoAdicionar({ produto }: { produto: ProdutoCompra }) 
   return <>
     <div className="hidden md:block">{botao(false)}</div>
     <p className="mt-3 text-xs text-gray-400" aria-live="polite">{disponivel ? `${disponivel} unidade(s) disponível(is).` : 'Produto indisponível no momento.'}</p>
-    <div className="fixed bottom-0 inset-x-0 z-40 md:hidden bg-hb-black border-t border-gray-700 px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] shadow-xl">
+    <div className="mobile-purchase-bar fixed bottom-0 inset-x-0 z-40 md:hidden bg-hb-black border-t border-gray-700 pl-[max(16px,env(safe-area-inset-left))] pr-[max(16px,env(safe-area-inset-right))] pt-3 pb-[max(12px,env(safe-area-inset-bottom))] shadow-xl">
       <div className="max-w-6xl mx-auto flex items-center gap-3"><span className="shrink-0 text-hb-gold text-sm font-bold">R$ {Number(produto.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span><div className="flex-1 min-w-0">{botao(true)}</div></div>
     </div>
   </>

@@ -7,13 +7,13 @@ export const revalidate = 0
 export default async function PaginaTodosProdutos() {
   const { data: produtos, error } = await supabase
     .from('produtos')
-    .select('*')
+    .select('id,nome,slug,preco,fotos,material')
     .order('criado_em', { ascending: false })
 
   if (error) console.error("Erro no banco:", error)
 
   return (
-    <main className="min-h-screen bg-hb-black py-20 px-6">
+    <main className="min-h-screen bg-hb-black py-10 md:py-20 px-4 md:px-6">
       <div className="max-w-6xl mx-auto">
         
         <div className="text-center mb-16">
@@ -23,10 +23,10 @@ export default async function PaginaTodosProdutos() {
           <div className="w-12 h-[1px] bg-hb-gold mx-auto"></div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 lg:gap-8">
           {produtos && produtos.length > 0 ? (
             produtos.map((produto) => (
-              <Link key={produto.id} href={`/produto/${produto.slug}`} className="group block">
+              <Link key={produto.id} href={`/produto/${produto.slug}`} className="group block min-w-0">
                 <div className="relative bg-hb-gray aspect-[4/5] rounded-xl overflow-hidden mb-4 border border-gray-800 shadow-sm">
                   {produto.fotos && produto.fotos[0] ? (
                     <Image width={600} height={750} sizes="(max-width: 768px) 50vw, 25vw" src={produto.fotos[0]} alt={produto.nome} className="w-full h-full object-cover group-hover:scale-105 opacity-80 group-hover:opacity-100 transition duration-700" />
@@ -40,7 +40,7 @@ export default async function PaginaTodosProdutos() {
                   )}
                 </div>
                 <div className="text-center px-2">
-                  <h3 className="text-xs font-bold text-gray-200 uppercase tracking-wider mb-2 truncate group-hover:text-white transition-colors">{produto.nome}</h3>
+                  <h3 className="text-xs font-bold text-gray-200 uppercase tracking-wider mb-2 line-clamp-2 min-h-8 break-words group-hover:text-white transition-colors">{produto.nome}</h3>
                   <p className="text-sm text-hb-gold font-medium">R$ {Number(produto.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                 </div>
               </Link>

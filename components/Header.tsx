@@ -6,6 +6,7 @@ import { signOut, useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useCart } from '@/lib/store'
 import { useHidratado } from '@/lib/use-hidratado'
+import { travarRolagem } from '@/lib/scroll-lock'
 
 const links = [{ href: '/', nome: 'Home' }, { href: '/colecoes', nome: 'Coleções' }, { href: '/sobre', nome: 'Sobre' }]
 const alvo = 'min-h-11 min-w-11 inline-flex items-center justify-center rounded hover:text-hb-gold focus-visible:outline-2 focus-visible:outline-hb-gold'
@@ -23,8 +24,7 @@ export default function Header() {
   const fechar = useCallback(() => { setMenu(false); abrirRef.current?.focus() }, [])
   useEffect(() => {
     if (!menu) return
-    const anterior = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const restaurarRolagem = travarRolagem()
     painelRef.current?.querySelector<HTMLButtonElement>('button')?.focus()
     const keyboard = (event: KeyboardEvent) => {
       if (event.key === 'Escape') fechar()
@@ -36,7 +36,14 @@ export default function Header() {
       else if (!event.shiftKey && document.activeElement === ultimo) { event.preventDefault(); primeiro.focus() }
     }
     document.addEventListener('keydown', keyboard)
-    return () => { document.body.style.overflow = anterior; document.removeEventListener('keydown', keyboard) }
+    const desktop = window.matchMedia('(min-width: 1280px)')
+    const mudarTela = () => { if (desktop.matches) setMenu(false) }
+    desktop.addEventListener('change', mudarTela)
+    return () => {
+      restaurarRolagem()
+      document.removeEventListener('keydown', keyboard)
+      desktop.removeEventListener('change', mudarTela)
+    }
   }, [menu, fechar])
   function pesquisar(event: React.FormEvent) {
     event.preventDefault()
@@ -44,7 +51,7 @@ export default function Header() {
     router.push('/pesquisa?q=' + encodeURIComponent(termo.trim()))
     setBusca(false); setTermo('')
   }
-  return <header className="sticky top-0 z-50 border-b border-hb-gray bg-hb-black text-gray-300">
+  return <header className="site-header sticky top-0 z-50 border-b border-hb-gray bg-hb-black text-gray-300">
     <div className="relative max-w-6xl mx-auto h-16 px-3 sm:px-6 flex items-center gap-1 xl:gap-6">
       <button ref={abrirRef} className={`${alvo} xl:hidden shrink-0`} aria-label="Abrir menu" aria-controls="menu-mobile" aria-expanded={menu} onClick={() => setMenu(true)}><Menu size={24} /></button>
       <nav className="hidden xl:flex flex-1 min-w-0 gap-6 text-sm uppercase">{links.map(link => <Link key={link.href} href={link.href} className="min-h-11 inline-flex items-center hover:text-hb-gold">{link.nome}</Link>)}</nav>
@@ -69,7 +76,7 @@ export default function Header() {
     </div>
     {menu && <div className="fixed inset-0 bg-black/80 z-40 xl:hidden" onClick={fechar} />}
     <div ref={painelRef} id="menu-mobile" role={menu ? 'dialog' : undefined} aria-modal={menu || undefined} aria-label="Menu principal" inert={!menu}
-      className={`fixed left-0 top-0 z-50 h-dvh w-[min(85vw,320px)] overflow-y-auto bg-hb-black border-r border-gray-800 shadow-xl xl:hidden transition-transform ${menu ? 'translate-x-0' : '-translate-x-full'}`}>
+      className={`fixed left-0 top-0 z-50 h-dvh w-[min(85vw,320px)] overflow-y-auto overscroll-contain pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] bg-hb-black border-r border-gray-800 shadow-xl xl:hidden transition-transform ${menu ? 'translate-x-0' : '-translate-x-full'}`}>
       <div className="h-16 px-5 flex items-center justify-between border-b border-gray-800"><span className="text-hb-gold tracking-widest font-bold">MENU</span><button className={alvo} aria-label="Fechar menu" onClick={fechar}><X /></button></div>
       <nav className="p-5 flex flex-col gap-2 uppercase text-sm tracking-wide">
         {links.map(link => <Link key={link.href} href={link.href} onClick={fechar} className="min-h-11 flex items-center">{link.nome}</Link>)}

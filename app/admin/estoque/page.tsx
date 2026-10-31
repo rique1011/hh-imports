@@ -1,4 +1,6 @@
 'use client'
+import Modal from '@/components/Modal'
+
 import Image from 'next/image'
 import type { Produto } from '@/types/loja'
 import { mensagemErro } from '@/lib/erros'
@@ -214,10 +216,9 @@ export default function TelaEstoque() {
 
       {/* MODAL ADICIONAR / EDITAR PRODUTO */}
       {modalAberta && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-hb-gray border border-gray-800 rounded-2xl max-w-2xl w-full p-8 shadow-2xl relative max-h-[90dvh] overflow-y-auto text-white">
-            <button onClick={() => setModalAberta(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white transition"><X size={20} /></button>
-            <h2 className="text-lg font-light uppercase tracking-widest text-white mb-6 border-b border-gray-800 pb-4">
+        <Modal onClose={() => setModalAberta(false)} labelledBy="titulo-produto" className="bg-hb-gray border border-gray-800 rounded-2xl max-w-2xl p-5 sm:p-8 shadow-2xl relative text-white">
+            <button onClick={() => setModalAberta(false)} aria-label="Fechar janela" className="absolute top-3 right-3 min-w-11 min-h-11 grid place-items-center text-gray-400 hover:text-white transition"><X size={20} /></button>
+            <h2 id="titulo-produto" className="text-lg font-light uppercase tracking-widest text-white mb-6 border-b border-gray-800 pb-4">
               {produtoEditandoId ? 'Editar Joia' : 'Cadastrar Nova Joia'}
             </h2>
             
@@ -272,8 +273,7 @@ export default function TelaEstoque() {
                 {salvando ? <Loader2 size={16} className="animate-spin" /> : (produtoEditandoId ? 'SALVAR ALTERAÇÕES' : 'SALVAR PRODUTO')}
               </button>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

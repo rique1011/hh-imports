@@ -21,7 +21,7 @@ function ResultadosPesquisa() {
       
       const { data } = await supabase
         .from('produtos')
-        .select('*')
+        .select('id,nome,slug,preco,fotos,material')
         .or(`nome.ilike.%${query}%,descricao.ilike.%${query}%`)
 
       setProdutos(data || [])
@@ -42,13 +42,13 @@ function ResultadosPesquisa() {
         {produtos.length === 0 ? (
           <p className="text-gray-400 italic">Nenhum produto encontrado para sua busca.</p>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6 md:gap-8">
             {produtos.map((p) => (
-              <Link href={`/produto/${p.slug}`} key={p.id} className="group">
+              <Link href={`/produto/${p.slug}`} key={p.id} className="group min-w-0">
                 <div className="aspect-[4/5] bg-hb-gray rounded-xl overflow-hidden mb-4 border border-gray-800">
                   <Image width={600} height={750} sizes="(max-width: 768px) 50vw, 25vw" alt={p.nome} src={p.fotos?.[0] || '/icon.svg'} className="w-full h-full object-cover group-hover:scale-105 opacity-80 group-hover:opacity-100 transition duration-700" />
                 </div>
-                <h2 className="text-xs font-bold text-gray-200 uppercase truncate group-hover:text-hb-gold transition-colors">{p.nome}</h2>
+                <h2 className="text-xs font-bold text-gray-200 uppercase line-clamp-2 min-h-8 break-words group-hover:text-hb-gold transition-colors">{p.nome}</h2>
                 <p className="text-sm font-medium text-hb-gold mt-1">R$ {Number(p.preco).toLocaleString('pt-BR')}</p>
               </Link>
             ))}

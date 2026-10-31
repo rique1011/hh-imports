@@ -1,4 +1,6 @@
 'use client'
+import Modal from '@/components/Modal'
+
 import Image from 'next/image'
 import type { Pedido, Usuario, Endereco } from '@/types/loja'
 import { mensagemErro } from '@/lib/erros'
@@ -200,22 +202,21 @@ export default function TelaPedidos() {
 
       {/* MODAL DE DETALHES DO PEDIDO (AGORA COM OS DADOS DO CLIENTE) */}
       {modalAberta && pedidoSelecionado && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-hb-gray border border-gray-800 rounded-2xl max-w-3xl w-full p-0 shadow-2xl relative max-h-[90dvh] flex flex-col overflow-hidden text-white">
+        <Modal onClose={() => setModalAberta(false)} labelledBy="titulo-pedido" className="bg-hb-gray border border-gray-800 rounded-2xl max-w-3xl p-0 shadow-2xl relative flex flex-col text-white">
             
-            <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-gray-900/50">
+            <div className="p-4 sm:p-6 shrink-0 border-b border-gray-800 flex justify-between items-center bg-gray-900/50">
               <div>
-                <h2 className="text-lg font-light text-white uppercase tracking-widest flex items-center gap-2">
+                <h2 id="titulo-pedido" className="text-lg font-light text-white uppercase tracking-widest flex items-center gap-2">
                   Pedido #{pedidoSelecionado.id}
                 </h2>
                 <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">
                   {new Date(pedidoSelecionado.created_at).toLocaleString('pt-BR')}
                 </p>
               </div>
-              <button onClick={() => setModalAberta(false)} className="p-2 bg-hb-black rounded-full text-gray-400 hover:text-white border border-gray-700 shadow-sm transition"><X size={16} /></button>
+              <button onClick={() => setModalAberta(false)} aria-label="Fechar janela" className="min-w-11 min-h-11 grid place-items-center p-2 bg-hb-black rounded-full text-gray-400 hover:text-white border border-gray-700 shadow-sm transition"><X size={16} /></button>
             </div>
             
-            <div className="p-6 overflow-y-auto flex-1 space-y-8">
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1 min-h-0 space-y-8">
               
               {/* 🚨 NOVA SESSÃO: DADOS COMPLETOS DO CLIENTE */}
               {carregandoCliente ? (
@@ -349,8 +350,7 @@ export default function TelaPedidos() {
               </button>
             </div>
 
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

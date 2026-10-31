@@ -1,4 +1,6 @@
 'use client'
+import Modal from '@/components/Modal'
+
 import Image from 'next/image'
 import type { ProdutoCarrinho } from '@/lib/store'
 import type { OpcaoFrete } from '@/lib/frete'
@@ -10,14 +12,19 @@ import { Trash2, Loader2, Ticket, CheckCircle2, X, Truck, Sparkles, Plus, Gift, 
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react' 
 import { useRouter } from 'next/navigation' 
-import { supabase } from '@/lib/supabase'
+import { useShallow } from 'zustand/react/shallow'
 
 export default function PaginaCarrinho() {
   const router = useRouter()
   const { data: session } = useSession() 
   
   // 1. ESTADOS (HOOKS)
-  const { itens, cupom, adicionarAoCarrinho, removerDoCarrinho, atualizarQuantidade, aplicarCupom, removerCupom } = useCart()
+  const { itens, cupom, adicionarAoCarrinho, removerDoCarrinho, atualizarQuantidade, aplicarCupom, removerCupom } = useCart(useShallow(state => ({
+    itens: state.itens, cupom: state.cupom, adicionarAoCarrinho: state.adicionarAoCarrinho,
+    removerDoCarrinho: state.removerDoCarrinho, atualizarQuantidade: state.atualizarQuantidade,
+    aplicarCupom: state.aplicarCupom, removerCupom: state.removerCupom,
+  })))
+  const idsNaSacola = itens.map(item => item.id).join('|')
   
   const [inputCupom, setInputCupom] = useState('')
   const [carregando, setCarregando] = useState(false)
@@ -110,11 +117,13 @@ export default function PaginaCarrinho() {
   }, [session])
 
   useEffect(() => {
+    const controller = new AbortController()
     async function buscarSugestaoDaLoja() {
       try {
-        const { data, error } = await supabase.from('produtos').select('*').limit(10)
-        if (!error && data && data.length > 0) {
-          const idsNoCarrinho = itens.map((i) => i.id)
+        const { supabase } = await import('@/lib/supabase')
+        const { data, error } = await supabase.from('produtos').select('id,nome,preco,fotos').limit(10).abortSignal(controller.signal)
+        if (!controller.signal.aborted && !error && data && data.length > 0) {
+          const idsNoCarrinho = idsNaSacola.split('|')
           const produtosDisponiveis = data.filter(p => !idsNoCarrinho.includes(p.id))
 
           if (produtosDisponiveis.length > 0) {
@@ -135,10 +144,9 @@ export default function PaginaCarrinho() {
         console.error("Erro ao buscar sugestão", err)
       }
     }
-    if (itens.length > 0) {
-      buscarSugestaoDaLoja()
-    }
-  }, [itens])
+    if (idsNaSacola) buscarSugestaoDaLoja()
+    return () => controller.abort()
+  }, [idsNaSacola])
 
   useEffect(() => {
     let timerPopUp: NodeJS.Timeout
@@ -605,14 +613,13 @@ export default function PaginaCarrinho() {
       </div>
 
       {mostrarPopUpSaida && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-          <div className="bg-hb-gray border border-gray-700 rounded-2xl max-w-lg w-[95%] md:w-full overflow-hidden shadow-2xl relative animate-in zoom-in-95 duration-500">
-            <button onClick={() => setMostrarPopUpSaida(false)} className="absolute top-3 md:top-4 right-3 md:right-4 text-gray-400 hover:text-white z-10 bg-hb-black/50 rounded-full p-1 md:p-1.5 transition"><X size={18} /></button>
+        <Modal onClose={() => setMostrarPopUpSaida(false)} labelledBy="titulo-oferta" className="bg-hb-gray border border-gray-700 rounded-2xl max-w-lg shadow-2xl relative">
+            <button onClick={() => setMostrarPopUpSaida(false)} aria-label="Fechar oferta" className="absolute top-3 md:top-4 right-3 md:right-4 min-w-11 min-h-11 grid place-items-center text-gray-400 hover:text-white z-10 bg-hb-black/50 rounded-full p-1 md:p-1.5 transition"><X size={18} /></button>
             <div className="h-32 md:h-40 bg-black relative flex items-center justify-center overflow-hidden border-b border-hb-gold/30">
               <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1599643477877-530eb83abc8e?q=80&w=800')] bg-cover bg-center opacity-30"></div>
               <div className="relative z-10 flex flex-col items-center">
                 <AlertCircle size={32} className="text-hb-gold mb-2 animate-bounce md:w-10 md:h-10" />
-                <h2 className="text-xl md:text-2xl font-light text-white uppercase tracking-widest">Espere!</h2>
+                <h2 id="titulo-oferta" className="text-xl md:text-2xl font-light text-white uppercase tracking-widest">Espere!</h2>
               </div>
             </div>
             <div className="p-5 md:p-8 text-center">
@@ -629,8 +636,7 @@ export default function PaginaCarrinho() {
                 <button onClick={() => setMostrarPopUpSaida(false)} className="flex-1 bg-hb-black border border-gray-700 text-gray-300 py-3 md:py-4 rounded text-[10px] md:text-xs font-bold uppercase tracking-widest hover:bg-gray-800 hover:text-white transition">Talvez Depois</button>
               </div>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </main>
   )

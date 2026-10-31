@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import Link from 'next/link'
 
 export default function PaginaColecoes() {
@@ -20,11 +21,10 @@ export default function PaginaColecoes() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
           {colecoes.map((col) => (
-            <Link key={col.slug} href={`/categoria/${col.slug}`} className="group relative h-[350px] md:h-[500px] overflow-hidden rounded-xl border border-gray-800 hover:border-hb-gold transition-colors duration-500">
-              <div 
-                className="absolute inset-0 bg-cover bg-center group-hover:scale-105 transition-transform duration-700 opacity-80 group-hover:opacity-100"
-                style={{ backgroundImage: `url(${col.img})` }}
-              />
+            <Link key={col.slug} href={`/categoria/${col.slug}`} className="group relative h-[300px] sm:h-[350px] md:h-[500px] overflow-hidden rounded-xl border border-gray-800 hover:border-hb-gold transition-colors duration-500">
+              <Image src={col.img} alt={col.nome} fill
+                sizes="(max-width: 767px) calc(100vw - 32px), (max-width: 1200px) 33vw, 360px"
+                className="object-cover group-hover:scale-105 transition-transform duration-700 opacity-80 group-hover:opacity-100" />
               <div className="absolute inset-0 bg-gradient-to-t from-hb-black via-hb-black/40 to-transparent" />
               
               <div className="absolute bottom-6 left-6 right-6 md:bottom-8 md:left-8 md:right-8 text-center">

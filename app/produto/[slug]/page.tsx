@@ -4,7 +4,7 @@ import Link from 'next/link'
 import BotaoAdicionar from '@/components/BotaoAdicionar'
 import BotaoFavorito from '@/components/BotaoFavorito'
 import CalculadorFrete from '@/components/CalculadorFrete'
-import Avaliacoes from '@/components/Avaliacoes'
+import AvaliacoesDiferidas from '@/components/AvaliacoesDiferidas'
 import ZoomImagem from '@/components/ZoomImagem'
 import ContadorVisitas from '@/components/ContadorVisitas' 
 import { Play } from 'lucide-react'
@@ -18,7 +18,7 @@ export default async function PaginaProduto({ params }: PageProps) {
 
   const { data: produto } = await supabase
     .from('produtos')
-    .select('*')
+    .select('id,nome,slug,preco,descricao,material,fotos,video_url,estoque,estoque_reservado')
     .eq('slug', slug)
     .single()
 
@@ -29,7 +29,7 @@ export default async function PaginaProduto({ params }: PageProps) {
   const produtoCompra = { id: produto.id, nome: produto.nome, slug: produto.slug, preco: produto.preco, fotos: produto.fotos, estoque: produto.estoque, estoque_reservado: produto.estoque_reservado }
 
   return (
-    <main className="min-h-screen bg-hb-black relative pb-28 md:pb-0">
+    <main className="product-page min-h-dvh bg-hb-black relative">
       <ContadorVisitas slug={slug} />
 
       <div className="max-w-6xl mx-auto px-4 py-8 md:p-12">
@@ -79,7 +79,7 @@ export default async function PaginaProduto({ params }: PageProps) {
             <span className="text-[10px] md:text-sm text-gray-500 uppercase tracking-[0.3em] mb-2 font-medium">H&H IMPORTS</span>
             
             <div className="flex items-start justify-between gap-4 mb-3 md:mb-4">
-              <h1 className="text-3xl md:text-4xl lg:text-5xl font-light text-white uppercase tracking-tight leading-none break-words flex-1 min-w-0">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-light text-white uppercase tracking-tight leading-tight [overflow-wrap:anywhere] flex-1 min-w-0">
                 {produto.nome}
               </h1>
               <div className="flex-shrink-0 mt-1 md:mt-2">
@@ -135,7 +135,7 @@ export default async function PaginaProduto({ params }: PageProps) {
         </div>
 
         <div className="max-w-4xl mx-auto border-t border-gray-800 pt-12 md:pt-16 w-full">
-          <Avaliacoes produtoId={produto.id} />
+          <AvaliacoesDiferidas produtoId={produto.id} />
         </div>
       </div>
     </main>

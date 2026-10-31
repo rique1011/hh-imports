@@ -40,7 +40,7 @@ export default async function Home() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-8">
           {lista && lista.length > 0 ? (
             lista.map((produto) => (
-              <Link key={produto.id} href={`/produto/${produto.slug}`} className="group block">
+              <Link key={produto.id} href={`/produto/${produto.slug}`} className="group block min-w-0">
                 <div className="relative bg-hb-black aspect-[4/5] rounded-xl overflow-hidden mb-3 md:mb-4 border border-hb-gray shadow-sm">
                   {produto.fotos && produto.fotos[0] ? (
                     <Image 
@@ -60,7 +60,7 @@ export default async function Home() {
                   )}
                 </div>
                 <div className="text-center px-1 md:px-2">
-                  <h3 className="text-[10px] md:text-xs font-bold text-gray-200 uppercase tracking-wider mb-1 md:mb-2 truncate group-hover:text-white transition-colors">{produto.nome}</h3>
+                  <h3 className="text-[10px] md:text-xs font-bold text-gray-200 uppercase tracking-wider mb-1 md:mb-2 line-clamp-2 min-h-8 break-words group-hover:text-white transition-colors">{produto.nome}</h3>
                   <p className="text-xs md:text-sm text-hb-gold font-medium">R$ {Number(produto.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                 </div>
               </Link>
@@ -79,12 +79,12 @@ export default async function Home() {
     <main className="min-h-screen bg-hb-black">
       
       {/* 1. HERO BANNER PRINCIPAL (Com carregamento de alta prioridade) */}
-      <section className="relative h-[75vh] md:h-[85vh] flex items-center justify-center bg-black overflow-hidden border-b border-hb-gray">
+      <section className="relative min-h-[28rem] h-[75svh] md:min-h-[32rem] md:h-[85svh] flex items-center justify-center bg-black overflow-hidden border-b border-hb-gray">
         <Image 
           src="https://images.unsplash.com/photo-1599643478524-fb66f7ca065b?q=80&w=2000"
           alt="Hero Banner H&H IMPORTS"
           fill
-          priority
+          preload
           sizes="100vw"
           className="object-cover opacity-40"
         />
