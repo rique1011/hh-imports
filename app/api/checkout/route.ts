@@ -1,4 +1,5 @@
-import { validarCotacao } from '@/lib/frete'
+import { validarFretePedido } from '@/lib/frete'
+import { snapshotEntrega } from '@/lib/entrega'
 import { validarCupom } from '@/lib/cupons'
 import { ErroHttp, validarOrigem } from '@/lib/autorizacao'
 import { NextResponse, after } from 'next/server'
@@ -46,15 +47,18 @@ export async function POST(request: Request) {
     })
     const subtotal = valor(itens.reduce((sum: number, item: { preco: number; quantidade: number }) =>
       sum + item.preco * item.quantidade, 0))
+    const { data: cadastro, error: cadastroError } = await db.from('usuarios')
+      .select('nome,email,cpf_cnpj,whatsapp,endereco').eq('email', user.email).single()
+    if (cadastroError || !cadastro) throw new Error('Falha ao consultar o endereço de entrega.')
+    const entrega = snapshotEntrega(cadastro)
+    if (!/^\d{8}$/.test(entrega.cep) || !entrega.logradouro || !entrega.numero || !entrega.bairro || !entrega.cidade || !entrega.uf) {
+      return NextResponse.json({ error: 'Complete o endereço de entrega no seu cadastro.' }, { status: 400 })
+    }
     let frete = 0
+    const cotacao = body.freteToken ? validarFretePedido(body.freteToken, entrega.cep, itens) : null
     if (subtotal < 100) {
-      const { data: cadastro, error: cadastroError } = await db.from('usuarios').select('endereco').eq('email', user.email).single()
-      if (cadastroError) throw cadastroError
-      let cep = ''
-      try { cep = String(JSON.parse(cadastro?.endereco || '{}').cep || '').replace(/\D/g, '') } catch {}
-      const cotacao = validarCotacao(body.freteToken, cep)
       if (cotacao === null) return NextResponse.json({ error: 'Calcule novamente o frete para o CEP do seu cadastro.' }, { status: 400 })
-      frete = cotacao
+      frete = cotacao.centavos / 100
     }
     const embalagem = body.embalagemPresente ? 15 : 0
     const cupom = body.codigoCupom ? await validarCupom(db, user.email, body.codigoCupom) : null
@@ -68,9 +72,9 @@ export async function POST(request: Request) {
     const baseUrl = getSiteUrl()
     // Validar credenciais antes de criar o pedido.
     const mp = total > 0 ? getMercadoPagoClient() : null
-    const { data: pedido, error: pedidoError } = await db.rpc('hh_criar_pedido', {
+    const { data: pedido, error: pedidoError } = await db.rpc('hh_criar_pedido_com_envio', {
       p_email: user.email, p_nome: user.name, p_total: total,
-      p_itens: itens, p_cashback: cashback,
+      p_itens: itens, p_cashback: cashback, p_entrega: entrega, p_frete: cotacao,
     })
     if (pedidoError && /Estoque insuficiente|Produto indisponivel/.test(pedidoError.message)) return NextResponse.json({ error: 'Estoque insuficiente. Atualize sua sacola.' }, { status: 409 })
     if (pedidoError || !pedido) throw new Error('Falha ao criar pedido: ' + (pedidoError?.message || 'Sem resultado.'))

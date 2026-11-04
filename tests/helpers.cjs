@@ -29,7 +29,7 @@ exports.createDb = async function createDb(idType = 'uuid') {
   await db.exec("CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role BYPASSRLS;")
   await db.exec(
     'CREATE TABLE usuarios(id uuid primary key default gen_random_uuid(),email text unique,nome text,perfil text,role text,' +
-    'saldo_cashback numeric default 0,created_at timestamptz default now());' +
+    'cpf_cnpj text default \'12345678901\',whatsapp text default \'11999999999\',endereco text default \'{\"cep\":\"01310100\",\"logradouro\":\"Rua Teste\",\"numero\":\"10\",\"bairro\":\"Centro\",\"cidade\":\"Sao Paulo\",\"uf\":\"SP\"}\',saldo_cashback numeric default 0,created_at timestamptz default now());' +
     'CREATE TABLE produtos(id uuid primary key,nome text,preco numeric,estoque integer default 1000,estoque_reservado integer default 0,fotos text[],slug text);' +
     'CREATE TABLE cupons(codigo text primary key,desconto numeric,ativo boolean default true,usuario_id uuid);' +
     'CREATE TABLE pedidos(id ' + (idType === 'uuid' ? 'uuid primary key default gen_random_uuid()' : 'bigint generated always as identity primary key') +
@@ -38,6 +38,8 @@ exports.createDb = async function createDb(idType = 'uuid') {
   await db.exec(fs.readFileSync(path.join(root, 'supabase/migrations/20261013040238_hh_notifications.sql'), 'utf8'))
   const estoque = fs.readdirSync(path.join(root, 'supabase/migrations')).find(name => name.endsWith('_estoque_transacional.sql'))
   await db.exec(fs.readFileSync(path.join(root, 'supabase/migrations', estoque), 'utf8'))
+  const envio = fs.readdirSync(path.join(root, 'supabase/migrations')).find(name => name.endsWith('_melhor_envio_etiquetas.sql'))
+  await db.exec(fs.readFileSync(path.join(root, 'supabase/migrations', envio), 'utf8'))
   return db
 }
 

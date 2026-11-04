@@ -1,11 +1,13 @@
 'use client'
 import Modal from '@/components/Modal'
+import EtiquetaMelhorEnvio from '@/components/admin/EtiquetaMelhorEnvio'
+import type { ResultadoEtiqueta } from '@/types/envio'
 
 import Image from 'next/image'
 import type { Pedido, Usuario, Endereco } from '@/types/loja'
 import { mensagemErro } from '@/lib/erros'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Search, Loader2, ShoppingBag, Eye, Truck, CheckCircle2, X, User, MapPin, Phone, FileText } from 'lucide-react'
 import { supabaseAdmin as supabase } from '@/lib/admin-client'
 
@@ -24,6 +26,14 @@ export default function TelaPedidos() {
   const [novoStatus, setNovoStatus] = useState('')
   const [novoRastreio, setNovoRastreio] = useState('')
   const [salvando, setSalvando] = useState(false)
+  const [gerandoEtiqueta, setGerandoEtiqueta] = useState(false)
+  const etiquetaAtualizada = useCallback((resultado: ResultadoEtiqueta) => {
+    const atualizar = (pedido: Pedido) => String(pedido.id) === resultado.pedidoId
+      ? { ...pedido, codigo_rastreio: resultado.codigoRastreio, status: pedido.status === 'entregue' ? pedido.status : 'enviado' } : pedido
+    setPedidos(atuais => atuais.map(atualizar))
+    setPedidoSelecionado(atual => atual ? atualizar(atual) : atual)
+    setNovoStatus('enviado'); setNovoRastreio(resultado.codigoRastreio || '')
+  }, [])
 
   useEffect(() => {
     carregarPedidos()
@@ -305,6 +315,8 @@ export default function TelaPedidos() {
               </div>
 
               {/* Formulário de Atualização */}
+              {['pago','confirmado','processando','enviado','entregue'].includes(pedidoSelecionado.status) && <EtiquetaMelhorEnvio
+                key={pedidoSelecionado.id} pedidoId={String(pedidoSelecionado.id)} onAtualizado={etiquetaAtualizada} onOcupado={setGerandoEtiqueta} />}
               <form id="form-pedido" onSubmit={handleSalvarAlteracoes} className="bg-hb-black p-5 rounded-xl border border-gray-800 space-y-4">
                 <h3 className="text-[10px] font-black text-hb-gold uppercase tracking-widest mb-4 flex items-center gap-2"><Truck size={14}/> Logística e Status</h3>
                 
@@ -312,7 +324,7 @@ export default function TelaPedidos() {
                   <div>
                     <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Status do Pedido</label>
                     <select 
-                      value={novoStatus} 
+                      value={novoStatus} disabled={gerandoEtiqueta}
                       onChange={(e) => setNovoStatus(e.target.value)} 
                       className="w-full bg-gray-900 border border-gray-800 text-white p-3 rounded text-sm outline-none focus:border-hb-gold font-medium"
                     >
@@ -329,7 +341,7 @@ export default function TelaPedidos() {
                     <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Código de Rastreio</label>
                     <input 
                       type="text" 
-                      value={novoRastreio} 
+                      value={novoRastreio} disabled={gerandoEtiqueta}
                       onChange={(e) => setNovoRastreio(e.target.value.toUpperCase())} 
                       className="w-full bg-gray-900 border border-gray-800 text-white p-3 rounded text-sm outline-none focus:border-hb-gold uppercase placeholder-gray-600" 
                       placeholder="Ex: QQ123456789BR" 
@@ -345,7 +357,7 @@ export default function TelaPedidos() {
                 <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Total do Pedido</p>
                 <p className="text-xl font-black text-hb-gold">R$ {Number(pedidoSelecionado.total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
               </div>
-              <button type="submit" form="form-pedido" disabled={salvando} className="bg-hb-gold text-hb-black px-8 py-3 rounded font-bold uppercase tracking-widest text-[10px] flex items-center gap-2 hover:bg-hb-goldLight transition disabled:opacity-50">
+              <button type="submit" form="form-pedido" disabled={salvando || gerandoEtiqueta} className="bg-hb-gold text-hb-black px-8 py-3 rounded font-bold uppercase tracking-widest text-[10px] flex items-center gap-2 hover:bg-hb-goldLight transition disabled:opacity-50">
                 {salvando ? <Loader2 size={16} className="animate-spin" /> : <><CheckCircle2 size={16} /> Salvar Alterações</>}
               </button>
             </div>

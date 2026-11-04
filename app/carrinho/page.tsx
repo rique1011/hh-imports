@@ -34,6 +34,9 @@ export default function PaginaCarrinho() {
   const [opcoesFrete, setOpcoesFrete] = useState<OpcaoFrete[]>([])
   const [freteSelecionado, setFreteSelecionado] = useState<number>(0)
   const [freteToken, setFreteToken] = useState('')
+  const [baseCotacao, setBaseCotacao] = useState('')
+  const contextoFrete = cep.replace(/\D/g, '') + JSON.stringify(itens.map(({ id, quantidade, preco }) => ({ id, quantidade, preco })))
+  const cotacaoAtual = baseCotacao === contextoFrete
   const [carregandoFrete, setCarregandoFrete] = useState(false)
   const [erroFrete, setErroFrete] = useState('')
   
@@ -52,7 +55,7 @@ export default function PaginaCarrinho() {
   // 2. CÁLCULOS GERAIS
   const subtotal = itens.reduce((acc, item) => acc + (item.preco * item.quantidade), 0)
   const freteGratis = subtotal >= 100 
-  const freteFinal = freteGratis ? 0 : freteSelecionado
+  const freteFinal = freteGratis || !cotacaoAtual ? 0 : freteSelecionado
   const valorDesconto = cupom ? (subtotal * (cupom.desconto / 100)) : 0
   const valorEmbalagem = embalagemPresente ? 15.00 : 0
   
@@ -222,7 +225,7 @@ export default function PaginaCarrinho() {
       const response = await fetch('/api/frete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cepDestino: cep })
+        body: JSON.stringify({ cepDestino: cep, itens: itens.map(({ id, quantidade }) => ({ id: String(id), quantidade })) })
       })
       const data = await response.json()
 
@@ -231,6 +234,7 @@ export default function PaginaCarrinho() {
       } else {
         const opcoesOrdenadas = data.opcoes.sort((a: OpcaoFrete, b: OpcaoFrete) => Number(a.preco) - Number(b.preco))
         setOpcoesFrete(opcoesOrdenadas)
+        setBaseCotacao(contextoFrete)
         if (opcoesOrdenadas.length > 0) {
           setFreteSelecionado(Number(opcoesOrdenadas[0].preco))
           setFreteToken(opcoesOrdenadas[0].token || '')
@@ -289,7 +293,7 @@ export default function PaginaCarrinho() {
         body: JSON.stringify({ 
           itens, 
           frete: freteFinal,
-          freteToken,
+          freteToken: cotacaoAtual ? freteToken : '',
           codigoCupom: cupom?.codigo || null,
           embalagemPresente,
           cashbackUsado: valorCashbackAplicado
@@ -390,7 +394,7 @@ export default function PaginaCarrinho() {
 
                   {erroFrete && <p className="text-red-500 text-[10px] md:text-xs mt-2 font-medium mb-4">{erroFrete}</p>}
 
-                  {opcoesFrete.length > 0 && (
+                  {cotacaoAtual && opcoesFrete.length > 0 && (
                     <div className="space-y-3">
                       {opcoesFrete.map((opcao, index) => (
                         <label 

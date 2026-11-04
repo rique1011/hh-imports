@@ -1,0 +1,60 @@
+{
+  "data": "2026-11-04",
+  "base": "6219be7bf67887175fa5fdf3a23ed89a590857ae",
+  "backend": {
+    "testes": 30,
+    "aprovados": 30
+  },
+  "interface": {
+    "engine": "Chromium headless com fixtures; 390x664 emulação iPhone 14 e 1440x900 desktop",
+    "verificacoes": [
+      "bloqueia geração sem cotação e NF-e 390",
+      "libera geração após dados obrigatórios 390",
+      "UI envia cotação e NF-e completas 390",
+      "loading visível 390",
+      "UI envia cotação e NF-e completas 390",
+      "rastreio visível 390",
+      "status do formulário atualizado 390",
+      "sem overflow horizontal 390",
+      "202 retomado automaticamente sem novo clique 390",
+      "bloqueia geração sem cotação e NF-e 1440",
+      "libera geração após dados obrigatórios 1440",
+      "UI envia cotação e NF-e completas 1440",
+      "loading visível 1440",
+      "UI envia cotação e NF-e completas 1440",
+      "rastreio visível 1440",
+      "status do formulário atualizado 1440",
+      "sem overflow horizontal 1440",
+      "202 retomado automaticamente sem novo clique 1440",
+      "sem erros JavaScript"
+    ],
+    "erros": []
+  },
+  "cotacao_producao_antes": {
+    "http": 200,
+    "opcoes": 12,
+    "compra_real": false
+  },
+  "banco": {
+    "migracao_aplicada": "20261104235351_melhor_envio_etiquetas",
+    "rls": true,
+    "anon_read": false,
+    "authenticated_write": false,
+    "funcoes_apenas_service_role": true,
+    "security_definer_novas_funcoes": false,
+    "envios_reais_criados": 0
+  },
+  "configuracao_pendente": [
+    "MELHOR_ENVIO_REMETENTE com dados comerciais reais",
+    "Conferir medidas reais da unidade embalada",
+    "Confirmar permissões de compra/geração/impressão e saldo no Melhor Envio",
+    "NF-e válida por pedido e agência quando exigida"
+  ],
+  "limites": [
+    "Compra e geração verificadas com Melhor Envio simulado.",
+    "SMTP verificado com mock e fila real em Postgres local.",
+    "Nenhuma compra de etiqueta, cobrança ou e-mail real feito pela implementação/testes.",
+    "Rastreio pode ser assíncrono; há retomada pelo painel e cron diário.",
+    "Resultado incerto sem ID de inserção exige conciliação manual."
+  ]
+}

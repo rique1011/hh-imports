@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { processarNotificacoes } from '@/lib/notificacoes'
+import { retomarEtiquetasPendentes } from '@/lib/etiquetas'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -9,6 +10,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Nao autorizado.' }, { status: 401 })
   }
   try {
+    let etiquetas = { consultadas: 0, concluidas: 0 }
+    try { etiquetas = await retomarEtiquetasPendentes(2) }
+    catch { console.error('[cron] Etiquetas aguardam nova conferência; fila de e-mails continua.') }
     const total = { processadas: 0, enviadas: 0, falhas: 0 }
     for (let lote = 0; lote < 5; lote++) {
       const resultado = await processarNotificacoes(undefined, 20)
@@ -17,7 +21,7 @@ export async function GET(request: Request) {
       total.falhas += resultado.falhas
       if (resultado.processadas < 20 || resultado.falhas > 0) break
     }
-    return NextResponse.json(total, { status: total.falhas ? 503 : 200 })
+    return NextResponse.json({ ...total, etiquetas }, { status: total.falhas ? 503 : 200 })
   } catch (error) {
     console.error('[cron] Falha ao retomar notificacoes:', error)
     return NextResponse.json({ error: 'Falha ao processar fila.' }, { status: 503 })

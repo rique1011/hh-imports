@@ -4,7 +4,7 @@ import type { OpcaoFrete } from '@/lib/frete'
 import { useState } from 'react'
 import { Truck, Loader2 } from 'lucide-react'
 
-export default function CalculadorFrete() {
+export default function CalculadorFrete({ produtoId }: { produtoId: string }) {
 
   const [cep, setCep] = useState('')
   const [opcoesFrete, setOpcoesFrete] = useState<OpcaoFrete[]>([])
@@ -23,7 +23,7 @@ export default function CalculadorFrete() {
       const response = await fetch('/api/frete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cepDestino: cep })
+        body: JSON.stringify({ cepDestino: cep, itens: [{ id: produtoId, quantidade: 1 }] })
       })
 
       const data = await response.json()

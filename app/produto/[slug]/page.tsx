@@ -118,7 +118,7 @@ export default async function PaginaProduto({ params }: PageProps) {
             </div>
 
             <div className="mt-5 md:mt-6 w-full">
-              <CalculadorFrete />
+            <CalculadorFrete produtoId={produto.id} />
             </div>
 
             <div className="mt-6 md:mt-8 grid grid-cols-2 gap-3 md:gap-4 text-center border-t border-gray-800 pt-6 md:pt-8 w-full">

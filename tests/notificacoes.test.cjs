@@ -240,6 +240,7 @@ test('disparo do painel exige administrador e cron exige segredo', async t => {
   assert.equal(callbacks.length, 1)
   process.env.CRON_SECRET = 'segredo-cron-dos-testes'
   const cron = loadTs('app/api/cron/notificacoes/route.ts', {
+    '@/lib/etiquetas': { retomarEtiquetasPendentes: async () => ({ consultadas: 0, concluidas: 0 }) },
     '@/lib/notificacoes': { processarNotificacoes: async () => ({ processadas: 0, enviadas: 0, falhas: 0 }) },
   })
   assert.equal((await cron.GET(new Request('https://loja.example.test/api/cron/notificacoes'))).status, 401)
@@ -268,14 +269,16 @@ test('descontos arbitrarios nao criam venda gratuita; ofertas usam cupom real e 
 
 test('checkout ignora frete adulterado e exige cotação assinada para o CEP do cadastro', async t => {
   const s = await setup(t)
-  await s.db.exec("ALTER TABLE usuarios ADD COLUMN endereco text; UPDATE usuarios SET endereco='{\"cep\":\"01310100\"}'; UPDATE produtos SET preco=50")
-  const { assinarCotacao } = loadTs('lib/frete.ts')
+  await s.db.exec("UPDATE produtos SET preco=50")
+  process.env.CEP_ORIGEM = '89209452'
+  const { assinarCotacao, hashItensFrete } = loadTs('lib/frete.ts')
+  const detalhes = { origem: '89209452', ambiente: 'production', itensHash: hashItensFrete([{ id: sku, quantidade: 1, preco: 50 }]), servico: 1, nome: 'PAC', transportadora: 'Correios', seguro: 50, volume: { width: 11, height: 3, length: 16, weight: 0.15 } }
   const request = token => new Request('https://loja.example.test/api/checkout', { method: 'POST', body: JSON.stringify({
     itens: [{ id: sku, quantidade: 1 }], frete: 0, freteToken: token,
   }) })
   assert.equal((await s.checkout.POST(request(undefined))).status, 400)
   assert.equal((await s.checkout.POST(request(assinarCotacao('99999999', 17.37)))).status, 400)
-  assert.equal((await s.checkout.POST(request(assinarCotacao('01310100', 17.37)))).status, 200)
+  assert.equal((await s.checkout.POST(request(assinarCotacao('01310100', 17.37, detalhes)))).status, 200)
   assert.equal(s.getPreference().items[0].unit_price, 67.37)
 })
 

@@ -52,8 +52,8 @@ test('migração bloqueia dados e escritas públicas, mantendo somente catálogo
 
 test('perfil retorna somente DTO e pedidos são filtrados pelo dono autenticado', async t => {
   const db = await createDb('bigint'); t.after(() => db.close())
-  await db.exec(`ALTER TABLE usuarios ADD COLUMN cpf_cnpj text, ADD COLUMN whatsapp text, ADD COLUMN data_nascimento text,
-    ADD COLUMN endereco text, ADD COLUMN senha text, ADD COLUMN recovery_token text;
+  await db.exec(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS cpf_cnpj text, ADD COLUMN IF NOT EXISTS whatsapp text, ADD COLUMN data_nascimento text,
+    ADD COLUMN IF NOT EXISTS endereco text, ADD COLUMN senha text, ADD COLUMN recovery_token text;
     INSERT INTO usuarios(email,nome,senha,recovery_token) VALUES('dono@example.test','Dono','hash-privado','token-privado'),('outro@example.test','Outro','hash-outro','token-outro');
     INSERT INTO pedidos(cliente_email,status,total,itens) VALUES('dono@example.test','legado',20,'[]'),('outro@example.test','legado',20,'[]');`)
   const client = adapter(db)
