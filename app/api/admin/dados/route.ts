@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { revalidateTag } from 'next/cache'
 import { exigirAdmin, validarOrigem, responderErro, ErroHttp } from '@/lib/autorizacao'
 
 interface Consulta extends PromiseLike<{ data: unknown; error: { message: string } | null }> {
@@ -85,6 +86,9 @@ export async function POST(request: Request) {
     }
     const result = body.single ? await query.maybeSingle() : await query
     if (result.error) throw result.error
+    if (operacao !== 'select' && (tabela === 'produtos' || tabela === 'cupons')) {
+      revalidateTag('vitrine-publica', { expire: 0 })
+    }
     return NextResponse.json(result, { headers: { 'Cache-Control': 'private, no-store' } })
   } catch (error) { return responderErro(error) }
 }

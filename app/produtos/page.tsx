@@ -1,58 +1,17 @@
-import Image from 'next/image'
-import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import ProductCard from '@/components/ProductCard'
 
 export const revalidate = 0
 
 export default async function PaginaTodosProdutos() {
-  const { data: produtos, error } = await supabase
-    .from('produtos')
-    .select('id,nome,slug,preco,fotos,material')
+  const { data: produtos, error } = await supabase.from('produtos')
+    .select('id,nome,slug,preco,fotos,material,estoque,estoque_reservado')
     .order('criado_em', { ascending: false })
-
-  if (error) console.error("Erro no banco:", error)
-
-  return (
-    <main className="min-h-screen bg-hb-black py-10 md:py-20 px-4 md:px-6">
-      <div className="max-w-6xl mx-auto">
-        
-        <div className="text-center mb-16">
-          <h1 className="text-3xl md:text-4xl font-light text-white uppercase tracking-widest italic mb-4">
-            Coleção Completa
-          </h1>
-          <div className="w-12 h-[1px] bg-hb-gold mx-auto"></div>
-        </div>
-
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 lg:gap-8">
-          {produtos && produtos.length > 0 ? (
-            produtos.map((produto) => (
-              <Link key={produto.id} href={`/produto/${produto.slug}`} className="group block min-w-0">
-                <div className="relative bg-hb-gray aspect-[4/5] rounded-xl overflow-hidden mb-4 border border-gray-800 shadow-sm">
-                  {produto.fotos && produto.fotos[0] ? (
-                    <Image width={600} height={750} sizes="(max-width: 768px) 50vw, 25vw" src={produto.fotos[0]} alt={produto.nome} className="w-full h-full object-cover group-hover:scale-105 opacity-80 group-hover:opacity-100 transition duration-700" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs uppercase tracking-widest">Sem foto</div>
-                  )}
-                  {produto.material && (
-                    <div className="absolute top-3 left-3 bg-hb-gold text-hb-black px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest shadow-lg">
-                      {produto.material}
-                    </div>
-                  )}
-                </div>
-                <div className="text-center px-2">
-                  <h3 className="text-xs font-bold text-gray-200 uppercase tracking-wider mb-2 line-clamp-2 min-h-8 break-words group-hover:text-white transition-colors">{produto.nome}</h3>
-                  <p className="text-sm text-hb-gold font-medium">R$ {Number(produto.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                </div>
-              </Link>
-            ))
-          ) : (
-            <div className="col-span-full text-center py-12 text-gray-500 text-sm uppercase tracking-widest">
-              Nenhum produto encontrado.
-            </div>
-          )}
-        </div>
-
-      </div>
-    </main>
-  )
+  if (error) console.error('Falha ao consultar o catálogo.')
+  return <main className="luxury-container min-h-dvh py-14 sm:py-20 lg:py-24">
+    <div className="mb-10 flex flex-wrap items-end justify-between gap-6 sm:mb-14"><div><p className="eyebrow mb-4">A seleção completa</p><h1 className="luxury-title">Encontre o seu <span className="italic text-luxury-gold-light">brilho.</span></h1></div><p className="text-xs text-luxury-muted">{produtos?.length || 0} peças para descobrir</p></div>
+    <div className="grid grid-cols-2 gap-x-4 gap-y-10 sm:gap-x-6 sm:gap-y-14 lg:grid-cols-4 lg:gap-x-8">
+      {produtos?.length ? produtos.map((produto, index) => <ProductCard key={produto.id} produto={produto} eager={index < 2} />) : <p className="col-span-full border border-luxury-line px-6 py-16 text-center text-sm text-luxury-muted">{error ? 'Não foi possível carregar o catálogo. Tente novamente em instantes.' : 'Novas peças estão a caminho. Volte em breve.'}</p>}
+    </div>
+  </main>
 }

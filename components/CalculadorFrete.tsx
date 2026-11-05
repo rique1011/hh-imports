@@ -47,11 +47,11 @@ export default function CalculadorFrete({ produtoId }: { produtoId: string }) {
   }
 
   return (
-    <div className="bg-neutral-900/50 p-5 md:p-6 rounded-xl border border-neutral-800 text-white w-full">
+    <div className="shipping-calculator bg-luxury-surface p-5 md:p-6 border border-luxury-line text-luxury-ivory w-full">
       
       <div className="flex items-center gap-2 mb-4">
         <Truck size={18} className="text-hb-gold" />
-        <h3 className="text-xs md:text-sm font-black uppercase tracking-widest text-neutral-200">
+        <h3 className="eyebrow text-luxury-ivory">
           Calcular Frete e Prazo
         </h3>
       </div>
@@ -63,13 +63,13 @@ export default function CalculadorFrete({ produtoId }: { produtoId: string }) {
           onChange={handleCepChange}
           maxLength={9}
           placeholder="00000-000"
-          className="flex-1 px-4 py-3 text-sm md:text-base bg-transparent border border-neutral-700 text-white placeholder-neutral-500 rounded outline-none focus:border-hb-gold transition w-full min-w-0"
+          className="flex-1 px-4 py-3 text-sm md:text-base bg-transparent border border-luxury-line text-white placeholder-neutral-500 outline-none focus:border-hb-gold transition w-full min-w-0"
           required
         />
         <button
           type="submit"
           disabled={carregando || cep.length < 9}
-          className="bg-neutral-800 text-white px-5 md:px-6 py-3 text-xs md:text-sm font-bold uppercase tracking-widest hover:bg-neutral-700 transition disabled:opacity-50 border border-neutral-700 rounded whitespace-nowrap flex items-center justify-center min-w-[90px]"
+          className="bg-luxury-black text-luxury-gold-light px-5 md:px-6 py-3 text-xs md:text-sm font-bold uppercase tracking-widest hover:border-luxury-gold transition disabled:opacity-50 border border-luxury-line whitespace-nowrap flex items-center justify-center min-w-[90px]"
         >
           {carregando ? <Loader2 size={16} className="animate-spin" /> : 'Calcular'}
         </button>
@@ -80,10 +80,10 @@ export default function CalculadorFrete({ produtoId }: { produtoId: string }) {
       {opcoesFrete.length > 0 && (
         <div className="mt-5 space-y-3">
           {opcoesFrete.map((opcao, index) => (
-            <div key={index} className="flex justify-between items-center py-3 border-b border-neutral-800 last:border-0">
+            <div key={index} className="flex justify-between items-center py-3 border-b border-luxury-line last:border-0">
               <div>
-                <p className="text-xs md:text-sm font-bold text-neutral-200 uppercase">{opcao.nome}</p>
-                <p className="text-[10px] md:text-xs text-neutral-400 uppercase tracking-widest mt-1">
+                <p className="text-xs md:text-sm font-bold text-luxury-ivory uppercase">{opcao.nome}</p>
+                <p className="text-[10px] md:text-xs text-luxury-muted uppercase tracking-widest mt-1">
                   Até {opcao.prazo} dias úteis
                 </p>
               </div>

@@ -1,40 +1,22 @@
 @import "tailwindcss";
 
-/* 1. SEU TEMA DO TAILWIND V4 VINCULADO ÀS FONTES INJETADAS */
+@config "../tailwind.config.ts";
 @theme inline {
   --font-sans: var(--font-inter), sans-serif;
   --font-serif: var(--font-playfair), serif;
-  
-  /* Cores de Luxo H&H IMPORTS */
-  --color-hb-black: #0a0a0a;
-  --color-hb-gold: #D4AF37;
-  --color-hb-goldLight: #F3E5AB;
-  --color-hb-goldDark: #AA7C11;
-  --color-hb-gray: #1a1a1a;
+
+
 }
 
-/* 2. REGRAS DE RENDERIZAÇÃO MANDATÓRIAS */
-* {
-  font-family: var(--font-inter), sans-serif;
-}
-
-html {
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
-  scroll-padding-top: calc(5rem + env(safe-area-inset-top, 0px));
-  background: #0a0a0a;
-}
-
-body {
-  background-color: #0a0a0a !important;
-  color: #f5f5f5 !important;
-  font-family: var(--font-inter), sans-serif !important;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  min-width: 0;
-  padding-left: env(safe-area-inset-left, 0px);
-  padding-right: env(safe-area-inset-right, 0px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+@layer base {
+  html { color-scheme: dark; background: #0a0a0a; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; scroll-padding-top: calc(7rem + env(safe-area-inset-top, 0px)); scrollbar-color: #625139 #111; scrollbar-width: thin; }
+  body { margin: 0; min-width: 0; background: #0a0a0a; color: #f3efe7; font-family: var(--font-inter), Arial, sans-serif; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; padding-inline: env(safe-area-inset-left, 0px) env(safe-area-inset-right, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  h1, h2, h3, h4, h5, h6 { font-family: var(--font-playfair), Georgia, serif; text-wrap: balance; }
+  button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+  button:not(:disabled), summary { cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
+  :focus-visible { outline: 2px solid #e8d5ad; outline-offset: 5px; }
+  ::selection { background: #c5a059; color: #0a0a0a; }
 }
 
 .site-header {
@@ -90,7 +72,7 @@ body {
   height: 24px;
   margin-top: -10px;
   border-radius: 50%;
-  background: #d4af37;
+  background: #c5a059;
 }
 
 .price-range::-moz-range-track {
@@ -104,7 +86,7 @@ body {
   height: 24px;
   border: 0;
   border-radius: 50%;
-  background: #d4af37;
+  background: #c5a059;
 }
 
 @media (max-width: 1023px), (pointer: coarse) {
@@ -118,35 +100,60 @@ body {
   }
 }
 
-@media (max-width: 767px) {
-  body:has(.product-page) {
-    padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+@media (max-width: 1023px) {
+  body:has(.product-page), body:has(.cart-page) {
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
   }
 
   /* O botão não deve cobrir o campo em edição acima do teclado. */
-  .product-page:has(input:focus, textarea:focus, select:focus) .mobile-purchase-bar {
+  .product-page:has(input:focus, textarea:focus, select:focus, .shipping-calculator:focus-within) .mobile-purchase-bar {
     visibility: hidden;
     pointer-events: none;
   }
 }
 
-/* Aplica o peso de alta grife para todos os títulos */
-h1, h2, h3, h4, h5, h6, .font-serif {
-  font-family: var(--font-playfair), serif !important;
+@layer components {
+  .luxury-container { width: min(100% - 2rem, 80rem); margin-inline: auto; }
+  .eyebrow { font-family: var(--font-inter), sans-serif; font-size: 0.625rem; font-weight: 500; letter-spacing: 0.22em; line-height: 1.8; text-transform: uppercase; color: #c5a059; }
+  .luxury-title { font-size: clamp(2rem, 4.5vw, 3.75rem); font-weight: 400; letter-spacing: -0.035em; line-height: 1.15; }
+  .luxury-link { display: inline-flex; align-items: center; gap: 0.75rem; min-height: 44px; font-size: 0.6875rem; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #e8d5ad; }
+  .luxury-link:hover { color: #f3efe7; }
+  .luxury-button { position: relative; isolation: isolate; display: inline-flex; align-items: center; justify-content: center; gap: 0.625rem; min-height: 48px; padding: 0.875rem 1.25rem; overflow: hidden; border: 1px solid #c5a059; background: #c5a059; color: #0a0a0a; font-family: var(--font-inter), sans-serif; font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.1em; line-height: 1.4; text-transform: uppercase; transition: background-color 180ms, color 180ms, box-shadow 180ms, border-color 180ms; }
+  .luxury-button::after { content: ''; position: absolute; inset: 0; z-index: -1; width: 45%; background: linear-gradient(90deg, transparent, #fff6, transparent); transform: translateX(-150%) skewX(-18deg); pointer-events: none; }
+  .luxury-button:disabled { opacity: 0.6; }
+  .luxury-button[data-added='true'] { background: #e8d5ad; border-color: #e8d5ad; }
+  .luxury-button-outline { background: transparent; color: #e8d5ad; border-color: #625139; }
+  .gold-rule { height: 1px; background: linear-gradient(90deg, transparent, #c5a05980, transparent); }
+  .mobile-bottom-nav { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .skip-link { position: fixed; top: 0.5rem; left: 1rem; z-index: 100; padding: 0.75rem 1rem; background: #e8d5ad; color: #0a0a0a; transform: translateY(-200%); }
+  .skip-link:focus { transform: translateY(0); }
 }
 
-/* 3. SEU PLANO B UTILITIES SLOTS */
-@layer utilities {
-  .bg-hb-black { background-color: #0a0a0a !important; }
-  .bg-hb-gray { background-color: #1a1a1a !important; }
-  .bg-hb-gold { background-color: #D4AF37 !important; }
-  
-  .text-hb-gold { color: #D4AF37 !important; }
-  .text-hb-black { color: #0a0a0a !important; }
-  
-  .border-hb-gray { border-color: #1a1a1a !important; }
-  .border-hb-gold { border-color: #D4AF37 !important; }
-  
-  .font-inter-fix { font-family: var(--font-inter), sans-serif !important; }
-  .font-serif-fix { font-family: var(--font-playfair), serif !important; }
+@media (hover: hover) and (pointer: fine) {
+  .luxury-button:not(:disabled):hover { background: #e8d5ad; border-color: #e8d5ad; box-shadow: 0 8px 32px -16px #c5a05980; }
+  .luxury-button:not(:disabled):hover::after { animation: gold-sheen 650ms ease-out; }
+  .luxury-button-outline:not(:disabled):hover { background: #c5a059; color: #0a0a0a; }
+}
+@media (min-width: 640px) { .luxury-container { width: min(100% - 3rem, 80rem); } }
+@media (min-width: 1024px) { .luxury-container { width: min(100% - 6rem, 80rem); } }
+
+/* A revelação é progressiva: o conteúdo nunca depende de JS para aparecer. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .product-reveal { animation: product-reveal linear both; animation-timeline: view(); animation-range: entry 0% entry 70%; }
+    @keyframes product-reveal { from { transform: translateY(14px); } to { transform: translateY(0); } }
+  }
+}
+@utility text-gold-metal { background: linear-gradient(115deg, #b38a48, #e8d5ad 48%, #c5a059); background-clip: text; -webkit-background-clip: text; color: transparent; }
+@utility scrollbar-hide { scrollbar-width: none; &::-webkit-scrollbar { display: none; } }
+@utility gold-glow { box-shadow: 0 8px 32px -16px rgb(197 160 89 / 40%); }
+@utility render-later { content-visibility: auto; contain-intrinsic-size: auto 600px; }
+
+@media (max-width: 1023px) {
+  body:has(.mobile-bottom-nav) { padding-bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px)); }
+  body:has(input:focus, textarea:focus, select:focus) :is(.mobile-bottom-nav, .mobile-checkout-bar),
+  body:has(.cart-page form:focus-within) .mobile-checkout-bar { visibility: hidden; pointer-events: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }

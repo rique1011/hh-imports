@@ -1,20 +1,23 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Playfair_Display } from "next/font/google"; // Mantido para compatibilidade do Next
+import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer"; 
 import Providers from "@/components/Providers";
-import { Toaster } from "react-hot-toast";
+import Feedback from "@/components/Feedback";
+import MobileBottomNav from "@/components/MobileBottomNav";
 
-// Configurações de variáveis locais
+// Fontes servidas pelo próprio Next, sem chamadas ao Google no navegador.
 const inter = Inter({ 
   subsets: ['latin'],
   variable: '--font-inter',
+  display: 'swap',
 });
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
   variable: '--font-playfair',
+  display: 'swap',
   style: ['normal', 'italic'],
 });
 
@@ -49,40 +52,20 @@ export default function RootLayout({
       lang="pt-BR"
       className={`${inter.variable} ${playfair.variable} antialiased`}
     >
-      <body className="bg-hb-black text-gray-100 font-sans flex flex-col min-h-dvh selection:bg-hb-gold selection:text-hb-black">
+      <body className="bg-hb-black text-luxury-ivory font-sans flex flex-col min-h-dvh selection:bg-hb-gold selection:text-hb-black">
         
-        <Toaster 
-          position="bottom-center"
-          toastOptions={{
-            style: {
-              background: '#1a1a1a', 
-              color: '#D4AF37',      
-              border: '1px solid #D4AF37', 
-              fontSize: '12px',
-              textTransform: 'uppercase',
-              letterSpacing: '0.1em',
-              fontWeight: 'bold',
-              padding: '16px',
-              borderRadius: '8px'
-            },
-            success: {
-              iconTheme: { primary: '#D4AF37', secondary: '#1a1a1a' },
-            },
-            error: {
-              iconTheme: { primary: '#ef4444', secondary: '#1a1a1a' },
-              style: { borderColor: '#ef4444', color: '#ef4444' }
-            }
-          }}
-        />
-        
+        <a className="skip-link" href="#conteudo">Pular para o conteúdo</a>
+        <Feedback />
+
         <Providers>
           <Header />
           
-          <div className="flex-grow min-w-0">
+          <div id="conteudo" tabIndex={-1} className="flex-grow min-w-0 focus:outline-none">
             {children}
           </div>
 
           <Footer />
+          <MobileBottomNav />
         </Providers>
         
       </body>

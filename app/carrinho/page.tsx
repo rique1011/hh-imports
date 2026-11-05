@@ -326,21 +326,21 @@ export default function PaginaCarrinho() {
 
   // 6. RETORNO PRINCIPAL
   return (
-    <main className="min-h-screen bg-hb-black py-8 md:py-16 relative">
+    <main className="cart-page min-h-screen bg-hb-black py-8 md:py-16 relative">
       <div className="max-w-6xl mx-auto px-4 md:px-6">
-        <h1 className="text-xl md:text-2xl font-light text-white uppercase tracking-widest mb-8 md:mb-12 text-center italic">Sua Sacola de Luxo</h1>
+        <h1 className="luxury-title text-luxury-ivory mb-8 md:mb-12 text-center">Sua sacola</h1>
         
         <div className="flex flex-col lg:flex-row gap-6 lg:gap-12">
           
           {/* LADO ESQUERDO (ITENS E FRETE) */}
           <div className="flex-1 min-w-0 space-y-6">
-            <div className="bg-hb-gray p-4 md:p-6 rounded-xl border border-gray-800 shadow-sm">
+            <div className="bg-hb-gray p-4 md:p-6 rounded-xl border border-luxury-line shadow-sm">
                 {itens.map((item) => (
-                  <div key={item.id} className="flex gap-4 md:gap-6 py-4 md:py-6 border-b border-gray-800 last:border-0">
+                  <div key={item.id} className="flex gap-4 md:gap-6 py-4 md:py-6 border-b border-luxury-line last:border-0">
                     <Image width={96} height={96} sizes="96px" src={item.foto || '/icon.svg'} alt={item.nome} loading="lazy" decoding="async" className="w-20 h-20 md:w-24 md:h-24 object-cover rounded border border-gray-700 shrink-0" />
                     <div className="flex-1 min-w-0 flex flex-col justify-between gap-3">
                       <div className="flex justify-between items-start gap-2">
-                        <h3 className="text-[10px] md:text-xs font-bold uppercase tracking-wider text-gray-200 line-clamp-2">{item.nome}</h3>
+                        <h3 className="text-base md:text-lg font-normal leading-snug text-luxury-ivory line-clamp-2">{item.nome}</h3>
                         <button onClick={() => removerDoCarrinho(item.id)} aria-label={`Remover ${item.nome} da sacola`} className="text-gray-500 hover:text-red-500 transition shrink-0 min-w-11 min-h-11 grid place-items-center -mt-2 -mr-2"><Trash2 size={16} /></button>
                       </div>
                       
@@ -359,7 +359,7 @@ export default function PaginaCarrinho() {
                 ))}
             </div>
 
-            <div className="bg-hb-gray p-4 md:p-6 rounded-xl border border-gray-800 shadow-sm">
+            <div className="bg-hb-gray p-4 md:p-6 rounded-xl border border-luxury-line shadow-sm">
               <div className="flex justify-between items-center mb-5 md:mb-6">
                 <p className="text-[10px] font-bold text-hb-gold uppercase tracking-widest flex items-center gap-2">
                   <Truck size={16} /> Opções de Entrega
@@ -511,7 +511,7 @@ export default function PaginaCarrinho() {
               </div>
             )}
 
-            <div className="bg-hb-gray p-4 md:p-6 rounded-xl border border-gray-800 shadow-sm">
+            <div className="bg-hb-gray p-4 md:p-6 rounded-xl border border-luxury-line shadow-sm">
               <p className="text-[9px] md:text-[10px] font-bold text-hb-gold uppercase tracking-widest mb-3 md:mb-4">Cupom de Desconto</p>
               {cupom ? (
                 <div className="flex items-center justify-between bg-green-900/30 p-3 rounded border border-green-800">
@@ -537,7 +537,7 @@ export default function PaginaCarrinho() {
               )}
             </div>
 
-            <div className={`border rounded-xl p-4 md:p-5 flex items-center justify-between gap-3 md:gap-4 transition-all duration-300 ${embalagemPresente ? 'bg-hb-black border-hb-gold shadow-[0_0_15px_rgba(212,175,55,0.15)]' : 'bg-hb-gray border-gray-800 shadow-sm'}`}>
+            <div className={`border rounded-xl p-4 md:p-5 flex items-center justify-between gap-3 md:gap-4 transition-all duration-300 ${embalagemPresente ? 'bg-hb-black border-hb-gold shadow-[0_0_15px_rgba(212,175,55,0.15)]' : 'bg-hb-gray border-luxury-line shadow-sm'}`}>
               <div className="flex items-center gap-3 md:gap-4">
                 <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center shrink-0 transition-colors ${embalagemPresente ? 'bg-hb-gold' : 'bg-hb-black border border-gray-700'}`}>
                   <Gift size={14} className={embalagemPresente ? 'text-hb-black' : 'text-gray-500 md:w-4 md:h-4'} />
@@ -561,7 +561,7 @@ export default function PaginaCarrinho() {
               </div>
             </div>
 
-            <div className="bg-hb-gray p-4 md:p-6 rounded-xl border border-gray-800 shadow-sm lg:sticky lg:top-24">
+            <div className="bg-hb-gray p-4 md:p-6 rounded-xl border border-luxury-line shadow-sm lg:sticky lg:top-24">
               <h2 className="text-[10px] md:text-xs font-bold text-white uppercase tracking-widest mb-4 md:mb-6">Resumo do Pedido</h2>
               <div className="space-y-3 md:space-y-4 text-[10px] md:text-xs font-medium text-gray-400 mb-5 md:mb-6 border-b border-gray-700 pb-5 md:pb-6">
                 <div className="flex justify-between"><span>Subtotal</span><span className="text-white">R$ {subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span></div>
@@ -600,13 +600,20 @@ export default function PaginaCarrinho() {
                 <span className="text-lg md:text-xl font-bold text-hb-gold">R$ {totalGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
               </div>
               
+              <div className="mobile-checkout-bar fixed inset-x-0 bottom-0 z-40 border-t border-luxury-gold/25 bg-luxury-black px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] lg:static lg:border-0 lg:bg-transparent lg:p-0">
+                <div className="mx-auto flex max-w-lg items-center gap-4 lg:block lg:max-w-none">
+                  <div className="shrink-0 lg:hidden"><p className="mb-1 text-[9px] uppercase tracking-wider text-luxury-muted">Total</p><p className="text-base font-medium tabular-nums text-luxury-gold-light">R$ {totalGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p></div>
+                  <div className="min-w-0 flex-1">
               <button 
                 onClick={finalizarCompra} 
                 disabled={carregando || (freteFinal === 0 && !freteGratis)} 
-                className="w-full bg-hb-gold text-hb-black py-3 md:py-4 rounded font-bold text-[10px] md:text-xs uppercase tracking-widest hover:bg-hb-goldLight transition flex items-center justify-center gap-2 disabled:opacity-50"
+                className="luxury-button w-full"
               >
                 {carregando ? <Loader2 className="animate-spin" size={16} /> : 'Finalizar Compra'}
               </button>
+                  </div>
+                </div>
+              </div>
               
               {freteFinal === 0 && !freteGratis && (
                 <p className="text-[8px] md:text-[9px] text-red-400 font-bold uppercase tracking-widest mt-3 text-center">Calcule o frete para continuar</p>
@@ -622,7 +629,7 @@ export default function PaginaCarrinho() {
             <div className="h-32 md:h-40 bg-black relative flex items-center justify-center overflow-hidden border-b border-hb-gold/30">
               <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1599643477877-530eb83abc8e?q=80&w=800')] bg-cover bg-center opacity-30"></div>
               <div className="relative z-10 flex flex-col items-center">
-                <AlertCircle size={32} className="text-hb-gold mb-2 animate-bounce md:w-10 md:h-10" />
+                <AlertCircle size={32} className="text-hb-gold mb-2 motion-safe:animate-cart-pop md:w-10 md:h-10" />
                 <h2 id="titulo-oferta" className="text-xl md:text-2xl font-light text-white uppercase tracking-widest">Espere!</h2>
               </div>
             </div>
