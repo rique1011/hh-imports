@@ -5,6 +5,7 @@ import { carregarPedidoEnvio, consultarEnvio, gerarEtiqueta, resultadoEnvio, val
 import { ErroMelhorEnvio } from '@/lib/melhor-envio'
 import { processarNotificacoes } from '@/lib/notificacoes'
 import { tipoRemetente } from '@/lib/entrega'
+import { consultarEnvioAutomatico, exigirModoManual } from '@/lib/envio-automatico'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -15,11 +16,11 @@ export async function GET(request: Request) {
     const { db } = await exigirAdmin(request)
     const pedidoId = validarPedidoId(new URL(request.url).searchParams.get('pedidoId'))
     const pedido = await carregarPedidoEnvio(db, pedidoId)
-    const envio = await consultarEnvio(db, pedidoId)
+    const [envio, automatico] = await Promise.all([consultarEnvio(db, pedidoId), consultarEnvioAutomatico(db, pedidoId)])
     if (!envio && ['enviado','entregue'].includes(pedido.status)) return NextResponse.json({ ...resultadoEnvio(pedidoId, null),
       estado: 'bloqueada', podeRetomar: false, mensagem: 'Este pedido já foi enviado por outro fluxo. Confira o rastreio cadastrado.' }, { headers })
     return NextResponse.json({ ...resultadoEnvio(pedidoId, envio), entrega: pedido.entrega, usaCadastroAtual: !!pedido.entregaDoCadastro,
-      servicoContratado: pedido.frete_cotacao?.servico || null, tipoRemetente: tipoRemetente() }, { headers })
+      servicoContratado: pedido.frete_cotacao?.servico || null, tipoRemetente: tipoRemetente(), automatico }, { headers })
   } catch (error) { return responderErro(error) }
 }
 
@@ -29,6 +30,7 @@ export async function POST(request: Request) {
     const { db } = await exigirAdmin(request)
     const body = await request.json()
     const pedidoId = validarPedidoId(body.pedidoId)
+    await exigirModoManual(db, pedidoId)
     if (body.acao === 'cotar') {
       const pedido = await carregarPedidoEnvio(db, pedidoId)
       const opcoes = await calcularFrete(pedido.entrega!.cep, pedido.itens)

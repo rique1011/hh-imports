@@ -1,6 +1,7 @@
 'use client'
 import Modal from '@/components/Modal'
 import EtiquetaMelhorEnvio from '@/components/admin/EtiquetaMelhorEnvio'
+import EnvioAutomaticoConfig from '@/components/admin/EnvioAutomaticoConfig'
 import type { ResultadoEtiqueta } from '@/types/envio'
 
 import Image from 'next/image'
@@ -155,6 +156,8 @@ export default function TelaPedidos() {
           />
         </div>
       </header>
+
+      <EnvioAutomaticoConfig onAbrirPedido={id => { const pedido = pedidos.find(item => String(item.id) === id); if (pedido) void abrirDetalhes(pedido) }} />
 
       {carregando ? (
         <div className="flex justify-center py-20"><Loader2 className="animate-spin text-hb-gold" size={32} /></div>

@@ -3,6 +3,7 @@ import { Payment } from 'mercadopago'
 import { getMercadoPagoClient, validarAssinatura } from '@/lib/mercadopago'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { processarNotificacoes } from '@/lib/notificacoes'
+import { processarEnvioAutomatico } from '@/lib/envio-automatico'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -44,8 +45,10 @@ export async function POST(request: Request) {
 
     // A fila ja esta persistida. after mantem o envio ativo na Vercel apos o ACK.
     after(async () => {
-      try { await processarNotificacoes(pedidoId, 6) }
-      catch (error) { console.error('[webhook] Notificacoes persistidas aguardam retry:', error) }
+      const resultados = await Promise.allSettled([processarNotificacoes(pedidoId, 6), processarEnvioAutomatico(pedidoId)])
+      resultados.forEach((resultado, indice) => {
+        if (resultado.status === 'rejected') console.error('[webhook] Trabalho persistido aguarda retry.', { pedidoId, fila: indice === 0 ? 'email' : 'envio' })
+      })
     })
     return NextResponse.json({ received: true, pedidoId })
   } catch (error) {

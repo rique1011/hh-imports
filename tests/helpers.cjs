@@ -40,6 +40,8 @@ exports.createDb = async function createDb(idType = 'uuid') {
   await db.exec(fs.readFileSync(path.join(root, 'supabase/migrations', estoque), 'utf8'))
   const envio = fs.readdirSync(path.join(root, 'supabase/migrations')).find(name => name.endsWith('_melhor_envio_etiquetas.sql'))
   await db.exec(fs.readFileSync(path.join(root, 'supabase/migrations', envio), 'utf8'))
+  const automatico = fs.readdirSync(path.join(root, 'supabase/migrations')).find(name => name.endsWith('_envio_automatico.sql'))
+  await db.exec(fs.readFileSync(path.join(root, 'supabase/migrations', automatico), 'utf8'))
   return db
 }
 
@@ -88,7 +90,7 @@ exports.adapter = function adapter(db) {
         const result = await db.query(query, entries.map(([, value]) =>
           typeof value === 'object' && value !== null ? JSON.stringify(value) : value))
         const json = result.rows[0]?.[name]
-        return { data: json || result.rows, error: null }
+        return { data: Object.prototype.hasOwnProperty.call(result.rows[0] || {}, name) ? json : result.rows, error: null }
       } catch (error) { return { data: null, error: { message: error.message } } }
     },
   }

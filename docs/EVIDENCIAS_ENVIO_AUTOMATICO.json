@@ -1,0 +1,48 @@
+{
+  "data": "2026-11-05",
+  "validacao": {
+    "backend_testes": 47,
+    "backend_falhas": 0,
+    "typescript": "aprovado",
+    "eslint": "aprovado sem avisos",
+    "build_next": "aprovado",
+    "browser_verificacoes": 55,
+    "browser_erros": [],
+    "viewports": [
+      390,
+      1440
+    ]
+  },
+  "banco": {
+    "migracao": "20261105122818_envio_automatico",
+    "configuracao_inicial_ativa": false,
+    "trabalhos_criados_na_implantacao": 0,
+    "etiquetas_compradas_na_validacao": 0,
+    "rls": true,
+    "acesso_anon_authenticated": false,
+    "funcoes_security_invoker": true,
+    "security_advisors_warning_error": 0
+  },
+  "fluxos": [
+    "webhook autenticado e ACK antes de processamento",
+    "checkout quitado por cashback",
+    "snapshot original de endereco",
+    "cotacao atualizada e teto financeiro",
+    "servico contratado preservado e frete gratis Correios",
+    "NF-e aguarda chave por pedido",
+    "declaracao exige confirmacao de dispensa",
+    "lease concorrente e recuperacao de lease expirado",
+    "timeout de compra consulta o mesmo ID",
+    "insercao incerta exige conciliacao",
+    "saldo insuficiente e retomada do mesmo carrinho",
+    "pausa global e exclusao do fluxo automatico por pedido",
+    "acompanhamento de geracao sem disparar checkout pelo GET",
+    "PDF, DACE, rastreio e notificacao unica"
+  ],
+  "observacoes": [
+    "APIs financeiras e SMTP simulados nos testes; nenhuma etiqueta real comprada.",
+    "Ativacao pelo administrador depende do teto por etiqueta e documentacao aplicavel.",
+    "Cron diario e contingencia; fluxo principal inicia no pagamento.",
+    "A impressao fisica continua sob controle do administrador."
+  ]
+}

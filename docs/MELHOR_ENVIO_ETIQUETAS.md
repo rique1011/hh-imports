@@ -2,6 +2,8 @@
 
 Implementação de 04/11/2026 para `rique1011/hh-imports`, baseada no commit `6219be7`.
 
+Atualização de 05/11: a compra após pagamento confirmado pode ser ativada em Admin → Pedidos. Veja a configuração, limites e contingência em [ENVIO_AUTOMATICO.md](ENVIO_AUTOMATICO.md). O fluxo manual descrito abaixo permanece disponível para pedidos anteriores ou que forem retirados da fila automática.
+
 ## Resultado da análise do frete
 
 O carrinho já consultava `/api/frete`, que chamava a API real do Melhor Envio. Uma chamada de cotação em produção, antes desta alteração, retornou HTTP 200 e 12 opções; nenhuma etiqueta foi comprada nesse teste. O preço não era uma tarifa fixa, mas a embalagem era fixa em 0,15 kg e 11×3×16 cm, o seguro era zero, e o pedido não preservava serviço/volumes ou endereço de entrega.

@@ -14,3 +14,16 @@ export interface ResultadoEtiqueta {
   urlDeclaracao?: string | null
   mensagem: string; concluido: boolean; podeRetomar: boolean
 }
+export interface ConfigEnvioAutomatico {
+  ativa: boolean
+  documentoFiscal: 'nfe' | 'declaracao'
+  declaracaoConfirmada: boolean
+  limiteReais: number | null
+  agencia: number | null
+}
+export interface EnvioAutomatico {
+  estado: 'pendente' | 'processando' | 'aguardando' | 'aguardando_documento' | 'atencao' | 'concluida' | 'manual'
+  mensagem: string
+  documentoFiscal: 'nfe' | 'declaracao'
+  pausada: boolean
+}

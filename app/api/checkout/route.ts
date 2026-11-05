@@ -10,6 +10,7 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { getMercadoPagoClient } from '@/lib/mercadopago'
 import { getSiteUrl } from '@/lib/site-url'
 import { processarNotificacoes } from '@/lib/notificacoes'
+import { processarEnvioAutomatico } from '@/lib/envio-automatico'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -81,8 +82,13 @@ export async function POST(request: Request) {
 
     // O trigger ja registrou cliente e admin; falha SMTP nao desfaz a compra.
     after(async () => {
-      try { await processarNotificacoes(String(pedido.id), 6) }
-      catch (error) { console.error('[checkout] Notificacoes persistidas aguardam retry:', error) }
+      const trabalhos: Promise<unknown>[] = [processarNotificacoes(String(pedido.id), 6)]
+      // Apenas cashback que quitou o pedido: compras pendentes aguardam webhook.
+      if (total === 0) trabalhos.push(processarEnvioAutomatico(String(pedido.id)))
+      const resultados = await Promise.allSettled(trabalhos)
+      resultados.forEach((resultado, indice) => {
+        if (resultado.status === 'rejected') console.error('[checkout] Trabalho persistido aguarda retry.', { pedidoId: pedido.id, fila: indice === 0 ? 'email' : 'envio' })
+      })
     })
     if (total === 0) {
       return NextResponse.json({ pedidoId: pedido.id,
