@@ -5,7 +5,7 @@ import { Download, Loader2, Package, RefreshCw } from 'lucide-react'
 import type { OpcaoFrete } from '@/lib/frete'
 import type { EntregaPedido, ResultadoEtiqueta } from '@/types/envio'
 
-type Consulta = ResultadoEtiqueta & { entrega?: EntregaPedido; usaCadastroAtual?: boolean }
+type Consulta = ResultadoEtiqueta & { entrega?: EntregaPedido; usaCadastroAtual?: boolean; tipoRemetente?: 'cpf' | 'cnpj' | null }
 interface Props {
   pedidoId: string
   onAtualizado: (resultado: ResultadoEtiqueta) => void
@@ -19,6 +19,9 @@ export default function EtiquetaMelhorEnvio({ pedidoId, onAtualizado, onOcupado 
   const [opcoes, setOpcoes] = useState<OpcaoFrete[]>([])
   const [freteToken, setFreteToken] = useState('')
   const [notaFiscal, setNotaFiscal] = useState('')
+  const [documentoFiscal, setDocumentoFiscal] = useState<'nfe' | 'declaracao'>('nfe')
+  const [confirmarDeclaracao, setConfirmarDeclaracao] = useState(false)
+  const [chaveDce, setChaveDce] = useState('')
   const [agencia, setAgencia] = useState('')
   const [ocupado, setOcupado] = useState(false)
   const [erro, setErro] = useState('')
@@ -28,7 +31,8 @@ export default function EtiquetaMelhorEnvio({ pedidoId, onAtualizado, onOcupado 
     const controller = new AbortController()
     fetch('/api/melhor-envio/gerar-etiqueta?pedidoId=' + encodeURIComponent(pedidoId), { cache: 'no-store', signal: controller.signal })
       .then(async response => { const data = await response.json(); if (!response.ok) throw new Error(data.error); return data as Consulta })
-      .then(setResultado).catch(error => { if (!controller.signal.aborted) setErro(error.message) })
+      .then(data => { setResultado(data); if (data.tipoRemetente === 'cpf') setDocumentoFiscal('declaracao') })
+      .catch(error => { if (!controller.signal.aborted) setErro(error.message) })
     return () => controller.abort()
   }, [pedidoId])
 
@@ -37,7 +41,9 @@ export default function EtiquetaMelhorEnvio({ pedidoId, onAtualizado, onOcupado 
     try {
       const response = await fetch('/api/melhor-envio/gerar-etiqueta', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pedidoId, acao, freteToken, notaFiscal, agencia }),
+        body: JSON.stringify({ pedidoId, acao, freteToken, agencia, documentoFiscal,
+          notaFiscal: documentoFiscal === 'nfe' ? notaFiscal : '',
+          chaveDce: documentoFiscal === 'declaracao' ? chaveDce : '', confirmarDeclaracao }),
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Não foi possível processar a etiqueta.')
@@ -57,7 +63,7 @@ export default function EtiquetaMelhorEnvio({ pedidoId, onAtualizado, onOcupado 
         if (response.ok) setResultado(await response.json())
       } catch {}
     } finally { setOcupado(false); onOcupado(false) }
-  }, [pedidoId, freteToken, notaFiscal, agencia, onAtualizado, onOcupado])
+  }, [pedidoId, freteToken, notaFiscal, agencia, documentoFiscal, chaveDce, confirmarDeclaracao, onAtualizado, onOcupado])
 
   useEffect(() => {
     if (!tentativas || ocupado || !resultado?.podeRetomar || !['comprando','compra_incerta','pago','gerando','aguardando_rastreio'].includes(resultado.estado)) return
@@ -67,6 +73,7 @@ export default function EtiquetaMelhorEnvio({ pedidoId, onAtualizado, onOcupado 
 
   const nova = resultado?.estado === 'nova'
   const selecionada = opcoes.find(opcao => opcao.token === freteToken)
+  const documentoValido = documentoFiscal === 'nfe' ? notaFiscal.length === 44 : confirmarDeclaracao && (!chaveDce || chaveDce.length === 44)
   return <section aria-label="Etiqueta Melhor Envio" className="bg-hb-black p-5 rounded-xl border border-gray-800 space-y-4">
     <h3 className="text-sm text-hb-gold uppercase flex items-center gap-2"><Package size={18} /> Etiqueta Melhor Envio</h3>
     {resultado?.entrega && <div className="text-xs text-gray-300 break-words space-y-1">
@@ -83,26 +90,42 @@ export default function EtiquetaMelhorEnvio({ pedidoId, onAtualizado, onOcupado 
           {opcoes.map(opcao => <option key={opcao.servico} value={opcao.token}>{opcao.transportadora} — {opcao.nome} — {dinheiro(opcao.preco)}</option>)}
         </select>
       </label>}
-      <label className="block text-sm space-y-2">Chave da NF-e deste pedido
-        <input inputMode="numeric" value={notaFiscal} onChange={event => setNotaFiscal(event.target.value.replace(/\D/g, '').slice(0,44))} maxLength={44} disabled={ocupado} placeholder="44 dígitos da nota fiscal" className={classeCampo} />
+      <label className="block text-sm space-y-2">Documento do envio
+        <select value={documentoFiscal} onChange={event => { setDocumentoFiscal(event.target.value as 'nfe' | 'declaracao'); setConfirmarDeclaracao(false) }} disabled={ocupado} className={classeCampo}>
+          <option value="nfe">Nota fiscal (NF-e)</option>
+          <option value="declaracao">Declaração de conteúdo (DC-e) — quando dispensado de NF-e</option>
+        </select>
       </label>
+      {documentoFiscal === 'nfe' ? <label className="block text-sm space-y-2">Chave da NF-e deste pedido
+        <input inputMode="numeric" value={notaFiscal} onChange={event => setNotaFiscal(event.target.value.replace(/\D/g, '').slice(0,44))} maxLength={44} disabled={ocupado} placeholder="44 dígitos da nota fiscal" className={classeCampo} />
+      </label> : <div className="space-y-3">
+        <p className="text-xs text-gray-300">A DC-e utiliza os itens e valores deste pedido. Quando a chave abaixo fica vazia, a emissão é solicitada ao Melhor Envio. Imprima a declaração para acompanhar o pacote.</p>
+        <label className="block text-sm space-y-2">Chave da DC-e já emitida (opcional)
+          <input inputMode="numeric" value={chaveDce} onChange={event => setChaveDce(event.target.value.replace(/\D/g, '').slice(0,44))} maxLength={44} disabled={ocupado} placeholder="Deixe vazio para emitir pelo Melhor Envio" className={classeCampo} />
+        </label>
+        <label className="flex items-start gap-3 min-h-11 py-2 text-sm">
+          <input type="checkbox" checked={confirmarDeclaracao} onChange={event => setConfirmarDeclaracao(event.target.checked)} disabled={ocupado} className="mt-1 size-5 shrink-0 accent-yellow-500" />
+          Confirmo que este envio pode utilizar declaração de conteúdo e está dispensado de NF-e.
+        </label>
+      </div>}
       <label className="block text-sm space-y-2">ID da agência (quando exigido pela transportadora)
         <input inputMode="numeric" value={agencia} onChange={event => setAgencia(event.target.value.replace(/\D/g, ''))} disabled={ocupado} className={classeCampo} />
       </label>
-      {selecionada && <p className="text-sm text-yellow-300">Ao gerar, a compra de {dinheiro(selecionada.preco)} usa o saldo da sua carteira Melhor Envio. Confira nota fiscal, destino e medidas da embalagem.</p>}
+      {selecionada && <p className="text-sm text-yellow-300">Ao gerar, a compra de {dinheiro(selecionada.preco)} usa o saldo da sua carteira Melhor Envio. Confira documentação, destino e medidas da embalagem.</p>}
     </>}
     {resultado?.estado === 'carrinho' && <p className="text-sm text-yellow-300">
       Ao concluir a compra, {dinheiro(resultado.custoEtiqueta || 0)} serão debitados da sua carteira Melhor Envio.
     </p>}
     <p role="status" aria-live="polite" className="text-sm text-gray-300">{resultado?.mensagem || 'Consultando pedido…'}</p>
     {erro && <p role="alert" className="text-sm text-red-400">{erro}</p>}
-    {resultado?.podeRetomar && !resultado.concluido && <button type="button" disabled={ocupado || (nova && (!selecionada || notaFiscal.length !== 44))}
+    {resultado?.podeRetomar && !resultado.concluido && <button type="button" disabled={ocupado || (nova && (!selecionada || !documentoValido))}
       onClick={() => { setTentativas(8); void executar('gerar') }}
       className="w-full min-h-11 px-4 py-3 rounded bg-hb-gold text-black font-bold flex items-center justify-center gap-2 disabled:opacity-50">
       {ocupado ? <Loader2 className="animate-spin shrink-0" size={18} /> : <RefreshCw size={18} className="shrink-0" />}
       {ocupado ? 'Processando etiqueta…' : nova ? 'Gerar Etiqueta (Melhor Envio)' : resultado.estado === 'carrinho' ? 'Concluir compra da etiqueta' : 'Atualizar processamento da etiqueta'}
     </button>}
     {resultado?.urlEtiqueta && <a href={resultado.urlEtiqueta} target="_blank" rel="noopener noreferrer" className="min-h-11 inline-flex items-center gap-2 text-hb-gold underline"><Download size={18} /> Abrir etiqueta / PDF</a>}
+    {resultado?.urlDeclaracao && <a href={resultado.urlDeclaracao} target="_blank" rel="noopener noreferrer" className="min-h-11 flex items-center gap-2 text-hb-gold underline"><Download size={18} /> Imprimir declaração de conteúdo (DACE)</a>}
     {resultado?.codigoRastreio && <p className="text-sm break-all">Rastreio: <strong>{resultado.codigoRastreio}</strong></p>}
   </section>
 }

@@ -172,3 +172,69 @@ test('preço maior que o revisado bloqueia checkout e mantém o ID para concilia
   assert.equal(s.chamadas.filter(c=>c.path==='/shipment/checkout').length,0)
   assert.equal((await s.db.query('SELECT me_id FROM pedido_envios')).rows[0].me_id,meId)
 })
+
+test('CPF com DC-e aceita geração sem NF-e, preserva itens/seguro e disponibiliza DACE', async t => {
+  const s = await setup(t)
+  const anterior = process.env.MELHOR_ENVIO_REMETENTE
+  t.after(() => { process.env.MELHOR_ENVIO_REMETENTE = anterior })
+  process.env.MELHOR_ENVIO_REMETENTE = JSON.stringify({ ...entrega, nome:'Remetente de Teste', documento:'12345678901' })
+  const body = { ...s.body, notaFiscal:'', documentoFiscal:'declaracao', confirmarDeclaracao:true }
+  await s.lib.gerarEtiqueta(s.client,String(s.pedido.id),body)
+  const cart = s.chamadas.find(c=>c.path==='/cart').body
+  assert.equal(cart.from.document,'12345678901'); assert.equal('company_document' in cart.from,false)
+  assert.equal(cart.options.non_commercial,true); assert.equal('invoice' in cart.options,false)
+  assert.equal('dce' in cart.options,false); assert.equal('state_register' in cart.from,false)
+  assert.equal(cart.products.reduce((sum,p)=>sum+p.unitary_value*p.quantity,0),cart.options.insurance_value)
+  s.remoto.tracking='AA123456789BR'
+  const final = await s.lib.gerarEtiqueta(s.client,String(s.pedido.id))
+  assert.equal(final.concluido,true); assert.match(final.urlDeclaracao,/documento=dace/)
+  const chamadas=[]
+  const auth = loadTs('lib/autorizacao')
+  const route = loadTs('app/api/melhor-envio/etiqueta/route',{
+    '@/lib/autorizacao':{...auth,exigirAdmin:async()=>({db:s.client})},
+    '@/lib/melhor-envio':{...loadTs('lib/melhor-envio'),requisitarMelhorEnvio:async path=>{chamadas.push(path);return new Response('%PDF-1.4 fixture',{headers:{'content-type':'application/pdf'}})}},
+  })
+  const response=await route.GET(new Request('https://loja.example.test'+final.urlDeclaracao))
+  assert.equal(response.status,200);assert.equal(response.headers.get('content-type'),'application/pdf')
+  assert.equal(chamadas[0],'/imprimir/dace/pdf/'+meId)
+  assert.match(response.headers.get('content-disposition'),/declaracao-conteudo/)
+})
+
+test('declaração exige confirmação e não permite misturar NF-e com DC-e', async t => {
+  const s=await setup(t)
+  const body={...s.body,notaFiscal:'',documentoFiscal:'declaracao'}
+  await assert.rejects(s.lib.gerarEtiqueta(s.client,String(s.pedido.id),body),/Confirme/)
+  await assert.rejects(s.lib.gerarEtiqueta(s.client,String(s.pedido.id),{...body,confirmarDeclaracao:'true'}),/Confirme/)
+  await assert.rejects(s.lib.gerarEtiqueta(s.client,String(s.pedido.id),{...body,confirmarDeclaracao:true,notaFiscal:'1'.repeat(44)}),/Selecione o documento/)
+  await assert.rejects(s.lib.gerarEtiqueta(s.client,String(s.pedido.id),{...body,confirmarDeclaracao:true,chaveDce:'123'}),/44 dígitos/)
+  await assert.rejects(s.lib.gerarEtiqueta(s.client,String(s.pedido.id),{...s.body,documentoFiscal:['nfe']}),/Documento fiscal inválido/)
+  assert.equal(s.chamadas.length,0)
+})
+
+test('DC-e existente envia a chave correta e retira inscrição estadual sem mudar CNPJ', async t => {
+  const s=await setup(t)
+  const anterior=process.env.MELHOR_ENVIO_REMETENTE
+  t.after(()=>{process.env.MELHOR_ENVIO_REMETENTE=anterior})
+  process.env.MELHOR_ENVIO_REMETENTE=JSON.stringify({...entrega,documento:'12345678000199',inscricao_estadual:'123456'})
+  await s.lib.gerarEtiqueta(s.client,String(s.pedido.id),{...s.body,notaFiscal:'',documentoFiscal:'declaracao',confirmarDeclaracao:true,chaveDce:'2'.repeat(44)})
+  const cart=s.chamadas.find(c=>c.path==='/cart').body
+  assert.equal(cart.from.company_document,'12345678000199');assert.equal('document' in cart.from,false)
+  assert.equal('state_register' in cart.from,false);assert.equal(cart.options.dce.key,'2'.repeat(44));assert.equal('invoice' in cart.options,false)
+})
+
+test('trocar configuração de CPF para CNPJ altera a identificação sem forçar o documento fiscal', async t => {
+  const s=await setup(t)
+  const anterior=process.env.MELHOR_ENVIO_REMETENTE
+  t.after(()=>{process.env.MELHOR_ENVIO_REMETENTE=anterior})
+  const entregaLib=loadTs('lib/entrega')
+  process.env.MELHOR_ENVIO_REMETENTE=JSON.stringify({...entrega,documento:'12345678901'})
+  assert.equal(entregaLib.tipoRemetente(),'cpf');assert.equal(entregaLib.remetenteMelhorEnvio().document,'12345678901')
+  const pedido=await s.lib.carregarPedidoEnvio(s.client,String(s.pedido.id))
+  const cpfNfe=s.lib.montarConfigEnvio(pedido,s.body)
+  assert.equal(cpfNfe.payload.options.non_commercial,false);assert.equal(cpfNfe.payload.options.invoice.key,'1'.repeat(44))
+  process.env.MELHOR_ENVIO_REMETENTE=JSON.stringify({...entrega,documento:'12345678000199',inscricao_estadual:'123456'})
+  assert.equal(entregaLib.tipoRemetente(),'cnpj')
+  const cnpj=s.lib.montarConfigEnvio(pedido,s.body)
+  assert.equal(cnpj.payload.from.company_document,'12345678000199');assert.equal('document' in cnpj.payload.from,false)
+  assert.equal(cnpj.payload.from.state_register,'123456');assert.equal(cnpj.documentoFiscal,'nfe')
+})

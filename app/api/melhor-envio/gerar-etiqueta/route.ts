@@ -4,6 +4,7 @@ import { calcularFrete } from '@/lib/frete'
 import { carregarPedidoEnvio, consultarEnvio, gerarEtiqueta, resultadoEnvio, validarPedidoId } from '@/lib/etiquetas'
 import { ErroMelhorEnvio } from '@/lib/melhor-envio'
 import { processarNotificacoes } from '@/lib/notificacoes'
+import { tipoRemetente } from '@/lib/entrega'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -18,7 +19,7 @@ export async function GET(request: Request) {
     if (!envio && ['enviado','entregue'].includes(pedido.status)) return NextResponse.json({ ...resultadoEnvio(pedidoId, null),
       estado: 'bloqueada', podeRetomar: false, mensagem: 'Este pedido já foi enviado por outro fluxo. Confira o rastreio cadastrado.' }, { headers })
     return NextResponse.json({ ...resultadoEnvio(pedidoId, envio), entrega: pedido.entrega, usaCadastroAtual: !!pedido.entregaDoCadastro,
-      servicoContratado: pedido.frete_cotacao?.servico || null }, { headers })
+      servicoContratado: pedido.frete_cotacao?.servico || null, tipoRemetente: tipoRemetente() }, { headers })
   } catch (error) { return responderErro(error) }
 }
 

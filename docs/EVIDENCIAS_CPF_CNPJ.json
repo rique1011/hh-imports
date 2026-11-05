@@ -1,0 +1,46 @@
+{
+  "base": "9cfe414a8ef2bc1293e3c2ad1a1170a45aee41c2",
+  "backend": {
+    "testes": 34,
+    "aprovados": 34
+  },
+  "checks": [
+    "lint sem avisos",
+    "tsc --noEmit",
+    "build de produção Next.js aprovado"
+  ],
+  "interface": {
+    "engine": "Chromium com emulação iPhone 14, 390x664, fixtures locais",
+    "verificacoes": [
+      "bloqueia geração sem cotação e NF-e 390",
+      "CPF apresenta opção DC-e",
+      "DC-e exige confirmação mesmo com cotação",
+      "modo NF-e continua disponível",
+      "chave DC-e parcial bloqueia geração",
+      "libera geração após dados obrigatórios 390",
+      "UI envia CPF/DC-e sem misturar NF-e 390",
+      "loading visível 390",
+      "UI envia CPF/DC-e sem misturar NF-e 390",
+      "rastreio visível 390",
+      "status do formulário atualizado 390",
+      "sem overflow horizontal 390",
+      "link de impressão da DACE disponível",
+      "202 retomado automaticamente sem novo clique 390",
+      "sem erros JavaScript"
+    ],
+    "erros": []
+  },
+  "escopo": [
+    "CPF e CNPJ em configurações de remetente",
+    "NF-e e DC-e escolhidas por pedido",
+    "Confirmação explícita de elegibilidade para DC-e",
+    "Produtos/seguro preservados, invoice omitido na DC-e",
+    "Impressão autenticada da DACE",
+    "Etiquetas existentes preservam snapshot ao mudar remetente"
+  ],
+  "limites": [
+    "Nenhuma compra, DC-e, etiqueta ou mensagem real criada durante os testes.",
+    "Elegibilidade fiscal e validação do cadastro continuam a cargo do remetente/fornecedor.",
+    "Nome civil do titular deve ser usado com CPF; dados reais permanecem na configuração privada."
+  ]
+}

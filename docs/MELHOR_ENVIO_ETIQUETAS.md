@@ -35,10 +35,10 @@ As medidas padrão preservam a unidade embalada usada anteriormente. **Confira a
 Na Vercel, projeto **hh-imports → Settings → Environment Variables → Add**, cadastre `MELHOR_ENVIO_REMETENTE` para **Production**, sem prefixo `NEXT_PUBLIC_`. Use JSON em uma linha, com os valores reais:
 
 ```json
-{"nome":"Nome da empresa remetente","documento":"CNPJ_APENAS_NUMEROS","telefone":"DDD_E_TELEFONE","logradouro":"Rua da expedicao","numero":"123","complemento":"","bairro":"Bairro","cidade":"Cidade","uf":"SC","inscricao_estadual":"SE_HOUVER"}
+{"nome":"Nome civil do titular ou razao social","documento":"CPF_OU_CNPJ_APENAS_NUMEROS","telefone":"DDD_E_TELEFONE","logradouro":"Rua da expedicao","numero":"123","complemento":"","bairro":"Bairro","cidade":"Cidade","uf":"SC","inscricao_estadual":"SE_HOUVER"}
 ```
 
-O CEP vem de `CEP_ORIGEM`. Se `email` não for informado no JSON, usa `EMAIL_USER`. Remova `inscricao_estadual` quando não houver. Use o tipo Secret para os dados privados. Este fluxo é comercial com CNPJ e chave da NF-e; não declara automaticamente mercadorias comerciais como não comerciais.
+O CEP vem de `CEP_ORIGEM`. Se `email` não for informado no JSON, usa `EMAIL_USER`. Remova `inscricao_estadual` quando não houver. Use o tipo Secret para os dados privados. O remetente aceita CPF ou CNPJ. A documentação do envio é selecionada no painel: NF-e ou DC-e, quando o envio estiver dispensado de nota fiscal. Usar CPF não determina essa dispensa. Para CPF, informe o nome civil completo do titular no campo `nome`; para CNPJ, os dados da empresa.
 
 Confira também:
 
@@ -60,10 +60,10 @@ O token precisa permitir cotação, carrinho, consulta de etiquetas, checkout, g
 1. Entre como administrador em `/admin/pedidos` e abra os detalhes de um pedido pago/confirmado/processando.
 2. Confira o destino mostrado na seção **Etiqueta Melhor Envio**. Em pedidos antigos sem snapshot, o destino vem do cadastro atual e há um aviso.
 3. Clique em **Consultar fretes para este pedido**. Quando existe serviço contratado no checkout, ele é preservado; em pedidos antigos ou com frete grátis, escolha o serviço.
-4. Informe a chave de **44 dígitos da NF-e desse pedido** e, se a transportadora exigir, o ID da agência de postagem.
+4. Em **Documento do envio**, selecione NF-e ou declaração de conteúdo. NF-e exige a chave de 44 dígitos. DC-e exige confirmação de que o envio pode usar esse documento; informe a chave de DC-e somente se já tiver sido emitida. Vazia, a emissão é solicitada ao Melhor Envio com os produtos do pedido. Informe o ID da agência quando exigido pela transportadora.
 5. Confira o custo exibido e clique em **Gerar Etiqueta (Melhor Envio)**. A compra usa saldo real da carteira em produção.
 6. Se a compra foi recusada por saldo insuficiente, **Concluir compra da etiqueta** exibe o valor antes da nova tentativa com o mesmo ID. O painel acompanha a geração por até oito consultas automáticas. É possível retomar usando **Atualizar processamento da etiqueta**.
-7. Quando o documento estiver gerado, **Abrir etiqueta / PDF** disponibiliza a impressão. O PDF é servido por rota autenticada; quando o fornecedor oferece somente a impressão privada, é preciso estar conectado à mesma conta Melhor Envio no navegador.
+7. Quando o documento estiver gerado, **Abrir etiqueta / PDF** disponibiliza a impressão. Para DC-e, **Imprimir declaração de conteúdo (DACE)** abre o documento auxiliar que acompanha o pacote. O PDF é servido por rota autenticada; quando o fornecedor oferece somente a impressão privada, é preciso estar conectado à mesma conta Melhor Envio no navegador.
 
 Azul e outros serviços com requisitos específicos podem permitir cotação sem permitir compra via API, ou exigir agência/XML fiscal. Nesse caso, a resposta do fornecedor é exibida e o pedido continua disponível para o fluxo manual existente. Não se troca silenciosamente o serviço contratado.
 
@@ -80,7 +80,7 @@ GET /api/melhor-envio/gerar-etiqueta?pedidoId=123
 ```
 
 ```json
-{"pedidoId":123,"acao":"gerar","freteToken":"TOKEN_ASSINADO_DA_COTACAO","notaFiscal":"CHAVE_NFE_DE_44_DIGITOS","agencia":""}
+{"pedidoId":123,"acao":"gerar","freteToken":"TOKEN_ASSINADO_DA_COTACAO","documentoFiscal":"nfe","notaFiscal":"CHAVE_NFE_DE_44_DIGITOS","agencia":""}
 ```
 
 Envie os JSONs por POST para `/api/melhor-envio/gerar-etiqueta`. A resposta usa HTTP 202 durante o processamento e HTTP 200 quando status/rastreio estão confirmados. Exemplo intermediário:
@@ -104,8 +104,24 @@ A tabela possui RLS, sem grants para `anon`/`authenticated`; as três funções 
 ## Validação e limites
 
 - ESLint sem avisos, TypeScript e build de produção aprovados.
-- 30 testes de backend aprovados: estoque/cashback, autenticação/RLS, compra e geração assíncrona, concorrência, timeouts, saldo insuficiente, preço acima do revisado, snapshot, cotação vinculada à sacola e e-mail único.
+- 34 testes de backend aprovados: estoque/cashback, autenticação/RLS, compra e geração assíncrona, concorrência, timeouts, saldo insuficiente, preço acima do revisado, snapshot, cotação vinculada à sacola, e-mail único, CPF/CNPJ, DC-e com confirmação explícita e impressão da DACE.
 - Interface verificada em Chromium com fixtures, incluindo loading, campos obrigatórios, resposta 202 retomada, rastreio, status e link de PDF. A compra e o SMTP usam mocks, não serviços reais.
-- A cotação antiga em produção foi verificada com chamada real e sem custo; a primeira compra real de etiqueta precisa ser validada depois de cadastrar remetente, conferir permissões/saldo do token e informar uma NF-e válida.
+- A cotação antiga em produção foi verificada com chamada real e sem custo; a primeira compra real de etiqueta precisa ser validada depois de cadastrar remetente, conferir permissões/saldo do token e selecionar a documentação válida para esse envio.
 
-Referências oficiais consultadas: [cotação](https://docs.melhorenvio.com.br/docs/cotacao-de-fretes), [carrinho](https://docs.melhorenvio.com.br/reference/inserir-fretes-no-carrinho), [compra](https://docs.melhorenvio.com.br/reference/compra-de-fretes-1), [geração](https://docs.melhorenvio.com.br/reference/geracao-de-etiquetas), [impressão PDF](https://docs.melhorenvio.com.br/reference/impressao-de-etiquetas-em-arquivo), [dados fiscais](https://docs.melhorenvio.com.br/docs/compra-de-fretes), [rastreio assíncrono](https://docs.melhorenvio.com.br/docs/webhooks).
+Referências oficiais consultadas: [cotação](https://docs.melhorenvio.com.br/docs/cotacao-de-fretes), [carrinho](https://docs.melhorenvio.com.br/reference/inserir-fretes-no-carrinho), [compra](https://docs.melhorenvio.com.br/reference/compra-de-fretes-1), [geração](https://docs.melhorenvio.com.br/reference/geracao-de-etiquetas), [impressão PDF](https://docs.melhorenvio.com.br/reference/impressao-de-etiquetas-em-arquivo), [dados fiscais](https://docs.melhorenvio.com.br/docs/compra-de-fretes), [rastreio assíncrono](https://docs.melhorenvio.com.br/docs/webhooks) e [impressão da DACE](https://docs.melhorenvio.com.br/reference/impressao-dace).
+
+## CPF agora e CNPJ depois
+
+O backend identifica CPF com 11 dígitos e CNPJ com 14 dígitos; envia exclusivamente `from.document` ou `from.company_document`, conforme o documento cadastrado. O modo fiscal é uma escolha separada: CPF não muda automaticamente a obrigação documental do pedido.
+
+Com CPF cadastrado, o painel inicialmente apresenta DC-e, mas a geração permanece bloqueada até o administrador confirmar que esse envio está dispensado de NF-e. O modo NF-e continua disponível. Para DC-e, o payload omite `invoice` e a inscrição estadual, inclui os produtos e valores reais e sinaliza `non_commercial`. A opção `options.dce.key` é enviada apenas se uma DC-e existente for informada. A confirmação não substitui a validação fiscal do Melhor Envio/SEFAZ ou da transportadora.
+
+Exemplo de corpo para DC-e em um envio elegível:
+
+```json
+{"pedidoId":123,"acao":"gerar","freteToken":"TOKEN_DA_COTACAO","documentoFiscal":"declaracao","confirmarDeclaracao":true,"notaFiscal":"","chaveDce":"","agencia":""}
+```
+
+O download autenticado da DACE usa `/api/melhor-envio/etiqueta?pedidoId=123&documento=dace`. Só é permitido para etiquetas desse modo que já tenham sido geradas; não devolve outra etiqueta no lugar de uma DACE indisponível.
+
+Quando criar o CNPJ, atualize `documento`, `nome` e, se houver, `inscricao_estadual` em `MELHOR_ENVIO_REMETENTE`, depois faça um redeploy. Não é necessário alterar código. Etiquetas já criadas mantêm o remetente e a documentação registrados no seu próprio snapshot.

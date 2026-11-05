@@ -30,6 +30,12 @@ export function remetenteMelhorEnvio() {
   remetente.documento = String(remetente.documento || '').replace(/\D/g, '')
   remetente.telefone = String(remetente.telefone || '').replace(/\D/g, '')
   remetente.uf = String(remetente.uf || '').toUpperCase()
-  if (remetente.documento.length !== 14) throw new Error('Configure o CNPJ do remetente para este fluxo de envio comercial com NF-e.')
   return { ...participanteMelhorEnvio(remetente), ...(remetente.inscricao_estadual ? { state_register: remetente.inscricao_estadual } : {}) }
+}
+
+export function tipoRemetente(): 'cpf' | 'cnpj' | null {
+  try {
+    const documento = String(JSON.parse(process.env.MELHOR_ENVIO_REMETENTE || '').documento || '').replace(/\D/g, '')
+    return documento.length === 11 ? 'cpf' : documento.length === 14 ? 'cnpj' : null
+  } catch { return null }
 }

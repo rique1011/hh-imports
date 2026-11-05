@@ -10,7 +10,11 @@ import type { Pedido } from '@/types/loja'
 
 type Db = ReturnType<typeof getSupabaseAdmin>
 interface PedidoComEntrega extends Pedido { entrega: EntregaPedido | null; frete_cotacao: CotacaoEnvio | null; entregaDoCadastro?: boolean }
-interface ConfigEnvio { payload: Record<string, unknown>; cotacao: CotacaoEnvio; entrega: EntregaPedido }
+interface ConfigEnvio { payload: Record<string, unknown>; cotacao: CotacaoEnvio; entrega: EntregaPedido; documentoFiscal?: 'nfe' | 'declaracao' }
+interface DadosGeracao {
+  freteToken?: unknown; notaFiscal?: unknown; agencia?: unknown
+  documentoFiscal?: unknown; confirmarDeclaracao?: unknown; chaveDce?: unknown
+}
 interface Envio {
   pedido_id: number; estado: string; ambiente: string; me_id: string | null; config: ConfigEnvio
   etiqueta_gerada: boolean; codigo_rastreio: string | null; erro: string | null
@@ -44,7 +48,7 @@ export async function consultarEnvio(db: Db, pedidoId: string) {
 export function resultadoEnvio(pedidoId: string, envio: Envio | null): ResultadoEtiqueta {
   const estado = envio?.estado || 'nova'
   const mensagens: Record<string,string> = {
-    nova: 'Confira o destinatário, consulte o frete e informe a chave da NF-e.',
+    nova: 'Confira o destinatário, consulte o frete e selecione a documentação do envio.',
     carrinho: 'Envio salvo no carrinho do Melhor Envio. Retome para concluir a compra.',
     inserindo: 'A inserção não foi confirmada. Confira o carrinho do Melhor Envio antes de qualquer nova etiqueta.',
     insercao_incerta: 'A inserção não foi confirmada. Confira o carrinho do Melhor Envio e concilie o pedido antes de tentar novamente.',
@@ -59,27 +63,41 @@ export function resultadoEnvio(pedidoId: string, envio: Envio | null): Resultado
   return { pedidoId, estado, codigoRastreio: envio?.codigo_rastreio || null,
     custoEtiqueta: envio ? envio.config.cotacao.centavos / 100 : null,
     urlEtiqueta: envio?.etiqueta_gerada ? '/api/melhor-envio/etiqueta?pedidoId=' + encodeURIComponent(pedidoId) : null,
+    urlDeclaracao: envio?.etiqueta_gerada && envio.config.documentoFiscal === 'declaracao'
+      ? '/api/melhor-envio/etiqueta?pedidoId=' + encodeURIComponent(pedidoId) + '&documento=dace' : null,
     concluido: estado === 'pronta', podeRetomar: !['inserindo','insercao_incerta','bloqueada'].includes(estado),
     mensagem: envio?.erro || mensagens[estado] || 'Aguardando processamento.' }
 }
-export function montarConfigEnvio(pedido: PedidoComEntrega, body: { freteToken?: unknown; notaFiscal?: unknown; agencia?: unknown }): ConfigEnvio {
+export function montarConfigEnvio(pedido: PedidoComEntrega, body: DadosGeracao): ConfigEnvio {
   const cotacao = validarFretePedido(body.freteToken, pedido.entrega!.cep, pedido.itens)
   if (!cotacao) throw new ErroHttp(422, 'A cotação expirou ou não corresponde aos itens/endereço. Consulte novamente.')
   if (pedido.frete_cotacao?.servico && pedido.frete_cotacao.servico !== cotacao.servico) throw new ErroHttp(422, 'Mantenha o serviço de frete escolhido na compra.')
+  const documentoFiscal = body.documentoFiscal ?? 'nfe'
+  if (documentoFiscal !== 'nfe' && documentoFiscal !== 'declaracao') throw new ErroHttp(422, 'Documento fiscal inválido.')
   const notaFiscal = String(body.notaFiscal || '').replace(/\s/g, '')
-  if (!/^\d{44}$/.test(notaFiscal)) throw new ErroHttp(422, 'Informe a chave de 44 dígitos da NF-e deste pedido.')
+  const chaveDce = String(body.chaveDce || '').replace(/\s/g, '')
+  if (documentoFiscal === 'nfe' && !/^\d{44}$/.test(notaFiscal)) throw new ErroHttp(422, 'Informe a chave de 44 dígitos da NF-e deste pedido.')
+  if (documentoFiscal === 'declaracao') {
+    if (body.confirmarDeclaracao !== true) throw new ErroHttp(422, 'Confirme que este envio pode utilizar declaração de conteúdo em lugar de NF-e.')
+    if (notaFiscal) throw new ErroHttp(422, 'Utilize NF-e ou declaração de conteúdo para o mesmo envio. Selecione o documento correto.')
+    if (chaveDce && !/^\d{44}$/.test(chaveDce)) throw new ErroHttp(422, 'A chave de DC-e existente precisa ter 44 dígitos, ou deixe o campo vazio para emissão pelo Melhor Envio.')
+  } else if (chaveDce) throw new ErroHttp(422, 'A chave de DC-e só pode ser usada com declaração de conteúdo.')
   const agencia = body.agencia === '' || body.agencia == null ? null : Number(body.agencia)
   if (agencia !== null && (!Number.isSafeInteger(agencia) || agencia < 1)) throw new ErroHttp(422, 'Agência inválida.')
   let from, to
   try { from = remetenteMelhorEnvio(); to = participanteMelhorEnvio(pedido.entrega!) }
   catch (error) { throw new ErroHttp(422, error instanceof Error ? error.message : 'Confira os dados do envio.') }
-  return { cotacao, entrega: pedido.entrega!, payload: { service: cotacao.servico, ...(agencia ? { agency: agencia } : {}), from, to,
+  if (documentoFiscal === 'declaracao') delete from.state_register
+  return { cotacao, entrega: pedido.entrega!, documentoFiscal,
+    payload: { service: cotacao.servico, ...(agencia ? { agency: agencia } : {}), from, to,
     products: pedido.itens.map(item => ({ name: item.nome, quantity: item.quantidade, unitary_value: Number(item.preco) })),
-    volumes: [cotacao.volume], options: { insurance_value: cotacao.seguro, receipt: false, own_hand: false, non_commercial: false,
-      invoice: { key: notaFiscal }, platform: 'H&H IMPORTS', tags: [{ tag: 'HH-PEDIDO-' + pedido.id, url: null }] } } }
+    volumes: [cotacao.volume], options: { insurance_value: cotacao.seguro, receipt: false, own_hand: false,
+      non_commercial: documentoFiscal === 'declaracao',
+      ...(documentoFiscal === 'nfe' ? { invoice: { key: notaFiscal } } : chaveDce ? { dce: { key: chaveDce } } : {}),
+      platform: 'H&H IMPORTS', tags: [{ tag: 'HH-PEDIDO-' + pedido.id, url: null }] } } }
 }
 
-export async function gerarEtiqueta(db: Db, pedidoId: string, body: { freteToken?: unknown; notaFiscal?: unknown; agencia?: unknown } = {}) {
+export async function gerarEtiqueta(db: Db, pedidoId: string, body: DadosGeracao = {}) {
   const pedido = await carregarPedidoEnvio(db, pedidoId)
   const anterior = await consultarEnvio(db, pedidoId)
   const config = !anterior || anterior.estado === 'nova' ? montarConfigEnvio(pedido, body) : null

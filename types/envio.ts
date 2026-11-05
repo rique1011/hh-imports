@@ -11,5 +11,6 @@ export interface EntregaPedido {
 export interface ResultadoEtiqueta {
   pedidoId: string; estado: string; codigoRastreio: string | null; urlEtiqueta: string | null
   custoEtiqueta: number | null
+  urlDeclaracao?: string | null
   mensagem: string; concluido: boolean; podeRetomar: boolean
 }
