@@ -1,6 +1,6 @@
 import 'server-only'
 import nodemailer from 'nodemailer'
-import { BRAND_NAME } from '@/lib/brand'
+import { BRAND_NAME, CONTACT_EMAIL } from '@/lib/brand'
 import { getSiteUrl } from '@/lib/site-url'
 
 export interface PedidoEmail {
@@ -54,16 +54,18 @@ function layout(content: string) {
     '<h1 style="background:#111;color:#D4AF37;padding:24px;text-align:center;letter-spacing:3px">' +
     escapeHtml(BRAND_NAME) + '</h1>' + content +
     '<hr><p style="font-size:12px;color:#777">' + escapeHtml(BRAND_NAME) +
-    ' · ' + new Date().getFullYear() + '</p></div>'
+    ' · ' + new Date().getFullYear() + '<br><a href="mailto:' + escapeHtml(CONTACT_EMAIL) + '">' +
+    escapeHtml(CONTACT_EMAIL) + '</a></p></div>'
 }
 
-async function enviar(to: string, subject: string, content: string): Promise<ResultadoEmail> {
+export async function enviarEmailLoja(to: string, subject: string, content: string, replyTo = CONTACT_EMAIL): Promise<ResultadoEmail> {
   try {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) throw new Error('Destinatario de e-mail invalido.')
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(replyTo)) throw new Error('Contato de resposta inválido.')
     const html = layout(content)
     const info = await getTransporter().sendMail({
       from: { name: BRAND_NAME, address: process.env.EMAIL_USER!.trim() },
-      to, subject: BRAND_NAME + ' | ' + subject,
+      to, replyTo, subject: BRAND_NAME + ' | ' + subject,
       html,
       text: html.replace(/<(br|\/p|\/li|\/h1)[^>]*>/gi, '\n')
         .replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<')
@@ -78,6 +80,13 @@ async function enviar(to: string, subject: string, content: string): Promise<Res
     console.error('[email] Falha no envio:', message)
     return { sucesso: false, error: message }
   }
+}
+const enviar = enviarEmailLoja
+
+export async function enviarEmailContato(nome: string, email: string, mensagem: string) {
+  return enviarEmailLoja(CONTACT_EMAIL, 'Mensagem pelo site',
+    '<p>Contato de <strong>' + escapeHtml(nome) + '</strong><br>E-mail: ' + escapeHtml(email) + '</p>' +
+    '<p>' + escapeHtml(mensagem).replace(/\r?\n/g, '<br>') + '</p>', email)
 }
 
 export async function enviarEmailPedidoRecebido(pedido: PedidoEmail) {
@@ -131,7 +140,7 @@ export async function enviarEmailStatus(
 }
 
 export async function notificarAdminNovoPedido(pedido: PedidoEmail) {
-  return enviar(process.env.ADMIN_EMAIL?.trim() || process.env.EMAIL_USER?.trim() || '',
+  return enviar(process.env.ADMIN_EMAIL?.trim() || CONTACT_EMAIL,
     'Novo pedido recebido — #' + pedido.id,
     '<p>Um novo pedido foi criado na loja.</p>' + resumoPedido(pedido) +
     '<p>Cliente: ' + escapeHtml(pedido.cliente_nome) + '<br>E-mail: ' + escapeHtml(pedido.cliente_email) +
@@ -139,7 +148,7 @@ export async function notificarAdminNovoPedido(pedido: PedidoEmail) {
 }
 
 export async function notificarAdminPagamentoAprovado(pedido: PedidoEmail) {
-  return enviar(process.env.ADMIN_EMAIL?.trim() || process.env.EMAIL_USER?.trim() || '',
+  return enviar(process.env.ADMIN_EMAIL?.trim() || CONTACT_EMAIL,
     'Pagamento confirmado — Hora de separar o produto — #' + pedido.id,
     '<p><strong>Pagamento aprovado. Separe o produto para envio.</strong></p>' +
     resumoPedido(pedido) + '<p>Cliente: ' + escapeHtml(pedido.cliente_nome) +

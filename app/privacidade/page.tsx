@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { CONTACT_EMAIL } from '@/lib/brand'
 import { ArrowLeft, ShieldCheck } from 'lucide-react'
 
 export default function PaginaPrivacidade() {
@@ -26,7 +27,7 @@ export default function PaginaPrivacidade() {
 
           <section>
             <h2 className="text-[11px] md:text-sm font-bold text-hb-gold uppercase tracking-widest mb-3 md:mb-4">2. Uso das Informações</h2>
-            <p>Seus dados são utilizados exclusivamente para: processar pagamentos via Mercado Pago, gerar etiquetas de frete e enviar atualizações de rastreio por e-mail. Nunca vendemos seus dados a terceiros.</p>
+            <p>Seus dados são utilizados para processar pagamentos via Mercado Pago, gerar etiquetas de frete, enviar atualizações de rastreio por e-mail e responder às solicitações de atendimento enviadas pelo formulário de contato. Nunca vendemos seus dados a terceiros.</p>
           </section>
 
           <section>
@@ -41,7 +42,7 @@ export default function PaginaPrivacidade() {
 
           <section>
             <h2 className="text-[11px] md:text-sm font-bold text-hb-gold uppercase tracking-widest mb-3 md:mb-4">5. Seus Direitos</h2>
-            <p>A qualquer momento, você pode solicitar o acesso, correção ou exclusão definitiva dos seus dados de nosso banco de dados através do e-mail H&H IMPORTS@gmail.com</p>
+            <p>A qualquer momento, você pode solicitar o acesso, correção ou exclusão definitiva dos seus dados de nosso banco de dados através do e-mail <a href={'mailto:' + CONTACT_EMAIL} className="break-all text-hb-gold underline">{CONTACT_EMAIL}</a>.</p>
           </section>
         </div>
       </div>

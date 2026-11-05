@@ -1,7 +1,8 @@
 import { mensagemErro } from '@/lib/erros'
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
-import { Resend } from 'resend'
+import { enviarEmailLoja } from '@/lib/mail'
+import { getSiteUrl } from '@/lib/site-url'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,7 +11,6 @@ export async function GET(request: Request) {
   if (!process.env.CRON_SECRET || request.headers.get('authorization') !== 'Bearer ' + process.env.CRON_SECRET) return NextResponse.json({ error: 'Não autorizado.' }, { status: 401 })
   try {
     const supabase = getSupabaseAdmin()
-    const resend = new Resend(process.env.RESEND_API_KEY)
     // 🚨 REGRA DE PRODUÇÃO: Busca carrinhos abandonados há mais de 30 minutos
     const trintaMinutosAtras = new Date(Date.now() - 30 * 60 * 1000).toISOString()
 
@@ -29,11 +29,7 @@ export async function GET(request: Request) {
 
     // Dispara os e-mails
     for (const carrinho of carrinhos) {
-      await resend.emails.send({
-        from: 'H&H IMPORTS <onboarding@resend.dev>', // Quando tiver domínio próprio validado no Resend, mude aqui!
-        to: carrinho.cliente_email,
-        subject: 'Você deixou algo especial para trás... ✨',
-        html: `
+      const resultado = await enviarEmailLoja(carrinho.cliente_email, 'Você deixou algo especial para trás... ✨', `
           <div style="font-family: sans-serif; max-w: 600px; margin: 0 auto; text-align: center; color: #111827;">
             <h1 style="font-weight: 300; text-transform: uppercase; letter-spacing: 2px;">H&H IMPORTS</h1>
             <hr style="border-top: 1px solid #f3f4f6; margin: 20px 0;" />
@@ -46,12 +42,12 @@ export async function GET(request: Request) {
               <p style="text-transform: uppercase; font-size: 12px; font-weight: bold; color: #9ca3af; margin-bottom: 8px;">Use o cupom abaixo no carrinho:</p>
               <p style="font-size: 24px; font-weight: 900; letter-spacing: 4px; margin: 0;">VOLTEI10</p>
             </div>
-            <a href="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/carrinho" style="display: inline-block; background-color: #000; color: #fff; padding: 16px 32px; text-decoration: none; text-transform: uppercase; font-size: 12px; font-weight: bold; letter-spacing: 2px; border-radius: 4px;">
+            <a href="${getSiteUrl('/carrinho')}" style="display: inline-block; background-color: #000; color: #fff; padding: 16px 32px; text-decoration: none; text-transform: uppercase; font-size: 12px; font-weight: bold; letter-spacing: 2px; border-radius: 4px;">
               Finalizar Minha Compra
             </a>
           </div>
-        `
-      })
+        `)
+      if (!resultado.sucesso) throw new Error('Não foi possível enviar a recuperação de carrinho.')
 
       // Marca como enviado
       await supabase

@@ -1,0 +1,31 @@
+{
+  "data": "2026-11-05",
+  "contato": "hehimports.contato@gmail.com",
+  "validacao": {
+    "testes_backend": 53,
+    "falhas_backend": 0,
+    "build_typescript": "aprovado",
+    "eslint": "aprovado sem avisos",
+    "browser_checks": 43,
+    "browser_errors": [],
+    "viewports": [
+      390,
+      1440
+    ]
+  },
+  "escopo": [
+    "contatos públicos e links mailto",
+    "formulário com entrega ao destino fixo da loja",
+    "Reply-To e rodapé dos e-mails",
+    "destinatários administrativos",
+    "remetente Melhor Envio preservando CPF",
+    "SMTP compartilhado para cadastro e rotinas de e-mail"
+  ],
+  "configuracao_vercel": {
+    "NEXT_PUBLIC_CONTACT_EMAIL": "hehimports.contato@gmail.com",
+    "ADMIN_EMAIL": "hehimports.contato@gmail.com",
+    "EMAIL_USER_EMAIL_PASS": "autenticação anterior preservada até cadastrar o par da nova conta Gmail"
+  },
+  "envios_reais_na_validacao": 0,
+  "pendencia": "Gerar senha de app na nova conta Google, atualizar EMAIL_USER/EMAIL_PASS na Vercel e redeploy."
+}

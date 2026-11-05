@@ -1,14 +1,12 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
-import { Resend } from 'resend'
-
-// Instanciamos o Resend (garanta que a RESEND_API_KEY está no seu .env)
+import { enviarEmailLoja } from '@/lib/mail'
+import { getSiteUrl } from '@/lib/site-url'
 
 export async function GET(request: Request) {
   if (!process.env.CRON_SECRET || request.headers.get('authorization') !== 'Bearer ' + process.env.CRON_SECRET) return NextResponse.json({ error: 'Não autorizado.' }, { status: 401 })
   try {
     const supabase = getSupabaseAdmin()
-    const resend = new Resend(process.env.RESEND_API_KEY)
     // 1. Calcular o horário de 1 hora atrás
     const umaHoraAtras = new Date(Date.now() - 60 * 60 * 1000).toISOString()
 
@@ -32,18 +30,14 @@ export async function GET(request: Request) {
       if (pedido.usuario_email) {
         
         // Dispara o e-mail
-        await resend.emails.send({
-          from: 'H&H IMPORTS <vendas@seudominio.com.br>', // Coloque seu domínio aqui depois
-          to: [pedido.usuario_email],
-          subject: 'Você esqueceu algo na sua sacola? 💎',
-          html: `
+        const resultado = await enviarEmailLoja(pedido.usuario_email, 'Você esqueceu algo na sua sacola? 💎', `
             <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
               <h1 style="color: #000; text-transform: uppercase; letter-spacing: 2px;">Sua joia está te esperando!</h1>
               <p>Olá! Percebemos que você deixou alguns itens incríveis na sua sacola da <strong>H&H IMPORTS</strong>, mas não finalizou a compra.</p>
               <p>As nossas peças são exclusivas e o estoque acaba rápido. Não perca a chance de garantir a sua!</p>
               
               <div style="margin: 30px 0;">
-                <a href="https://seusite.com.br/carrinho" style="background-color: #000; color: #fff; padding: 15px 25px; text-decoration: none; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; font-size: 12px;">
+                <a href="${getSiteUrl('/carrinho')}" style="background-color: #000; color: #fff; padding: 15px 25px; text-decoration: none; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; font-size: 12px;">
                   Voltar para o Carrinho
                 </a>
               </div>
@@ -52,8 +46,8 @@ export async function GET(request: Request) {
               <hr style="border: none; border-top: 1px solid #eee; margin-top: 30px;" />
               <p style="font-size: 10px; color: #999; text-transform: uppercase; letter-spacing: 1px;">H&H IMPORTS - Exclusividade e Luxo</p>
             </div>
-          `
-        })
+          `)
+        if (!resultado.sucesso) throw new Error('Não foi possível enviar a recuperação de carrinho.')
 
         // 4. Mudar o status para não mandar e-mail repetido na próxima hora
         await supabase

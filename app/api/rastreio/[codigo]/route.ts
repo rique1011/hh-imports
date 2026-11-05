@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { exigirUsuario, responderErro, ErroHttp } from '@/lib/autorizacao'
+import { CONTACT_EMAIL } from '@/lib/brand'
 
 export async function GET(request: Request, props: { params: Promise<{ codigo: string }> }) {
   try {
@@ -16,7 +17,7 @@ export async function GET(request: Request, props: { params: Promise<{ codigo: s
       method: 'POST', cache: 'no-store', signal: AbortSignal.timeout(10000),
       headers: { Accept: 'application/json', 'Content-Type': 'application/json',
         Authorization: 'Bearer ' + process.env.MELHOR_ENVIO_TOKEN,
-        'User-Agent': 'H&H IMPORTS (' + (process.env.NEXT_PUBLIC_CONTACT_EMAIL || process.env.EMAIL_USER || '') + ')' },
+        'User-Agent': 'H&H IMPORTS (' + CONTACT_EMAIL + ')' },
       body: JSON.stringify({ orders: [codigo] }),
     })
     if (!response.ok) throw new ErroHttp(502, 'O fornecedor não retornou o rastreio.')

@@ -1,4 +1,5 @@
 import 'server-only'
+import { CONTACT_EMAIL } from '@/lib/brand'
 
 export class ErroMelhorEnvio extends Error {
   constructor(public status: number, public operacao: string) {
@@ -15,8 +16,8 @@ export function ambienteMelhorEnvio() {
 }
 export function configuracaoMelhorEnvio() {
   const token = process.env.MELHOR_ENVIO_TOKEN?.trim()
-  const email = process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || process.env.EMAIL_USER?.trim()
-  if (!token || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Configure MELHOR_ENVIO_TOKEN e o e-mail de contato em EMAIL_USER ou NEXT_PUBLIC_CONTACT_EMAIL.')
+  const email = CONTACT_EMAIL
+  if (!token || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Confira MELHOR_ENVIO_TOKEN e NEXT_PUBLIC_CONTACT_EMAIL.')
   return { base: ambienteMelhorEnvio() === 'sandbox' ? 'https://sandbox.melhorenvio.com.br' : 'https://melhorenvio.com.br',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, 'User-Agent': `H&H IMPORTS (${email})` } }
 }

@@ -1,5 +1,6 @@
 import 'server-only'
 import type { EntregaPedido } from '@/types/envio'
+import { CONTACT_EMAIL } from '@/lib/brand'
 
 export interface CadastroEntrega { nome?: string | null; email: string; cpf_cnpj?: string | null; whatsapp?: string | null; endereco?: string | null }
 export function snapshotEntrega(cadastro: CadastroEntrega): EntregaPedido {
@@ -26,7 +27,7 @@ export function remetenteMelhorEnvio() {
   let remetente: EntregaPedido & { inscricao_estadual?: string }
   try { remetente = JSON.parse(process.env.MELHOR_ENVIO_REMETENTE || '') } catch { throw new Error('Configure MELHOR_ENVIO_REMETENTE com os dados completos de expedição.') }
   remetente.cep = (process.env.CEP_ORIGEM || '').replace(/\D/g, '')
-  remetente.email ||= process.env.EMAIL_USER || ''
+  remetente.email = CONTACT_EMAIL
   remetente.documento = String(remetente.documento || '').replace(/\D/g, '')
   remetente.telefone = String(remetente.telefone || '').replace(/\D/g, '')
   remetente.uf = String(remetente.uf || '').toUpperCase()

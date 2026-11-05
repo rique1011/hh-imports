@@ -88,7 +88,7 @@ export default function PaginaTrocas() {
             Como solicitar sua troca?
           </h2>
           <p className="text-xs md:text-sm text-gray-300 leading-relaxed mb-4 md:mb-8 max-w-xl mx-auto">
-            Envie um e-mail para <strong className="text-white">{CONTACT_EMAIL || 'nosso atendimento via WhatsApp'}</strong> com o número do seu pedido, CPF e fotos do produto. Retornaremos com as instruções em até 48 horas úteis.
+            Envie um e-mail para <a href={'mailto:' + CONTACT_EMAIL} className="break-all text-white underline">{CONTACT_EMAIL}</a> com o número do seu pedido, CPF e fotos do produto. Retornaremos com as instruções em até 48 horas úteis.
           </p>
         </div>
 

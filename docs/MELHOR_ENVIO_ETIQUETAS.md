@@ -40,7 +40,7 @@ Na Vercel, projeto **hh-imports → Settings → Environment Variables → Add**
 {"nome":"Nome civil do titular ou razao social","documento":"CPF_OU_CNPJ_APENAS_NUMEROS","telefone":"DDD_E_TELEFONE","logradouro":"Rua da expedicao","numero":"123","complemento":"","bairro":"Bairro","cidade":"Cidade","uf":"SC","inscricao_estadual":"SE_HOUVER"}
 ```
 
-O CEP vem de `CEP_ORIGEM`. Se `email` não for informado no JSON, usa `EMAIL_USER`. Remova `inscricao_estadual` quando não houver. Use o tipo Secret para os dados privados. O remetente aceita CPF ou CNPJ. A documentação do envio é selecionada no painel: NF-e ou DC-e, quando o envio estiver dispensado de nota fiscal. Usar CPF não determina essa dispensa. Para CPF, informe o nome civil completo do titular no campo `nome`; para CNPJ, os dados da empresa.
+O CEP vem de `CEP_ORIGEM`. O e-mail de contato do remetente usa `NEXT_PUBLIC_CONTACT_EMAIL` (contato oficial da loja), independentemente de um e-mail antigo no JSON. Remova `inscricao_estadual` quando não houver. Use o tipo Secret para os dados privados. O remetente aceita CPF ou CNPJ. A documentação do envio é selecionada no painel: NF-e ou DC-e, quando o envio estiver dispensado de nota fiscal. Usar CPF não determina essa dispensa. Para CPF, informe o nome civil completo do titular no campo `nome`; para CNPJ, os dados da empresa.
 
 Confira também:
 

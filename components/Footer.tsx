@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { CONTACT_EMAIL } from '@/lib/brand'
 import { Mail, MapPin, Phone } from 'lucide-react'
 
 export default function Footer() {
@@ -50,10 +51,10 @@ export default function Footer() {
         <div className="flex flex-col items-center md:items-start">
           <h4 className="text-white font-bold tracking-widest uppercase mb-4 md:mb-6 text-[11px] md:text-sm">Contato</h4>
           <div className="flex flex-col gap-3 md:gap-4 text-xs md:text-sm text-gray-500 font-light">
-            <div className="flex items-center justify-center md:justify-start gap-3 hover:text-hb-goldLight transition-colors">
-              <Mail size={16} className="text-hb-gold" />
-              <span className="min-w-0 break-words">H&H IMPORTS@gmail.com</span>
-            </div>
+            <a href={'mailto:' + CONTACT_EMAIL} className="flex min-w-0 items-center justify-center md:justify-start gap-3 hover:text-hb-goldLight transition-colors">
+              <Mail size={16} className="shrink-0 text-hb-gold" />
+              <span className="min-w-0 break-all">{CONTACT_EMAIL}</span>
+            </a>
             <div className="flex items-center justify-center md:justify-start gap-3 hover:text-hb-goldLight transition-colors">
               <Phone size={16} className="text-hb-gold" />
               <span>(47) 99738-6824</span>
