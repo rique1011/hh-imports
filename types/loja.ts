@@ -21,6 +21,7 @@ export interface Produto {
 
 export interface ItemPedido extends ProdutoCarrinho {
   troca_solicitada?: boolean
+  data_recebimento?: string | null
 }
 
 export interface Pedido {
@@ -32,6 +33,7 @@ export interface Pedido {
   total: number
   itens: ItemPedido[]
   codigo_rastreio?: string | null
+  data_entrega?: string | null
 }
 
 export interface Endereco {

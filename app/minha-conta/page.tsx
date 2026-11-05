@@ -17,6 +17,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { uploadImagem } from '@/lib/upload-imagem'
 import type { Identificador, Pedido, ItemPedido } from '@/types/loja'
 import { mensagemErro } from '@/lib/erros'
+import { prazoDevolucao, formatarDia } from '@/lib/prazo-devolucao'
 
 function ConteudoMinhaConta() {
   const { data: session, status } = useSession()
@@ -47,6 +48,9 @@ function ConteudoMinhaConta() {
   const [itemSelecionado, setItemSelecionado] = useState<ItemPedido | null>(null)
   const [pedidoIdSelecionado, setPedidoIdSelecionado] = useState<Identificador>('')
   const [motivo, setMotivo] = useState('arrependimento')
+  const [agoraDevolucao, setAgoraDevolucao] = useState(() => Date.now())
+  const pedidoDaTroca = pedidos.find(p => String(p.id) === String(pedidoIdSelecionado))
+  const prazoSelecionado = prazoDevolucao(itemSelecionado?.data_recebimento ?? pedidoDaTroca?.data_entrega, new Date(agoraDevolucao))
   const [fotoArquivo, setFotoArquivo] = useState<File | null>(null)
   const [carregandoTroca, setCarregandoTroca] = useState(false)
   const [mensagemSucesso, setMensagemSucesso] = useState('')
@@ -109,6 +113,16 @@ function ConteudoMinhaConta() {
       return () => controller.abort()
     }
   }, [status, router])
+
+  useEffect(() => {
+    if (abaAtiva !== 'trocas' && !modalAberta) return
+    const atualizar = () => setAgoraDevolucao(Date.now())
+    const frame = requestAnimationFrame(atualizar)
+    const timer = window.setInterval(atualizar, 30_000)
+    window.addEventListener('focus', atualizar)
+    document.addEventListener('visibilitychange', atualizar)
+    return () => { cancelAnimationFrame(frame); clearInterval(timer); window.removeEventListener('focus', atualizar); document.removeEventListener('visibilitychange', atualizar) }
+  }, [abaAtiva, modalAberta])
 
   const buscarCep = async (valor: string) => {
     const cepLimpo = valor.replace(/\D/g, "")
@@ -194,8 +208,8 @@ function ConteudoMinhaConta() {
     setPedidoExpandido(prev => prev === id ? null : id)
   }
 
-  const abrirModalTroca = (pedidoId: Identificador, item: ItemPedido) => {
-    setPedidoIdSelecionado(pedidoId); setItemSelecionado(item); setMotivo('arrependimento');
+  const abrirModalTroca = (pedidoId: Identificador, item: ItemPedido, motivoInicial = 'arrependimento') => {
+    setPedidoIdSelecionado(pedidoId); setItemSelecionado(item); setMotivo(motivoInicial);
     setFotoArquivo(null); setMensagemSucesso(''); setErroTroca(''); setModalAberta(true);
   }
 
@@ -203,6 +217,9 @@ function ConteudoMinhaConta() {
     e.preventDefault()
     if (!itemSelecionado) return
     setCarregandoTroca(true); setErroTroca('')
+    if (motivo !== 'defeito' && !prazoDevolucao(itemSelecionado.data_recebimento ?? pedidoDaTroca?.data_entrega).aberto) {
+      setErroTroca('O prazo para arrependimento não está disponível. Confira a data de recebimento ou fale com o atendimento.'); setCarregandoTroca(false); return
+    }
 
     if (motivo === 'defeito' && !fotoArquivo) {
       setErroTroca('Para defeitos de fábrica, é obrigatório enviar uma foto.')
@@ -586,7 +603,7 @@ function ConteudoMinhaConta() {
               <h2 className="text-[11px] md:text-xs font-bold text-white mb-6 md:mb-8 uppercase tracking-[0.2em] border-b border-gray-800 pb-3 md:pb-4">Troca ou Devolução</h2>
               <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-4 md:p-6 mb-6 md:mb-8">
                 <p className="text-[10px] md:text-xs text-gray-400 leading-relaxed text-center md:text-left">
-                  Você pode solicitar a troca de itens <span className="font-bold text-white">Entregues</span> em até 7 dias corridos após o recebimento (Arrependimento) ou para defeitos de fábrica.
+                  A devolução por arrependimento fica disponível até o fim do 7º dia após o recebimento. Depois desse prazo, a opção é desativada. O atendimento para defeitos e garantia continua disponível, conforme o caso.
                 </p>
               </div>
               
@@ -596,8 +613,10 @@ function ConteudoMinhaConta() {
                 <div className="text-center py-12 text-gray-500 uppercase text-[10px] font-bold tracking-widest">Nenhum pedido entregue disponível para troca.</div>
               ) : (
                 <div className="space-y-4 md:space-y-6">
-                  {pedidos.filter(p => p.status?.toLowerCase() === 'entregue').map((pedido) => (
-                    <div key={`troca-${pedido.id}`} className="border border-gray-800 rounded-xl overflow-hidden shadow-sm">
+                  {pedidos.filter(p => p.status?.toLowerCase() === 'entregue').map((pedido) => {
+                    const prazo = prazoDevolucao(pedido.data_entrega, new Date(agoraDevolucao))
+                    return (
+                    <section aria-label={`Trocas do pedido #${pedido.id}`} key={`troca-${pedido.id}`} className="border border-gray-800 rounded-xl overflow-hidden shadow-sm">
                       <div className="bg-gray-900/80 p-3 md:p-4 flex justify-between items-center">
                         <div>
                           <p className="text-[8px] md:text-[9px] text-gray-500 uppercase font-black tracking-widest">Pedido Entregue</p>
@@ -605,13 +624,15 @@ function ConteudoMinhaConta() {
                         </div>
                       </div>
                       <div className="p-4 md:p-5">
+                        <p className="mb-4 text-xs leading-6 text-gray-400">{pedido.data_entrega ? `Recebido em ${formatarDia(pedido.data_entrega)}. ` : 'Data de recebimento a confirmar. '}{prazo.dataLimite ? prazo.aberto ? `Arrependimento disponível até ${formatarDia(prazo.dataLimite)}.` : `Prazo de arrependimento encerrado em ${formatarDia(prazo.dataLimite)}.` : <Link href="/fale-conosco" className="underline text-hb-gold">Fale com o atendimento para registrar sua solicitação.</Link>}</p>
                         <div className="space-y-4">
                           {pedido.itens?.map((item, idx) => {
-                            // 🚨 NOVA TRAVA VISUAL: Verifica se a troca já foi solicitada
+                            const prazo = prazoDevolucao(item.data_recebimento ?? pedido.data_entrega, new Date(agoraDevolucao))
+                            // Preserva solicitações já abertas.
                             const jaSolicitouTroca = item.troca_solicitada || itensComTrocaSolicitada.includes(`${pedido.id}-${item.id}`)
 
                             return (
-                              <div key={`troca-item-${idx}`} className="flex items-center gap-3 md:gap-4 border-b border-gray-800 pb-4 last:border-0 last:pb-0">
+                              <div key={`troca-item-${idx}`} className="flex flex-wrap items-center gap-3 md:gap-4 border-b border-gray-800 pb-4 last:border-0 last:pb-0">
                                 <Image width={96} height={96} sizes="96px" alt={item.nome} src={item.foto || '/icon.svg'} className="w-10 h-10 md:w-12 md:h-12 object-cover rounded border border-gray-800 shrink-0" />
                                 <div className="flex-1 min-w-0"><p className="text-[10px] md:text-xs font-bold text-gray-200 uppercase tracking-tight truncate">{item.nome}</p></div>
                                 
@@ -620,17 +641,20 @@ function ConteudoMinhaConta() {
                                     Solicitada
                                   </span>
                                 ) : (
-                                  <button onClick={() => abrirModalTroca(pedido.id, item)} className="text-[8px] md:text-[9px] font-bold uppercase border border-hb-gold bg-transparent text-hb-gold px-3 md:px-4 py-2 rounded hover:bg-hb-gold hover:text-black transition flex items-center justify-center gap-1 shrink-0">
-                                    <RefreshCcw size={10} className="md:w-3 md:h-3" /> Solicitar
-                                  </button>
+                                  <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
+                                    <button type="button" disabled={!prazo.aberto} onClick={() => abrirModalTroca(pedido.id, item)} className="min-h-11 border border-hb-gold px-3 py-2 text-[10px] font-medium text-hb-gold rounded transition-colors enabled:hover:bg-hb-gold enabled:hover:text-black disabled:border-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed">
+                                      {prazo.aberto ? 'Devolver (7 dias)' : prazo.situacao === 'encerrado' ? 'Prazo encerrado' : 'Entrega a confirmar'}
+                                    </button>
+                                    <button type="button" onClick={() => abrirModalTroca(pedido.id, item, 'defeito')} className="min-h-11 border border-gray-700 px-3 py-2 text-[10px] font-medium text-gray-300 rounded hover:border-hb-gold">Relatar defeito</button>
+                                  </div>
                                 )}
                               </div>
                             )
                           })}
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    </section>
+                  )})}
                 </div>
               )}
             </div>
@@ -670,7 +694,7 @@ function ConteudoMinhaConta() {
       {modalAberta && (
         <Modal onClose={() => setModalAberta(false)} labelledBy="titulo-troca" className="bg-gray-950 border border-gray-800 rounded-2xl max-w-md p-5 sm:p-8 shadow-2xl relative">
             <button onClick={() => setModalAberta(false)} aria-label="Fechar janela" className="absolute top-3 right-3 min-w-11 min-h-11 grid place-items-center text-gray-400 hover:text-white transition"><X size={20} /></button>
-            <h2 id="titulo-troca" className="text-base md:text-lg font-light uppercase tracking-widest text-white mb-5 md:mb-6 flex items-center gap-2"><RefreshCcw size={16} className="text-hb-gold md:w-5 md:h-5" /> Solicitar Troca</h2>
+            <h2 id="titulo-troca" className="text-base md:text-lg font-light uppercase tracking-widest text-white mb-5 md:mb-6 flex items-center gap-2"><RefreshCcw size={16} className="text-hb-gold md:w-5 md:h-5" /> Troca ou devolução</h2>
             {mensagemSucesso ? (
               <div className="bg-green-900/20 text-green-400 p-5 md:p-6 rounded-xl border border-green-900/50 text-center space-y-3 md:space-y-4"><CheckCircle2 size={32} className="mx-auto md:w-10 md:h-10" /><p className="text-xs md:text-sm font-medium">{mensagemSucesso}</p></div>
             ) : (
@@ -684,20 +708,21 @@ function ConteudoMinhaConta() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[9px] md:text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Motivo</label>
-                  <select value={motivo} onChange={(e) => setMotivo(e.target.value)} className="w-full bg-gray-900 border border-gray-800 text-white p-3 rounded text-sm md:text-sm outline-none focus:border-hb-gold">
-                    <option value="arrependimento">Arrependimento (7 dias)</option>
+                  <label htmlFor="motivo-devolucao" className="block text-[9px] md:text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Motivo</label>
+                  <select id="motivo-devolucao" value={motivo} onChange={(e) => setMotivo(e.target.value)} className="w-full bg-gray-900 border border-gray-800 text-white p-3 rounded text-sm md:text-sm outline-none focus:border-hb-gold">
+                    <option value="arrependimento" disabled={!prazoSelecionado.aberto}>Arrependimento (7 dias)</option>
                     <option value="defeito">Defeito de Fabricação</option>
-                    <option value="tamanho">Tamanho Incorreto</option>
+                    <option value="tamanho" disabled={!prazoSelecionado.aberto}>Preferência de tamanho (7 dias)</option>
                   </select>
                 </div>
+                {!prazoSelecionado.aberto && <p role="status" className="text-xs leading-6 text-gray-400">{prazoSelecionado.situacao === 'encerrado' ? 'O prazo para arrependimento terminou. Você ainda pode relatar um defeito.' : 'Confirme a data de recebimento com o atendimento. Solicitações por defeito continuam disponíveis.'}</p>}
                 {motivo === 'defeito' && (
                   <div className="animate-in fade-in duration-300">
-                    <label className="flex items-center gap-2 text-[9px] md:text-[10px] font-bold text-red-500 uppercase tracking-widest mb-2"><Upload size={12} className="md:w-3 md:h-3" /> Foto do Defeito (Obrigatório)</label>
-                    <input type="file" accept="image/*" required onChange={(e) => setFotoArquivo(e.target.files?.[0] || null)} className="w-full text-[10px] md:text-xs text-gray-400 border border-gray-800 p-2 bg-gray-900 rounded" />
+                    <label htmlFor="foto-defeito" className="flex items-center gap-2 text-[9px] md:text-[10px] font-bold text-red-500 uppercase tracking-widest mb-2"><Upload size={12} className="md:w-3 md:h-3" /> Foto do Defeito (Obrigatório)</label>
+                    <input id="foto-defeito" type="file" accept="image/*" required onChange={(e) => setFotoArquivo(e.target.files?.[0] || null)} className="w-full text-[10px] md:text-xs text-gray-400 border border-gray-800 p-2 bg-gray-900 rounded" />
                   </div>
                 )}
-                <button type="submit" disabled={carregandoTroca} className="w-full bg-hb-gold text-black py-3 md:py-4 text-[10px] md:text-xs font-bold uppercase tracking-widest hover:bg-yellow-600 transition disabled:opacity-50 flex items-center justify-center gap-2 rounded">
+                <button type="submit" disabled={carregandoTroca || (motivo !== 'defeito' && !prazoSelecionado.aberto)} className="w-full bg-hb-gold text-black py-3 md:py-4 text-[10px] md:text-xs font-bold uppercase tracking-widest hover:bg-yellow-600 transition disabled:opacity-50 flex items-center justify-center gap-2 rounded">
                   {carregandoTroca ? <Loader2 size={16} className="animate-spin" /> : 'ENVIAR SOLICITAÇÃO'}
                 </button>
               </form>

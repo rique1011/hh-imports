@@ -29,7 +29,7 @@ export default function PaginaTrocas() {
                 Direito de Arrependimento (7 dias)
               </h3>
               <p className="text-xs md:text-sm text-gray-400 leading-relaxed">
-                Você tem o direito de desistir da compra em até <strong className="text-gray-200">7 (sete) dias corridos</strong> após o recebimento do produto, conforme o Art. 49 do CDC. Para devolução, a joia deve estar em sua embalagem original, sem indícios de uso, odores ou arranhões.
+                Você pode desistir da compra em até <strong className="text-gray-200">7 (sete) dias corridos</strong>, contados a partir do dia seguinte ao recebimento, conforme o Art. 49 do CDC. Registre o pedido de devolução em Minha Conta. Preserve a peça, os acessórios e a embalagem para facilitar o atendimento.
               </p>
             </div>
           </div>
@@ -44,7 +44,7 @@ export default function PaginaTrocas() {
                 Brincos e Questões de Higiene
               </h3>
               <p className="text-xs md:text-sm text-red-200/80 leading-relaxed">
-                Por normas de saúde pública, <strong className="text-red-300">não aceitamos devoluções ou trocas de brincos por desistência caso a embalagem ou lacre original tenha sido violado</strong>. O CDC não obriga troca de itens íntimos se o lacre for rompido. A troca só ocorrerá por defeito comprovado.
+                Preserve a higiene, os acessórios e a embalagem das peças. Em caso de dúvidas sobre brincos ou sobre as condições do produto recebido, fale com nosso atendimento. As solicitações serão analisadas respeitando os direitos previstos no CDC.
               </p>
             </div>
           </div>
@@ -59,7 +59,7 @@ export default function PaginaTrocas() {
                 Peças em Promoção ou Outlet
               </h3>
               <p className="text-xs md:text-sm text-gray-400 leading-relaxed">
-                Para produtos em liquidação ou adquiridos com cupons de desconto agressivos, não realizamos trocas de modelo após os 7 dias de arrependimento. A troca desses itens será garantida <strong className="text-gray-200">exclusivamente</strong> por defeito de fabricação.
+                Compras em promoção também seguem o prazo de arrependimento de 7 dias após o recebimento e a garantia legal. Pedidos de troca por preferência de modelo ou tamanho devem ser registrados nesse prazo; o atendimento para defeitos permanece disponível conforme os direitos aplicáveis.
               </p>
             </div>
           </div>
@@ -74,7 +74,7 @@ export default function PaginaTrocas() {
                 Defeitos de Fabricação
               </h3>
               <p className="text-xs md:text-sm text-gray-400 leading-relaxed">
-                Nossas joias possuem garantia de <strong className="text-gray-200">90 dias</strong> contra defeitos de fabricação (Art. 26 do CDC). Danos por mau uso (quedas, produtos químicos, água) não são cobertos.
+                Defeitos aparentes em produtos duráveis seguem a garantia legal de <strong className="text-gray-200">90 dias</strong>, contados do recebimento (Art. 26 do CDC). Para vícios ocultos, o prazo começa quando o problema fica evidente. Relate o defeito e envie fotos pelo atendimento para análise; esse fluxo não é encerrado automaticamente após os 7 dias de arrependimento.
               </p>
             </div>
           </div>
@@ -88,7 +88,7 @@ export default function PaginaTrocas() {
             Como solicitar sua troca?
           </h2>
           <p className="text-xs md:text-sm text-gray-300 leading-relaxed mb-4 md:mb-8 max-w-xl mx-auto">
-            Envie um e-mail para <a href={'mailto:' + CONTACT_EMAIL} className="break-all text-white underline">{CONTACT_EMAIL}</a> com o número do seu pedido, CPF e fotos do produto. Retornaremos com as instruções em até 48 horas úteis.
+            Use a aba Trocas e Devoluções em Minha Conta. Se a data de recebimento estiver pendente ou precisar de ajuda, envie o número do pedido para <a href={'mailto:' + CONTACT_EMAIL} className="break-all text-white underline">{CONTACT_EMAIL}</a>. Para defeitos, inclua fotos do produto. Retornaremos com as instruções em até 48 horas úteis.
           </p>
         </div>
 

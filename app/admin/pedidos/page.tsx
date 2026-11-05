@@ -7,6 +7,7 @@ import type { ResultadoEtiqueta } from '@/types/envio'
 import Image from 'next/image'
 import type { Pedido, Usuario, Endereco } from '@/types/loja'
 import { mensagemErro } from '@/lib/erros'
+import { diaNaLoja } from '@/lib/prazo-devolucao'
 
 import { useState, useEffect, useCallback } from 'react'
 import { Search, Loader2, ShoppingBag, Eye, Truck, CheckCircle2, X, User, MapPin, Phone, FileText } from 'lucide-react'
@@ -26,6 +27,7 @@ export default function TelaPedidos() {
 
   const [novoStatus, setNovoStatus] = useState('')
   const [novoRastreio, setNovoRastreio] = useState('')
+  const [dataEntrega, setDataEntrega] = useState('')
   const [salvando, setSalvando] = useState(false)
   const [gerandoEtiqueta, setGerandoEtiqueta] = useState(false)
   const etiquetaAtualizada = useCallback((resultado: ResultadoEtiqueta) => {
@@ -61,6 +63,7 @@ export default function TelaPedidos() {
     setPedidoSelecionado(pedido)
     setNovoStatus(pedido.status || 'pendente')
     setNovoRastreio(pedido.codigo_rastreio || '')
+    setDataEntrega(pedido.data_entrega || '')
     setDadosCliente(null)
     setModalAberta(true)
     setCarregandoCliente(true)
@@ -98,7 +101,8 @@ export default function TelaPedidos() {
         .from('pedidos')
         .update({
           status: novoStatus,
-          codigo_rastreio: novoRastreio || null
+          codigo_rastreio: novoRastreio || null,
+          ...(novoStatus === 'entregue' ? { data_entrega: dataEntrega } : {})
         })
         .eq('id', pedidoSelecionado.id)
 
@@ -325,8 +329,8 @@ export default function TelaPedidos() {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Status do Pedido</label>
-                    <select 
+                    <label htmlFor="status-pedido" className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Status do Pedido</label>
+                    <select id="status-pedido"
                       value={novoStatus} disabled={gerandoEtiqueta}
                       onChange={(e) => setNovoStatus(e.target.value)} 
                       className="w-full bg-gray-900 border border-gray-800 text-white p-3 rounded text-sm outline-none focus:border-hb-gold font-medium"
@@ -351,6 +355,11 @@ export default function TelaPedidos() {
                     />
                   </div>
                 </div>
+                {novoStatus === 'entregue' && <div>
+                  <label htmlFor="data-recebimento" className="mb-2 block text-xs text-gray-300">Data real de recebimento pelo cliente</label>
+                  <input id="data-recebimento" type="date" required max={diaNaLoja()} value={dataEntrega} disabled={gerandoEtiqueta} onChange={e => setDataEntrega(e.target.value)} className="w-full border border-gray-800 bg-gray-900 p-3 text-base text-white rounded" />
+                  <p className="mt-2 text-xs leading-5 text-gray-400">O prazo de 7 dias para arrependimento é contado a partir desta data. Para pedidos antigos, confira a data real antes de salvar.</p>
+                </div>}
               </form>
 
             </div>

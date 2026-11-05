@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { exigirUsuario, validarOrigem, responderErro, ErroHttp } from '@/lib/autorizacao'
+import { prazoDevolucao } from '@/lib/prazo-devolucao'
 export async function POST(request: Request) {
   try {
     validarOrigem(request)
@@ -14,6 +15,11 @@ export async function POST(request: Request) {
       throw new ErroHttp(404, 'Item entregue não encontrado para esta conta.')
     }
     const item = pedido.itens.find((item: { id: string }) => String(item.id) === String(produtoId))
+    if (motivo !== 'defeito') {
+      const prazo = prazoDevolucao(item.data_recebimento)
+      if (prazo.situacao === 'sem_data') throw new ErroHttp(409, 'A data de recebimento precisa ser confirmada. Fale com o atendimento para registrar sua solicitação.')
+      if (!prazo.aberto) throw new ErroHttp(409, 'O prazo de 7 dias para devolução por arrependimento terminou. O atendimento para defeitos continua disponível.')
+    }
     const pasta = (process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '') + '/storage/v1/object/public/joias/trocas/' + user.id + '/'
     const fotoPropria = typeof fotoUrl === 'string' && fotoUrl.startsWith(pasta)
     if (motivo === 'defeito' && !fotoPropria) throw new ErroHttp(400, 'Envie a foto do defeito pela sua conta.')

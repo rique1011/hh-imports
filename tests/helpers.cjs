@@ -50,6 +50,7 @@ exports.adapter = function adapter(db) {
     constructor(table) { this.table = table; this.filters = []; this.params = []; this.columns = '*'; this.head = false }
     select(columns = '*', options = {}) { this.columns = columns; this.head = !!options.head; return this }
     update(values) { this.values = values; return this }
+    insert(values) { this.insertValues = values; return this }
     limit(value) { this.maxRows = Number(value); return this }
     eq(key, value) { this.params.push(value); this.filters.push('"' + key + '"=$' + this.params.length); return this }
     is(key, value) { if (value !== null) throw new Error("Fixture supports only IS NULL"); this.filters.push('"' + key + '" IS NULL'); return this }
@@ -62,9 +63,14 @@ exports.adapter = function adapter(db) {
         const where = this.filters.length ? ' WHERE ' + this.filters.join(' AND ') : ''
         let query
         const params = this.params.slice()
-        if (this.values) {
+        if (this.insertValues) {
+          const entries = Object.entries(this.insertValues)
+          const columns = entries.map(([key]) => '"' + key + '"').join(',')
+          const markers = entries.map(([, value]) => { params.push(typeof value === 'object' && value !== null ? JSON.stringify(value) : value); return '$' + params.length })
+          query = 'INSERT INTO "' + this.table + '" (' + columns + ') VALUES (' + markers.join(',') + ') RETURNING ' + this.columns
+        } else if (this.values) {
           const updates = Object.entries(this.values).map(([key, value]) => {
-            params.push(value); return '"' + key + '"=$' + params.length
+            params.push(typeof value === 'object' && value !== null ? JSON.stringify(value) : value); return '"' + key + '"=$' + params.length
           })
           query = 'UPDATE "' + this.table + '" SET ' + updates.join(',') + where + ' RETURNING ' + this.columns
         } else {
@@ -74,7 +80,7 @@ exports.adapter = function adapter(db) {
         const result = await db.query(query, params)
         if (this.head) return { data: null, count: result.rows[0].count, error: null }
         return { data: single ? result.rows[0] || null : result.rows, error: null }
-      } catch (error) { return { data: null, error: { message: error.message } } }
+      } catch (error) { return { data: null, error: { message: error.message, code: error.code } } }
     }
     single() { return this.execute(true) }
     maybeSingle() { return this.execute(true) }
@@ -91,7 +97,7 @@ exports.adapter = function adapter(db) {
           typeof value === 'object' && value !== null ? JSON.stringify(value) : value))
         const json = result.rows[0]?.[name]
         return { data: Object.prototype.hasOwnProperty.call(result.rows[0] || {}, name) ? json : result.rows, error: null }
-      } catch (error) { return { data: null, error: { message: error.message } } }
+      } catch (error) { return { data: null, error: { message: error.message, code: error.code } } }
     },
   }
 }

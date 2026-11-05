@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { revalidateTag } from 'next/cache'
+import { dataRecebimentoValida, diaNaLoja, dataEntregaDosItens } from '@/lib/prazo-devolucao'
 import { exigirAdmin, validarOrigem, responderErro, ErroHttp } from '@/lib/autorizacao'
 
 interface Consulta extends PromiseLike<{ data: unknown; error: { message: string } | null }> {
@@ -14,7 +15,7 @@ interface Consulta extends PromiseLike<{ data: unknown; error: { message: string
 type Operacao = 'select' | 'insert' | 'update' | 'delete'
 const recursos = {
   produtos: { leitura: 'id,nome,slug,preco,estoque,estoque_reservado,material,descricao,video_url,fotos,categoria_id,categoria_slug,criado_em,visitas', escrita: ['nome','slug','preco','estoque','material','descricao','video_url','fotos','categoria_id','categoria_slug'] },
-  pedidos: { leitura: 'id,created_at,cliente_email,cliente_nome,status,total,itens,codigo_rastreio', escrita: ['status','codigo_rastreio'] },
+  pedidos: { leitura: 'id,created_at,cliente_email,cliente_nome,status,total,itens,codigo_rastreio', escrita: ['status','codigo_rastreio','data_entrega'] },
   usuarios: { leitura: 'id,nome,email,cpf_cnpj,whatsapp,endereco,perfil,role', escrita: [] },
   cupons: { leitura: 'id,codigo,desconto,valor_fixo,usuario_id,ativo,criado_em', escrita: ['codigo','desconto','valor_fixo','usuario_id','ativo'] },
   trocas: { leitura: 'id,pedido_id,produto_id,usuario_id,motivo,foto_url,status,criado_em,usuarios(nome,email)', escrita: ['status'] },
@@ -45,11 +46,20 @@ export async function POST(request: Request) {
       if ('estoque' in lista[0] && (!Number.isSafeInteger(Number(lista[0].estoque)) || Number(lista[0].estoque) < 0)) throw new ErroHttp(400, 'Estoque inválido.')
       if (tabela === 'pedidos') {
         const id = filtros.find((f: { campo: string; op: string }) => f.campo === 'id' && f.op === 'eq')?.valor
-        const { data: pedido, error } = await user.db.from('pedidos').select('status').eq('id', id).maybeSingle()
+        const { data: pedido, error } = await user.db.from('pedidos').select('status,itens').eq('id', id).maybeSingle()
         if (error) throw error
         if (!pedido) throw new ErroHttp(404, 'Pedido não encontrado.')
         const atual = String(pedido.status || '').toLowerCase()
         const proximo = lista[0].status
+        if ('data_entrega' in lista[0]) {
+          if (!dataRecebimentoValida(lista[0].data_entrega) || lista[0].data_entrega > diaNaLoja()) throw new ErroHttp(400, 'Informe uma data de recebimento válida, sem datas futuras.')
+          if ((proximo || atual) !== 'entregue') throw new ErroHttp(400, 'Registre a data de recebimento somente para um pedido entregue.')
+          if (!Array.isArray(pedido.itens) || !pedido.itens.length) throw new ErroHttp(400, 'O pedido não possui itens para registrar o recebimento.')
+          lista[0].itens = pedido.itens.map(item => ({ ...item, data_recebimento: lista[0].data_entrega }))
+          delete lista[0].data_entrega
+        } else if (proximo === 'entregue' && !dataEntregaDosItens(pedido.itens)) {
+          throw new ErroHttp(400, 'Informe a data real de recebimento pelo cliente.')
+        }
         const transicoes: Record<string, string[]> = {
           pago: ['processando','enviado','entregue'], confirmado: ['processando','enviado','entregue'],
           processando: ['enviado','entregue'], enviado: ['entregue'],
@@ -89,6 +99,12 @@ export async function POST(request: Request) {
     if (operacao !== 'select' && (tabela === 'produtos' || tabela === 'cupons')) {
       revalidateTag('vitrine-publica', { expire: 0 })
     }
-    return NextResponse.json(result, { headers: { 'Cache-Control': 'private, no-store' } })
+    const incluirData = (dado: unknown) => {
+      if (!dado || typeof dado !== 'object') return dado
+      const pedido = dado as Record<string, unknown>
+      return { ...pedido, data_entrega: dataEntregaDosItens(pedido.itens) }
+    }
+    const resposta = tabela === 'pedidos' ? { ...result, data: Array.isArray(result.data) ? result.data.map(incluirData) : incluirData(result.data) } : result
+    return NextResponse.json(resposta, { headers: { 'Cache-Control': 'private, no-store' } })
   } catch (error) { return responderErro(error) }
 }
