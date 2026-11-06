@@ -29,7 +29,7 @@ async function setup(t) {
   const create = async (cashback=0,total=100) => {
     const r=await client.rpc('hh_criar_pedido_com_envio',{p_email:email,p_nome:'Cliente',p_total:total,p_itens:[{id:sku,nome:'Colar',preco:100,quantidade:1}],p_cashback:cashback,p_entrega:{...endereco,documento:'12345678901',telefone:'11999999999',email},p_frete:null});assert.equal(r.error,null);return r.data
   }
-  const request = (url,body,origin='https://loja.example.test') => new Request('https://loja.example.test'+url,{method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify(body)})
+  const request = (url,body,origin='https://loja.example.test') => new Request('https://loja.example.test'+url,{method:'POST',headers:{origin,'content-type':'application/json','Idempotency-Key':require('node:crypto').randomUUID()},body:JSON.stringify(body)})
   const address = body => addressRoute.POST(request('/api/usuario/enderecos',body))
   return {db,client,mocks,payments,read,create,request,address,addressRoute,created,prefs,setOwner:x=>owner=x,setPayment:x=>payment=x,setSearch:x=>search=x,getGets:()=>gets}
 }

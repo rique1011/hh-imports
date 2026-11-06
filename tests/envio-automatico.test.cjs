@@ -44,6 +44,9 @@ async function setup(t, options = {}) {
   }
   const mocks = {
     '@/lib/supabase-admin': { getSupabaseAdmin: () => client },
+    '@/lib/seguranca': {...loadTs('lib/seguranca'),limitar:async()=>{}},
+    '@/lib/autorizacao': {...loadTs('lib/autorizacao'),exigirUsuario:async()=>({id:'fixture',email:entrega.email,nome:'Cliente',db:client})},
+    '@/lib/pagamentos': {...loadTs('lib/pagamentos'),sincronizarPagamentoPedido:async(_db,p)=>({...p,pagamento:{status:'approved'}})},
     '@/lib/melhor-envio': { ...api, melhorEnvio: fornecedor },
     '@/lib/notificacoes': { processarNotificacoes: async id => { emails.push(id) } },
     '@/lib/request-user': { getRequestUser: async () => ({ email: entrega.email, name: entrega.nome }) },
@@ -200,7 +203,7 @@ test('novo checkout quitado por cashback também entra na automação; UUID perm
   for (const idType of ['bigint','uuid']) {
     const s = await setup(t, { idType })
     const route = loadTs('app/api/checkout/route', s.mocks)
-    const response = await route.POST(new Request('https://loja.example.test/api/checkout', { method: 'POST', body: JSON.stringify({ itens: [{ id: sku, quantidade: 1 }], cashbackUsado: 100 }) }))
+    const response = await route.POST(new Request('https://loja.example.test/api/checkout', { method:'POST',headers:{'Idempotency-Key':require('node:crypto').randomUUID()},body:JSON.stringify({ itens: [{ id: sku, quantidade: 1 }], cashbackUsado: 100 }) }))
     assert.equal(response.status, 200)
     const id = String((await response.json()).pedidoId); assert.equal((await s.job(id)).estado, 'pendente')
     await s.flush(); assert.ok(s.chamadas.some(c => c.path === '/shipment/checkout'))
@@ -236,4 +239,18 @@ test('rotas da automação exigem admin, origem válida e segredo do cron', asyn
   const cron = loadTs('app/api/cron/envios/route', s.mocks)
   assert.equal((await cron.GET(new Request('https://loja.example.test/api/cron/envios'))).status, 401)
   assert.equal(s.chamadas.length, 0)
+})
+
+test('estorno durante a consulta externa impede checkout da etiqueta mesmo com worker em andamento',async t=>{
+ const s=await setup(t),id=await s.criar()
+ s.hook(async()=>{
+  const p=(await s.db.query('select * from pedidos where id::text=$1',[id])).rows[0]
+  const r=await s.client.rpc('hh_sincronizar_pagamento',{p_pedido_id:id,p_pagamento_id:p.mp_payment_id,p_total:Number(p.total),p_dados:{status:'refunded',atualizado_em:new Date().toISOString()}})
+  assert.equal(r.error,null)
+ })
+ await s.processar(id)
+ assert.equal(s.chamadas.some(c=>c.path==='/shipment/checkout'),false)
+ const p=(await s.db.query('select pagamento from pedidos where id::text=$1',[id])).rows[0]
+ assert.equal(p.pagamento.requer_revisao,true)
+ assert.equal((await s.job(id)).estado,'atencao')
 })

@@ -71,7 +71,7 @@ export async function enviarEmailLoja(to: string, subject: string, content: stri
         .replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<')
         .replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'"),
     })
-    if (!info.accepted?.some(address => String(address).toLowerCase() === to.toLowerCase())) {
+    if (!info.accepted?.some((address: string | {address:string}) => String(address).toLowerCase() === to.toLowerCase())) {
       throw new Error('O servidor SMTP nao aceitou o destinatario.')
     }
     return { sucesso: true, messageId: info.messageId }

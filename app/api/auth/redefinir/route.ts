@@ -1,44 +1,14 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import bcrypt from 'bcryptjs'
-
-export async function POST(request: Request) {
-  try {
-    const supabase = getSupabaseAdmin()
-    const { token, novaSenha } = await request.json()
-
-    // 1. Busca o usuário pelo token
-    const { data: usuario, error } = await supabase
-      .from('usuarios')
-      .select('id')
-      .eq('recovery_token', token)
-      .gt('recovery_token_expires', new Date().toISOString())
-      .single()
-
-    if (!usuario || error) {
-      return NextResponse.json({ error: 'Token inválido ou expirado. Solicite um novo link.' }, { status: 400 })
-    }
-
-    // 2. Criptografa a nova senha
-    const senhaCriptografada = await bcrypt.hash(novaSenha, 10)
-
-    // 3. Atualiza a senha no banco e limpa o token
-    const { error: updateError } = await supabase
-      .from('usuarios')
-      .update({ 
-        senha: senhaCriptografada, 
-        recovery_token: null, 
-        recovery_token_expires: null 
-      })
-      .eq('id', usuario.id)
-
-    if (updateError) {
-      throw new Error('Falha ao atualizar a senha no banco')
-    }
-
-    return NextResponse.json({ success: true })
-  } catch (error) {
-    console.error("Erro ao redefinir:", error)
-    return NextResponse.json({ error: 'Erro interno ao redefinir a senha' }, { status: 500 })
-  }
-}
+import { validarOrigem, responderErro, ErroHttp } from '@/lib/autorizacao'
+import { hash, lerJson, limitar, validarSenha } from '@/lib/seguranca'
+export async function POST(request: Request){try{
+ validarOrigem(request); await limitar(request,'redefinir',10,900)
+ const {token,novaSenha}=await lerJson(request)
+ if(typeof token!=='string'||! /^[a-f0-9]{64}$/.test(token)) throw new ErroHttp(400,'Link inválido ou expirado.')
+ validarSenha(novaSenha)
+ const {data,error}=await getSupabaseAdmin().rpc('hh_redefinir_senha',{p_token:hash(token),p_senha:await bcrypt.hash(novaSenha,12)})
+ if(error) throw Error('Recuperação indisponível.'); if(!data) throw new ErroHttp(400,'Link inválido, já utilizado ou expirado. Solicite outro.')
+ return NextResponse.json({success:true})
+}catch(e){return responderErro(e)}}

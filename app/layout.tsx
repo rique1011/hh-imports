@@ -1,3 +1,4 @@
+import { headers } from 'next/headers';
 import type { Metadata, Viewport } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
@@ -42,11 +43,12 @@ export const viewport: Viewport = {
   themeColor: '#0a0a0a',
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  await headers(); // Render dinâmico: cada HTML recebe um nonce novo no Proxy.
   return (
     <html
       lang="pt-BR"
@@ -57,6 +59,7 @@ export default function RootLayout({
         <a className="skip-link" href="#conteudo">Pular para o conteúdo</a>
         <Feedback />
 
+        {process.env.VERCEL_ENV==='preview' && <p className="bg-amber-100 p-3 text-center text-sm text-black">Ambiente de demonstração. Compras indisponíveis.</p>}
         <Providers>
           <Header />
           

@@ -7,10 +7,10 @@ const { createDb, loadTs, adapter } = require('./helpers.cjs')
 test('migração bloqueia dados e escritas públicas, mantendo somente catálogo, categorias e avaliações legíveis', async t => {
   const db = await createDb('bigint'); t.after(() => db.close())
   await db.exec(`
-    ALTER TABLE usuarios ADD COLUMN recovery_token text;
+    ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS recovery_token text;
     ALTER TABLE produtos ADD COLUMN categoria_id uuid, ADD COLUMN categoria_slug text, ADD COLUMN criado_em timestamptz;
     CREATE TABLE categorias(id uuid primary key, nome text);
-    CREATE TABLE avaliacoes(id bigint primary key, produto_id uuid, created_at timestamptz);
+    CREATE TABLE IF NOT EXISTS avaliacoes(id bigint primary key, produto_id uuid, created_at timestamptz);
     CREATE TABLE trocas(id uuid primary key,pedido_id text,produto_id uuid,usuario_id uuid);
     CREATE TABLE carrinhos_abandonados(id uuid primary key,cliente_email text);
     CREATE SCHEMA storage; CREATE TABLE storage.objects(id uuid,bucket_id text);
@@ -53,7 +53,7 @@ test('migração bloqueia dados e escritas públicas, mantendo somente catálogo
 test('perfil retorna somente DTO e pedidos são filtrados pelo dono autenticado', async t => {
   const db = await createDb('bigint'); t.after(() => db.close())
   await db.exec(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS cpf_cnpj text, ADD COLUMN IF NOT EXISTS whatsapp text, ADD COLUMN data_nascimento text,
-    ADD COLUMN IF NOT EXISTS endereco text, ADD COLUMN senha text, ADD COLUMN recovery_token text;
+    ADD COLUMN IF NOT EXISTS endereco text, ADD COLUMN IF NOT EXISTS senha text, ADD COLUMN IF NOT EXISTS recovery_token text;
     INSERT INTO usuarios(email,nome,senha,recovery_token) VALUES('dono@example.test','Dono','hash-privado','token-privado'),('outro@example.test','Outro','hash-outro','token-outro');
     INSERT INTO pedidos(cliente_email,status,total,itens) VALUES('dono@example.test','legado',20,'[]'),('outro@example.test','legado',20,'[]');`)
   const client = adapter(db)
@@ -76,8 +76,8 @@ test('sem sessão não há perfil; cliente comum não acessa o proxy administrat
   await assert.rejects(semSessao.exigirUsuario(new Request('https://loja.test')), error => error.status === 401)
   assert.throws(() => semSessao.validarOrigem(new Request('https://loja.test', { headers: { origin: 'https://outro.test' } })), error => error.status === 403)
   const comum = loadTs('lib/autorizacao.ts', {
-    '@/lib/request-user': { getRequestUser: async () => ({ email: 'cliente@example.test' }) },
-    '@/lib/supabase-admin': { getSupabaseAdmin: () => ({ from: () => ({ select() { return this }, eq() { return this }, async single() { return { data: { id: 1, email: 'cliente@example.test', email_verificado: true, perfil: 'cliente', role: 'user' }, error: null } } }) }) },
+    '@/lib/request-user': { getRequestUser: async () => ({id:'1',sessaoVersao:1,senhaAtual:true,mfa:false,email:'cliente@example.test'}) },
+    '@/lib/supabase-admin': { getSupabaseAdmin: () => ({ from: () => ({ select() { return this }, eq() { return this }, async single() { return { data: { id:1,sessao_versao:1,senha_politica_versao:1,bloqueado:false,email:'cliente@example.test', email_verificado: true, perfil: 'cliente', role: 'user' }, error: null } } }) }) },
   })
   await assert.rejects(comum.exigirAdmin(new Request('https://loja.test')), error => error.status === 403)
   const route = loadTs('app/api/admin/dados/route.ts', { '@/lib/autorizacao': comum })

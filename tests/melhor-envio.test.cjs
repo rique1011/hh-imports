@@ -42,7 +42,7 @@ async function setup(t, options = {}) {
     if (path.startsWith('/orders/')) return { ...remoto }
     throw new Error('Chamada não prevista: ' + path)
   }
-  const mocks = { '@/lib/supabase-admin': { getSupabaseAdmin: () => client }, '@/lib/melhor-envio': { ...api, melhorEnvio: fornecedor } }
+  const mocks = {'@/lib/pagamentos':{...loadTs('lib/pagamentos'),sincronizarPagamentoPedido:async(_db,p)=>({...p,pagamento:{status:'approved'}})}, '@/lib/supabase-admin': { getSupabaseAdmin: () => client }, '@/lib/melhor-envio': { ...api, melhorEnvio: fornecedor } }
   const lib = loadTs('lib/etiquetas', mocks)
   const frete = loadTs('lib/frete', mocks)
   const cotacao = { origem: '89209452', ambiente: 'production', itensHash: frete.hashItensFrete(itens), servico: 1, nome: 'PAC', transportadora: 'Correios', volume: { width: 11, height: 3, length: 16, weight: 0.15 }, seguro: 100 }
@@ -192,6 +192,7 @@ test('CPF com DC-e aceita geração sem NF-e, preserva itens/seguro e disponibil
   const auth = loadTs('lib/autorizacao')
   const route = loadTs('app/api/melhor-envio/etiqueta/route',{
     '@/lib/autorizacao':{...auth,exigirAdmin:async()=>({db:s.client})},
+    '@/lib/pagamentos': {...loadTs('lib/pagamentos'),sincronizarPagamentoPedido:async(_db,p)=>({...p,pagamento:{status:'approved'}})},
     '@/lib/melhor-envio':{...loadTs('lib/melhor-envio'),requisitarMelhorEnvio:async path=>{chamadas.push(path);return new Response('%PDF-1.4 fixture',{headers:{'content-type':'application/pdf'}})}},
   })
   const response=await route.GET(new Request('https://loja.example.test'+final.urlDeclaracao))

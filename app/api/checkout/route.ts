@@ -1,9 +1,10 @@
 import { validarFretePedido } from '@/lib/frete'
 import { snapshotEntrega } from '@/lib/entrega'
 import { validarCupom } from '@/lib/cupons'
-import { ErroHttp, validarOrigem } from '@/lib/autorizacao'
+import { ErroHttp, validarOrigem, exigirUsuario, responderErro } from '@/lib/autorizacao'
 import { NextResponse, after } from 'next/server'
-import { getRequestUser } from '@/lib/request-user'
+import { createHash } from 'node:crypto'
+import { lerJson, limitar } from '@/lib/seguranca'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { getMercadoPagoClient } from '@/lib/mercadopago'
 import { getSiteUrl } from '@/lib/site-url'
@@ -25,9 +26,12 @@ function valor(value: unknown) {
 export async function POST(request: Request) {
   try {
     validarOrigem(request)
-    const user = await getRequestUser(request)
+    const user = await exigirUsuario(request)
     if (!user) return NextResponse.json({ error: 'Faca login para comprar.' }, { status: 401 })
-    const body = await request.json()
+    await limitar(request,'checkout',5,600,String(user.id))
+    const body = await lerJson(request) as {itens:{id:string;quantidade:number}[];enderecoId?:string;freteToken?:string;embalagemPresente?:boolean;codigoCupom?:string;cashbackUsado?:number}
+    const chave = request.headers.get('Idempotency-Key')
+    if (!chave || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(chave)) throw new ErroHttp(400,'Atualize sua sacola e tente novamente.')
     if (!Array.isArray(body.itens) || body.itens.length === 0 || body.itens.length > 100) {
       return NextResponse.json({ error: 'Carrinho invalido.' }, { status: 400 })
     }
@@ -77,11 +81,12 @@ export async function POST(request: Request) {
     const baseUrl = getSiteUrl()
     // Validar credenciais antes de criar o pedido.
     if (total > 0) getMercadoPagoClient()
-    const { data: pedido, error: pedidoError } = await db.rpc('hh_criar_pedido_com_envio', {
-      p_email: user.email, p_nome: user.name, p_total: total,
+    const { data: pedido, error: pedidoError } = await db.rpc('hh_checkout_seguro', {
+      p_email: user.email, p_nome: user.nome, p_chave: chave, p_hash: createHash('sha256').update(JSON.stringify({itens:itens.map(i=>({id:String(i.id),quantidade:i.quantidade,preco:i.preco})),entrega,servico:cotacao?.servico,frete,total,embalagem:!!body.embalagemPresente,cupom:body.codigoCupom||null,cashback})).digest('hex'), p_total: total,
       p_itens: itens, p_cashback: cashback, p_entrega: entrega, p_frete: cotacao,
     })
     if (pedidoError && /Estoque insuficiente|Produto indisponivel/.test(pedidoError.message)) return NextResponse.json({ error: 'Estoque insuficiente. Atualize sua sacola.' }, { status: 409 })
+    if (pedidoError && /tres pedidos|Chave reutilizada/.test(pedidoError.message)) throw new ErroHttp(409,pedidoError.message)
     if (pedidoError || !pedido) throw new Error('Falha ao criar pedido: ' + (pedidoError?.message || 'Sem resultado.'))
 
     // O trigger ja registrou cliente e admin; falha SMTP nao desfaz a compra.
@@ -101,8 +106,6 @@ export async function POST(request: Request) {
     const urlPagamento = await criarPreferenciaPedido(db, pedido, user.email, true)
     return NextResponse.json({ pedidoId: pedido.id, urlPagamento })
   } catch (error) {
-    if (error instanceof ErroHttp) return NextResponse.json({ error: error.message }, { status: error.status })
-    console.error('[checkout] Falha:', error)
-    return NextResponse.json({ error: 'Nao foi possivel criar o pagamento. Tente novamente.' }, { status: 500 })
+    return responderErro(error)
   }
 }

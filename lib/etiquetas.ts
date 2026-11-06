@@ -1,4 +1,5 @@
 import 'server-only'
+import { sincronizarPagamentoPedido } from '@/lib/pagamentos'
 import { randomUUID } from 'node:crypto'
 import { ErroHttp } from '@/lib/autorizacao'
 import { snapshotEntrega, participanteMelhorEnvio, remetenteMelhorEnvio } from '@/lib/entrega'
@@ -25,11 +26,12 @@ export function validarPedidoId(value: unknown) {
   return String(value)
 }
 export async function carregarPedidoEnvio(db: Db, pedidoId: string) {
-  const { data, error } = await db.from('pedidos').select('id,cliente_nome,cliente_email,status,total,itens,codigo_rastreio,created_at,entrega,frete_cotacao').eq('id', pedidoId).maybeSingle()
+  const { data, error } = await db.from('pedidos').select('id,cliente_nome,cliente_email,status,total,itens,codigo_rastreio,created_at,entrega,frete_cotacao,pagamento,mp_payment_id').eq('id', pedidoId).maybeSingle()
   if (error) throw new Error('Falha ao consultar o pedido.')
   if (!data) throw new ErroHttp(404, 'Pedido não encontrado.')
   const pedido = data as PedidoComEntrega
   if (!['pago','confirmado','processando','enviado','entregue'].includes(pedido.status)) throw new ErroHttp(409, 'A etiqueta exige pagamento confirmado.')
+  if(pedido.pagamento?.requer_revisao || ['refunded','charged_back','in_mediation'].includes(pedido.pagamento?.status || '') || Number(pedido.pagamento?.valor_reembolsado)>0) throw new ErroHttp(409,'Pagamento em revisão financeira. Não gere nem poste uma etiqueta.')
   if (!Array.isArray(pedido.itens) || !pedido.itens.length) throw new ErroHttp(422, 'Pedido sem itens válidos.')
   if (!pedido.entrega) {
     pedido.entregaDoCadastro = true
@@ -145,6 +147,13 @@ export async function gerarEtiqueta(db: Db, pedidoId: string, body: DadosGeracao
     let pago = !!remoto.paid_at || ['released','generated','posted','delivered'].includes(remoto.status)
     if (!pago && envio.estado === 'carrinho') {
       if (remoto.status !== 'pending') throw new ErroHttp(409, 'Estado remoto desconhecido. Confira no Melhor Envio antes de comprar.')
+      // Consulta o provedor novamente imediatamente antes de gastar saldo.
+      const atual=await carregarPedidoEnvio(db,pedidoId)
+      if(Number(atual.total)>0){
+        const verificado=await sincronizarPagamentoPedido(db,atual)
+        if(verificado.pagamento?.status!=='approved' || verificado.pagamento?.requer_revisao || Number(verificado.pagamento?.valor_reembolsado)>0) throw new ErroHttp(409,'Pagamento não está liberado para postagem.')
+      }
+      await carregarPedidoEnvio(db,pedidoId)
       await salvar({ estado: 'comprando', erro: null })
       try { await melhorEnvio('/shipment/checkout', { orders: [id] }) }
       catch (error) {

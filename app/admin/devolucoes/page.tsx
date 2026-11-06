@@ -162,7 +162,7 @@ export default function TelaDevolucoes() {
                 {solicitacao.foto_url ? (
                   <a href={solicitacao.foto_url} target="_blank" rel="noopener noreferrer" className="group flex flex-col items-center gap-2 cursor-pointer">
                     <div className="w-16 h-16 rounded-lg overflow-hidden border border-gray-700 bg-hb-black relative flex items-center justify-center">
-                      <Image width={64} height={64} sizes="64px" src={solicitacao.foto_url} alt="Item" className="w-full h-full object-cover group-hover:opacity-40 transition duration-300" />
+                      <Image unoptimized={solicitacao.foto_url.startsWith('/api/')} width={64} height={64} sizes="64px" src={solicitacao.foto_url} alt="Item" className="w-full h-full object-cover group-hover:opacity-40 transition duration-300" />
                       <ImageIcon size={16} className="absolute m-auto text-hb-gold opacity-0 group-hover:opacity-100 transition" />
                     </div>
                     <span className="text-[9px] font-bold uppercase tracking-widest text-hb-gold group-hover:text-hb-goldLight">Ver Foto</span>

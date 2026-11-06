@@ -118,6 +118,7 @@ export async function POST(request: Request) {
       const pedido = dado as Record<string, unknown>
       return { ...pedido, data_entrega: dataEntregaDosItens(pedido.itens) }
     }
+    if(tabela==='trocas'){const proteger=(t:Record<string,unknown>)=>({...t,foto_url:typeof t.foto_url==='string'&&t.foto_url.startsWith('private:devolucoes/')?'/api/trocas/'+t.id+'/foto':t.foto_url});result.data=Array.isArray(result.data)?result.data.map(proteger):result.data?proteger(result.data as Record<string,unknown>):result.data}
     const resposta = tabela === 'pedidos' ? { ...result, data: Array.isArray(result.data) ? result.data.map(incluirData) : incluirData(result.data) } : result
     return NextResponse.json(resposta, { headers: { 'Cache-Control': 'private, no-store' } })
   } catch (error) { return responderErro(error) }
