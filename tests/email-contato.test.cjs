@@ -6,11 +6,12 @@ process.env.EMAIL_USER = sender
 process.env.EMAIL_PASS = 'abcd efgh ijkl mnop'
 process.env.NEXT_PUBLIC_CONTACT_EMAIL = contato
 process.env.ADMIN_EMAIL = contato
+process.env.NEXTAUTH_SECRET='fixture-mail'
 process.env.SITE_URL = 'https://loja.example.test'
 
 function setup(accepted = true) {
-  const mensagens = [], configuracoes = []
-  const mocks = { nodemailer: { createTransport: config => {
+  const mensagens = [], configuracoes = [];let count=0
+  const security=loadTs('lib/seguranca');const mocks = {'@/lib/seguranca':{...security,limitar:async()=>{if(++count>3)throw new security.FalhaSeguranca(429,'Limite')},limitarConta:async()=>{}}, nodemailer: { createTransport: config => {
     configuracoes.push(config)
     return { sendMail: async message => { mensagens.push(message); return { messageId: 'fixture', accepted: accepted ? [message.to] : [] } } }
   } } }
@@ -83,8 +84,7 @@ test('novas etiquetas usam contato oficial mesmo com e-mail antigo no JSON; CPF 
 
 test('cadastro usa o mesmo remetente autenticado, Reply-To e normalização da senha de app', async () => {
   const s = setup()
-  const db = { from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { email_verificado: false } }) }) }),
-    update: () => ({ eq: async () => ({ error: null }) }) }) }
+  const db={rpc:async()=>({data:true,error:null})}
   for (const caminho of ['app/api/register/route','app/api/cadastro/route']) {
     const route = loadTs(caminho, { ...s.mocks, '@/lib/supabase-admin': { getSupabaseAdmin: () => db } })
     const response = await route.POST(new Request('https://loja.example.test/api/register', { method: 'POST', body: JSON.stringify({ nome: 'Cliente', email: dados.email, senha: 'SenhaExclusivaDeTeste1!' }) }))
@@ -92,6 +92,6 @@ test('cadastro usa o mesmo remetente autenticado, Reply-To e normalização da s
   }
   assert.equal(s.mensagens.length, 2)
   assert.equal(s.mensagens[0].from.address, sender); assert.equal(s.mensagens[0].replyTo, contato)
-  assert.match(s.mensagens[0].subject, /Seu código de acesso: \d{6}/)
+  assert.match(s.mensagens[0].subject, /Confirme seu cadastro/)
   assert.equal(s.configuracoes[0].auth.pass, 'abcdefghijklmnop')
 })

@@ -1,6 +1,6 @@
 'use client'
 
-import { signIn } from 'next-auth/react'
+import { getSession, signIn } from 'next-auth/react'
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -10,6 +10,7 @@ export default function PaginaLogin() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
+  const [codigo,setCodigo]=useState('')
   const [erro, setErro] = useState('')
   const [carregando, setCarregando] = useState(false)
 
@@ -21,14 +22,15 @@ export default function PaginaLogin() {
     const resultado = await signIn('credentials', {
       redirect: false,
       email: email,
-      password: senha,
+      password: senha, codigo,
     })
 
     if (resultado?.error) {
       setErro(resultado.error)
       setCarregando(false)
     } else {
-      router.push('/')
+      const session=await getSession()
+      router.push(session?.user?.senhaAtual===false || (session?.user?.role==='admin'&&!session.user.mfa) ? '/minha-conta?aba=seguranca' : '/minha-conta?aba=pedidos')
     }
   }
 
@@ -73,6 +75,7 @@ export default function PaginaLogin() {
             />
           </div>
 
+          <label className="block text-xs text-gray-400">Código do autenticador (se ativado)<input value={codigo} onChange={e=>setCodigo(e.target.value.trim())} autoComplete="one-time-code" className="mt-2 w-full rounded border border-gray-700 bg-hb-black p-3 text-base text-white" /><span className="block text-[11px] mt-2">Use um código de recuperação se perdeu o acesso ao aplicativo.</span></label>
           <button 
             type="submit" 
             disabled={carregando}

@@ -1,29 +1,34 @@
 import { NextResponse } from 'next/server'
 import { randomUUID } from 'node:crypto'
+import sharp from 'sharp'
 import { exigirUsuario, validarOrigem, responderErro, ErroHttp } from '@/lib/autorizacao'
-export const runtime = 'nodejs'
-export async function POST(request: Request) {
-  try {
-    validarOrigem(request)
-    const user = await exigirUsuario(request)
-    const form = await request.formData()
-    const file = form.get('arquivo')
-    const tipo = form.get('tipo')
-    if (!(file instanceof File) || !['produtos','trocas'].includes(String(tipo))) throw new ErroHttp(400, 'Imagem inválida.')
-    if (tipo === 'produtos' && !user.admin) throw new ErroHttp(403, 'Acesso restrito ao administrador.')
-    if (file.size < 1 || file.size > 5 * 1024 * 1024) throw new ErroHttp(400, 'A imagem deve ter até 5 MB.')
-    const bytes = new Uint8Array(await file.arrayBuffer())
-    const tipos: Record<string, { ext: string; valido: boolean }> = {
-      'image/jpeg': { ext: 'jpg', valido: bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255 },
-      'image/png': { ext: 'png', valido: [137,80,78,71,13,10,26,10].every((v,i) => bytes[i] === v) },
-      'image/webp': { ext: 'webp', valido: new TextDecoder().decode(bytes.slice(0,4)) === 'RIFF' && new TextDecoder().decode(bytes.slice(8,12)) === 'WEBP' },
-    }
-    const formato = tipos[file.type]
-    if (!formato?.valido) throw new ErroHttp(400, 'Envie uma imagem JPEG, PNG ou WebP válida.')
-    const path = `${tipo}/${user.id}/${randomUUID()}.${formato.ext}`
-    const { error } = await user.db.storage.from('joias').upload(path, bytes, { contentType: file.type, upsert: false })
-    if (error) throw error
-    const { data } = user.db.storage.from('joias').getPublicUrl(path)
-    return NextResponse.json({ publicUrl: data.publicUrl })
-  } catch (error) { return responderErro(error) }
-}
+import { limitar } from '@/lib/seguranca'
+export const runtime='nodejs'
+export async function POST(request: Request){try{
+ validarOrigem(request);const user=await exigirUsuario(request)
+ await limitar(request,'upload',12,86400,String(user.id))
+ if(Number(request.headers.get('content-length'))>5*1024*1024+16384)throw new ErroHttp(413,'A imagem deve ter até 5 MB.')
+ const form=await request.formData(),file=form.get('arquivo'),tipo=String(form.get('tipo'))
+ if(!(file instanceof File)||!['produtos','trocas'].includes(tipo))throw new ErroHttp(400,'Imagem inválida.')
+ if(tipo==='produtos'&&!user.admin)throw new ErroHttp(403,'Acesso restrito ao administrador.')
+ if(file.size<1||file.size>5*1024*1024||!['image/jpeg','image/png','image/webp'].includes(file.type))throw new ErroHttp(400,'Envie JPEG, PNG ou WebP de até 5 MB.')
+ const pedido=String(form.get('pedidoId')||''),produto=String(form.get('produtoId')||'')
+ if(tipo==='trocas'){
+  const {data:p,error}=await user.db.from('pedidos').select('id,status,itens').eq('id',pedido).eq('cliente_email',user.email).maybeSingle()
+  if(error||!p||p.status.toLowerCase()!=='entregue'||!p.itens?.some((i:{id:string})=>String(i.id)===produto))throw new ErroHttp(404,'Item entregue não encontrado.')
+  const {count,error:quota}=await user.db.from('devolucao_uploads').select('caminho',{count:'exact',head:true}).eq('usuario_id',String(user.id)).eq('pedido_id',pedido).eq('produto_id',produto)
+  if(quota)throw Error('Falha ao conferir limite.');if((count||0)>=3)throw new ErroHttp(429,'Você já enviou três fotos para este item. Fale com o atendimento.')
+ }
+ let bytes:Buffer
+ try{bytes=await sharp(Buffer.from(await file.arrayBuffer()),{limitInputPixels:20_000_000,animated:false}).rotate().resize(2560,2560,{fit:'inside',withoutEnlargement:true}).webp({quality:88}).toBuffer()}
+ catch{throw new ErroHttp(400,'Imagem inválida ou dimensões excessivas.')}
+ const path=`${tipo}/${user.id}/${randomUUID()}.webp`,bucket=tipo==='trocas'?'devolucoes':'joias'
+ // Registra antes de enviar: falhas também consomem a cota, impedindo concorrência ilimitada.
+ if(tipo==='trocas'){
+  const {error}=await user.db.rpc('hh_reservar_upload',{p_caminho:path,p_usuario:String(user.id),p_pedido:pedido,p_produto:produto})
+  if(error)throw new ErroHttp(429,'Limite de fotos atingido. Fale com o atendimento.')
+ }
+ const {error}=await user.db.storage.from(bucket).upload(path,bytes,{contentType:'image/webp',upsert:false});if(error)throw Error('Falha ao enviar imagem.')
+ const url=tipo==='trocas'?'private:devolucoes/'+path:user.db.storage.from(bucket).getPublicUrl(path).data.publicUrl
+ return NextResponse.json({publicUrl:url})
+}catch(e){return responderErro(e)}}

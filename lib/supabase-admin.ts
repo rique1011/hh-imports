@@ -4,6 +4,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 let client: SupabaseClient | undefined
 
 export function getSupabaseAdmin() {
+  if (process.env.VERCEL_ENV === 'preview') throw new Error('Ambiente de demonstração: operações privadas indisponíveis.')
   if (client) return client
   const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY

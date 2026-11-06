@@ -26,7 +26,7 @@ function Confirmacao() {
         }
         if (controller.signal.aborted) return
         const pago = STATUS_PAGOS.has(String(pedido.status).toLowerCase())
-        if (pago || pedido.pagamento?.status === 'approved') limpar()
+        if (pago || pedido.pagamento?.status === 'approved') {limpar();sessionStorage.removeItem('hh-checkout-idempotencia')}
         router.replace('/minha-conta?aba=pedidos&pedido=' + encodeURIComponent(id!) + (pago ? '&pagamento=confirmado' : ''))
       } catch (e) { if (!controller.signal.aborted) setErro((e as Error).message) }
     }

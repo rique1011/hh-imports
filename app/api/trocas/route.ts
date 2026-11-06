@@ -20,8 +20,10 @@ export async function POST(request: Request) {
       if (prazo.situacao === 'sem_data') throw new ErroHttp(409, 'A data de recebimento precisa ser confirmada. Fale com o atendimento para registrar sua solicitação.')
       if (!prazo.aberto) throw new ErroHttp(409, 'O prazo de 7 dias para devolução por arrependimento terminou. O atendimento para defeitos continua disponível.')
     }
-    const pasta = (process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '') + '/storage/v1/object/public/joias/trocas/' + user.id + '/'
-    const fotoPropria = typeof fotoUrl === 'string' && fotoUrl.startsWith(pasta)
+    const caminho=typeof fotoUrl==='string' && fotoUrl.startsWith('private:devolucoes/') ? fotoUrl.slice('private:devolucoes/'.length) : ''
+    const {data:upload,error:uploadError}=caminho ? await user.db.from('devolucao_uploads').select('caminho').eq('caminho',caminho).eq('usuario_id',String(user.id)).eq('pedido_id',String(pedidoId)).eq('produto_id',String(produtoId)).maybeSingle() : {data:null,error:null}
+    if(uploadError) throw Error('Falha ao conferir imagem.')
+    const fotoPropria=!!upload
     if (motivo === 'defeito' && !fotoPropria) throw new ErroHttp(400, 'Envie a foto do defeito pela sua conta.')
     if (fotoUrl && !fotoPropria && fotoUrl !== item.foto) throw new ErroHttp(400, 'Foto inválida.')
     const { data: existente, error: buscaError } = await user.db.from('trocas').select('id')

@@ -67,7 +67,7 @@ function ConteudoRedefinir() {
             value={novaSenha}
             onChange={(e) => setNovaSenha(e.target.value)}
             required
-            minLength={6}
+            minLength={15}
           />
         </div>
         

@@ -9,7 +9,7 @@ import { ErroHttp } from '@/lib/autorizacao'
 import { prazoPagamento, STATUS_PAGOS } from '@/lib/pagamento-pedido'
 import type { Pedido } from '@/types/loja'
 type Db = ReturnType<typeof getSupabaseAdmin>
-interface PedidoPagamento extends Pedido { pagamento?: Pedido['pagamento'] & { preferencia_id?: string; preferencia_com_prazo?: boolean }; pagamento_consultado_em?: string | null; mp_payment_id?: string | null }
+interface PedidoPagamento extends Pedido { pagamento?: Pedido['pagamento'] & { preferencia_id?: string; preferencia_com_prazo?: boolean; checkout_seguro?:boolean }; pagamento_consultado_em?: string | null; mp_payment_id?: string | null }
 const dataIso = (data?: string | null) => data && Number.isFinite(Date.parse(data)) ? new Date(data).toISOString() : null
 
 export async function registrarPagamentoVerificado(db: Db, pagamento: PaymentResponse, idEsperado?: string) {
@@ -18,6 +18,7 @@ export async function registrarPagamentoVerificado(db: Db, pagamento: PaymentRes
     || !Number.isFinite(pagamento.transaction_amount) || Number(pagamento.transaction_amount) < 0 || !pagamento.status) throw new ErroHttp(502, 'O provedor não retornou um pagamento compatível.')
   const { data, error } = await db.rpc('hh_sincronizar_pagamento', { p_pedido_id: String(pagamento.external_reference), p_pagamento_id: id,
     p_total: pagamento.transaction_amount, p_dados: { status: pagamento.status, metodo: pagamento.payment_method_id || '', tipo: pagamento.payment_type_id || '',
+      valor_reembolsado: Math.max(0,Number(pagamento.transaction_amount_refunded)||0),
       parcelas: Number.isInteger(pagamento.installments) ? pagamento.installments : 1, aprovado_em: dataIso(pagamento.date_approved),
       atualizado_em: dataIso(pagamento.date_last_updated) || new Date().toISOString() } })
   if (error || !data) throw new ErroHttp(503, 'A confirmação será conferida novamente. Acompanhe o pedido pela sua conta.')
@@ -46,6 +47,10 @@ export async function sincronizarPagamentoPedido(db: Db, pedido: PedidoPagamento
     const escolhido = encontrados.toSorted((a, b) => prioridade(a.status) - prioridade(b.status))[0]
     if (!escolhido?.id) {
       if ((resultado.results || []).length) throw new ErroHttp(502, 'Resultado de pagamento incompatível.')
+      if(pedido.pagamento?.checkout_seguro && !pedido.pagamento.preferencia_id && Date.parse(prazoPagamento(pedido))<Date.now()-10*60_000){
+        const {data,error}=await db.rpc('hh_expirar_pagamento_sem_tentativa',{p_pedido_id:String(pedido.id),p_consultado_em:instante})
+        if(error) throw Error('Reserva aguarda conferência.'); return data as PedidoPagamento
+      }
       if (pedido.pagamento?.preferencia_com_prazo && pedido.pagamento.preferencia_id && Date.parse(prazoPagamento(pedido)) < Date.now() - 10 * 60_000) {
         const preferencia = await new Preference(getMercadoPagoClient()).get({ preferenceId: pedido.pagamento.preferencia_id })
         if (String(preferencia.external_reference) === String(pedido.id) && preferencia.expires === true
@@ -73,7 +78,7 @@ export async function criarPreferenciaPedido(db: Db, pedido: PedidoPagamento, em
     return existente.init_point
   }
   const baseUrl = getSiteUrl(), retorno = baseUrl + '/sucesso?pedido=' + encodeURIComponent(pedido.id)
-  const preference = await provider.create({ body: {
+  const preference = await provider.create({ requestOptions:{ idempotencyKey:'hh-preferencia-'+String(pedido.id) }, body: {
     items: [{ id: String(pedido.id), title: 'Pedido ' + BRAND_NAME, quantity: 1, unit_price: Number(pedido.total), currency_id: 'BRL' }],
     payer: { email }, external_reference: String(pedido.id), notification_url: baseUrl + '/api/webhooks/mercadopago',
     back_urls: { success: retorno, failure: retorno, pending: retorno },

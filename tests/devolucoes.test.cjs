@@ -24,6 +24,7 @@ test('API protege o prazo e o admin registra recebimento sem alterar os itens co
   await db.exec(`
     create table pedidos(id bigint generated always as identity primary key, cliente_email text,cliente_nome text,
       status text,total numeric,itens jsonb,created_at timestamptz default now(),codigo_rastreio text,entrega jsonb,pagamento jsonb default '{}',pagamento_expira_em timestamptz,cashback_debitado numeric default 0);
+    create table devolucao_uploads(caminho text,usuario_id text,pedido_id text,produto_id text);
     create table trocas(id uuid primary key default gen_random_uuid(), pedido_id text, produto_id uuid,
       usuario_id bigint, motivo text, foto_url text, status text, unique(pedido_id,produto_id));
   `)
@@ -41,6 +42,7 @@ test('API protege o prazo e o admin registra recebimento sem alterar os itens co
     if (data) data.setUTCDate(data.getUTCDate() - dias)
     const itens = [{ ...item, ...(data ? { data_recebimento: data.toISOString().slice(0, 10) } : {}) }]
     const r = await db.query("insert into pedidos(cliente_email,status,total,itens,created_at) values($1,$2,100,$3,now()-interval '200 days') returning id", [email, 'entregue', JSON.stringify(itens)])
+    await db.query("insert into devolucao_uploads values($1,'17',$2,$3)",['trocas/17/foto-'+r.rows[0].id+'.webp',String(r.rows[0].id),produto])
     return r.rows[0].id
   }
   function request(id, motivo = 'arrependimento', extra = {}) {
@@ -93,13 +95,13 @@ test('API protege o prazo e o admin registra recebimento sem alterar os itens co
   await t.test('defeito após 7 dias continua disponível e exige foto própria', async () => {
     const id = await pedido(30)
     assert.equal((await route.POST(request(id, 'defeito'))).status, 400)
-    assert.equal((await route.POST(request(id, 'defeito', { fotoUrl: 'https://fixture.supabase.co/storage/v1/object/public/joias/trocas/17/foto.webp' }))).status, 200)
+    assert.equal((await route.POST(request(id, 'defeito', { fotoUrl: 'private:devolucoes/trocas/17/foto-'+id+'.webp' }))).status, 200)
   })
   await t.test('sem data há atendimento para confirmação e defeitos permanecem disponíveis', async () => {
     const id = await pedido(null)
     const r = await route.POST(request(id))
     assert.equal(r.status, 409); assert.match((await r.json()).error, /data de recebimento/)
-    assert.equal((await route.POST(request(id, 'defeito', { fotoUrl: 'https://fixture.supabase.co/storage/v1/object/public/joias/trocas/17/foto.webp' }))).status, 200)
+    assert.equal((await route.POST(request(id, 'defeito', { fotoUrl: 'private:devolucoes/trocas/17/foto-'+id+'.webp' }))).status, 200)
   })
   await t.test('prazo válido não dá acesso ao pedido de outra pessoa nem a item estranho', async () => {
     assert.equal((await route.POST(request(await pedido(1, 'outra@example.test')))).status, 404)

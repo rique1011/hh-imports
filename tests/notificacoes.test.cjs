@@ -39,6 +39,8 @@ async function setup(t, idType) {
   let preference
   const mocks = {
     '@/lib/supabase-admin': { getSupabaseAdmin: () => client },
+    '@/lib/seguranca': {...loadTs('lib/seguranca'),limitar:async()=>{}},
+    '@/lib/autorizacao': {...loadTs('lib/autorizacao'),exigirUsuario:async()=>({id:'fixture',email:email,nome:'Cliente',db:client})},
     '@/lib/request-user': { getRequestUser: async () => ({ email, name: 'Cliente <script>' }) },
     'nodemailer': { createTransport: () => ({ sendMail: async message => {
       messages.push(message)
@@ -78,7 +80,7 @@ async function setup(t, idType) {
 test('checkout → pedido/cliente/admin → approved → cashback/e-mails; repeticao nao duplica', async t => {
   const s = await setup(t)
   const response = await s.checkout.POST(new Request('https://loja.example.test/api/checkout', {
-    method: 'POST', body: JSON.stringify({ itens: [{ id: sku, nome: 'Adulterado', preco: 0.01, quantidade: 1 }],
+    method:'POST',headers:{'Idempotency-Key':require('node:crypto').randomUUID()},body:JSON.stringify({ itens: [{ id: sku, nome: 'Adulterado', preco: 0.01, quantidade: 1 }],
       frete: 0, desconto: 999, cashbackUsado: 0 }),
   }))
   assert.equal(response.status, 200)
@@ -209,12 +211,12 @@ test('recuperacao de senha e troca mantem compatibilidade; destinatario SMTP rej
 test('cookie NextAuth real permite ler identidade e token invalido nao autentica', async () => {
   const { encode } = require('next-auth/jwt')
   const { getRequestUser } = loadTs('lib/request-user.ts')
-  const token = await encode({ secret: process.env.NEXTAUTH_SECRET, token: { email, name: 'Cliente' } })
+  const token = await encode({ secret: process.env.NEXTAUTH_SECRET, token: {sub:'1',email,name:'Cliente',sessaoVersao:1,senhaAtual:true,mfa:false} })
   const request = new Request('http://localhost/api/checkout', {
     method: 'POST', headers: { cookie: 'next-auth.session-token=' + token },
     body: JSON.stringify({ itens: [] }),
   })
-  assert.deepEqual(await getRequestUser(request), { email, name: 'Cliente' })
+  assert.deepEqual(await getRequestUser(request), {id:'1',email,name:'Cliente',sessaoVersao:1,senhaAtual:true,mfa:false})
   assert.deepEqual(await request.json(), { itens: [] })
   assert.equal(await getRequestUser(new Request('http://localhost/api/checkout', { headers: { cookie: 'next-auth.session-token=invalido' } })), null)
 })
@@ -223,9 +225,10 @@ test('cookie NextAuth real permite ler identidade e token invalido nao autentica
 test('disparo do painel exige administrador e cron exige segredo', async t => {
   const s = await setup(t)
   const callbacks = []
+  await s.db.query("update usuarios set email_verificado=true,senha_politica_versao=1 where email=$1",[email])
   const privateApi = loadTs('app/api/notificacoes/pedido/route.ts', {
     '@/lib/supabase-admin': { getSupabaseAdmin: () => s.client },
-    '@/lib/request-user': { getRequestUser: async () => ({ email, name: 'Cliente' }) },
+    '@/lib/request-user': {getRequestUser:async()=>{const u=(await s.db.query('select * from usuarios where email=$1',[email])).rows[0];return {id:String(u.id),email,name:'Cliente',sessaoVersao:u.sessao_versao,senhaAtual:true,mfa:true}}},
     'next/server': { ...require('next/server'), after: callback => callbacks.push(callback) },
     '@/lib/notificacoes': { processarNotificacoes: async () => ({ processadas: 0, enviadas: 0, falhas: 0 }) },
   })
@@ -235,7 +238,7 @@ test('disparo do painel exige administrador e cron exige segredo', async t => {
   })
   assert.equal((await privateApi.POST(request())).status, 403)
   assert.equal(callbacks.length, 0)
-  await s.db.query("UPDATE usuarios SET role='admin' WHERE email=$1", [email])
+  await s.db.query("UPDATE usuarios SET role='admin',email_verificado=true,senha_politica_versao=1,mfa_secret='fixture' WHERE email=$1", [email])
   assert.equal((await privateApi.POST(request())).status, 200)
   assert.equal(callbacks.length, 1)
   process.env.CRON_SECRET = 'segredo-cron-dos-testes'
@@ -253,7 +256,7 @@ test('disparo do painel exige administrador e cron exige segredo', async t => {
 test('descontos arbitrarios nao criam venda gratuita; ofertas usam cupom real e boas-vindas', async t => {
   const s = await setup(t)
   const request = code => new Request('https://loja.example.test/api/checkout', {
-    method: 'POST', body: JSON.stringify({
+    method:'POST',headers:{'Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({
       itens: [{ id: sku, quantidade: 1 }], codigoCupom: code, frete: 0, cashbackUsado: 0,
     }),
   })
@@ -273,7 +276,7 @@ test('checkout ignora frete adulterado e exige cotação assinada para o CEP do 
   process.env.CEP_ORIGEM = '89209452'
   const { assinarCotacao, hashItensFrete } = loadTs('lib/frete.ts')
   const detalhes = { origem: '89209452', ambiente: 'production', itensHash: hashItensFrete([{ id: sku, quantidade: 1, preco: 50 }]), servico: 1, nome: 'PAC', transportadora: 'Correios', seguro: 50, volume: { width: 11, height: 3, length: 16, weight: 0.15 } }
-  const request = token => new Request('https://loja.example.test/api/checkout', { method: 'POST', body: JSON.stringify({
+  const request = token => new Request('https://loja.example.test/api/checkout', { method:'POST',headers:{'Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({
     itens: [{ id: sku, quantidade: 1 }], frete: 0, freteToken: token,
   }) })
   assert.equal((await s.checkout.POST(request(undefined))).status, 400)
@@ -285,7 +288,7 @@ test('checkout ignora frete adulterado e exige cotação assinada para o CEP do 
 test('cupom de outra pessoa não é utilizável e checkout sem estoque retorna conflito', async t => {
   const s = await setup(t)
   await s.db.exec("INSERT INTO cupons(codigo,desconto,usuario_id) VALUES('PRIVADO',40,gen_random_uuid())")
-  const request = codigoCupom => new Request('https://loja.example.test/api/checkout', { method: 'POST', body: JSON.stringify({ itens: [{ id: sku, quantidade: 1 }], codigoCupom }) })
+  const request = codigoCupom => new Request('https://loja.example.test/api/checkout', { method:'POST',headers:{'Idempotency-Key':require('node:crypto').randomUUID()},body:JSON.stringify({ itens: [{ id: sku, quantidade: 1 }], codigoCupom }) })
   assert.equal((await s.checkout.POST(request('PRIVADO'))).status, 400)
   await s.db.exec('UPDATE produtos SET estoque=0')
   assert.equal((await s.checkout.POST(request(null))).status, 409)

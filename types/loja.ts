@@ -53,9 +53,11 @@ export interface Pedido {
 }
 
 export interface PagamentoPedido {
+  requer_revisao?:boolean
+  valor_reembolsado?:number
   status?: string; metodo?: string; tipo?: string; parcelas?: number
   aprovado_em?: string | null; atualizado_em?: string | null
-  expirado_em?: string | null; requer_revisao?: boolean
+  expirado_em?: string | null
 }
 export interface EnderecoSalvo extends Endereco { id: string; apelido: string; padrao: boolean }
 
