@@ -28,7 +28,7 @@ Atualização de 06/11/2026. Executar a migração `20261106194511_seguranca_eco
 
 - Produção: `NEXTAUTH_SECRET` exclusivo, `MFA_ENCRYPTION_KEY` base64 de 32 bytes; não apagar/rotacionar a chave MFA sem migração das chaves cifradas.
 - Credenciais reais de Supabase service-role, Mercado Pago, Melhor Envio e e-mail apenas em produção. Previews ficam em demonstração sem operações privadas; liberar apenas após fornecer recursos e credenciais de testes separados.
-- A rota de manutenção de fotos tem escopo fixo, prazo curto, segredo efêmero e marcador de uso único. Depois de concluir a migração, remover/desativar `SECURITY_MIGRATION_TOKEN`.
+- A migração única das quatro fotos antigas foi concluída em produção, com referências atualizadas e originais públicos removidos. A rota temporária de manutenção foi removida após o uso; não faz parte da aplicação publicada.
 - Headers de proteção e CSP com nonce por resposta HTML; sem scripts inline arbitrários em produção. Estilos inline permanecem permitidos para os componentes visuais existentes. HTML dinâmico preserva o nonce exclusivo; consultas do catálogo continuam cacheadas.
 
 ## Verificação
