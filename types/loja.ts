@@ -22,6 +22,8 @@ export interface Produto {
 export interface ItemPedido extends ProdutoCarrinho {
   troca_solicitada?: boolean
   data_recebimento?: string | null
+  recebimento_origem?: 'melhor_envio' | 'manual'
+  recebimento_confirmado_em?: string | null
 }
 
 export interface Pedido {

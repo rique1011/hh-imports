@@ -52,7 +52,10 @@ exports.adapter = function adapter(db) {
     update(values) { this.values = values; return this }
     insert(values) { this.insertValues = values; return this }
     limit(value) { this.maxRows = Number(value); return this }
-    eq(key, value) { this.params.push(value); this.filters.push('"' + key + '"=$' + this.params.length); return this }
+    column(key) { return key.split('.').map(part => '"' + part + '"').join('.') }
+    eq(key, value) { this.params.push(value); this.filters.push(this.column(key) + '=$' + this.params.length); return this }
+    lt(key, value) { this.params.push(value); this.filters.push(this.column(key) + '<$' + this.params.length); return this }
+    order(key, options = {}) { this.orderBy = this.column(key) + (options.ascending === false ? ' DESC' : ' ASC'); return this }
     is(key, value) { if (value !== null) throw new Error("Fixture supports only IS NULL"); this.filters.push('"' + key + '" IS NULL'); return this }
     in(key, values) {
       const markers = values.map(value => { this.params.push(value); return '$' + this.params.length })
@@ -74,7 +77,20 @@ exports.adapter = function adapter(db) {
           })
           query = 'UPDATE "' + this.table + '" SET ' + updates.join(',') + where + ' RETURNING ' + this.columns
         } else {
-          query = 'SELECT ' + (this.head ? 'count(*)::integer AS count' : this.columns) + ' FROM "' + this.table + '"' + where +
+          let columns = this.columns, join = ''
+          const relation = columns.match(/(\w+):(\w+)!inner\(([^()]+)\)/)
+          if (relation) {
+            const [expression, alias, table, fields] = relation
+            const links = { pedido_envios: { pedidos: 'pedido_id' } }
+            const foreignKey = links[this.table]?.[table]
+            if (!foreignKey) throw new Error('Unknown fixture relation')
+            const related = fields.split(',').map(field => "'" + field + "'," + this.column(alias + '.' + field)).join(',')
+            columns = columns.replace(',' + expression, '').split(',').map(field => this.column(this.table + '.' + field)).join(',') +
+              ',jsonb_build_object(' + related + ') AS "' + alias + '"'
+            join = ' JOIN "' + table + '" AS "' + alias + '" ON ' + this.column(this.table + '.' + foreignKey) + '=' + this.column(alias + '.id')
+          }
+          query = 'SELECT ' + (this.head ? 'count(*)::integer AS count' : columns) + ' FROM "' + this.table + '"' + join + where +
+            (this.orderBy ? ' ORDER BY ' + this.orderBy : '') +
             (this.maxRows ? ' LIMIT ' + this.maxRows : '')
         }
         const result = await db.query(query, params)

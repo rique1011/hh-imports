@@ -8,6 +8,7 @@ import Image from 'next/image'
 import type { Pedido, Usuario, Endereco } from '@/types/loja'
 import { mensagemErro } from '@/lib/erros'
 import { diaNaLoja } from '@/lib/prazo-devolucao'
+import { useRecebimentoAutomatico } from '@/lib/use-recebimento-automatico'
 
 import { useState, useEffect, useCallback } from 'react'
 import { Search, Loader2, ShoppingBag, Eye, Truck, CheckCircle2, X, User, MapPin, Phone, FileText } from 'lucide-react'
@@ -38,25 +39,21 @@ export default function TelaPedidos() {
     setNovoStatus('enviado'); setNovoRastreio(resultado.codigoRastreio || '')
   }, [])
 
-  useEffect(() => {
-    carregarPedidos()
+  const carregarPedidos = useCallback(async () => {
+    await Promise.resolve(supabase
+      .from('pedidos')
+      .select('*')
+      .order('created_at', { ascending: false }))
+      .then(({ data, error }) => {
+        if (error) throw error
+        setPedidos(data || [])
+      })
+      .catch(error => console.error('Erro ao carregar pedidos:', error))
+      .finally(() => setCarregando(false))
   }, [])
 
-  async function carregarPedidos() {
-    try {
-      const { data, error } = await supabase
-        .from('pedidos')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
-      setPedidos(data || [])
-    } catch (error) {
-      console.error("Erro ao carregar pedidos:", error)
-    } finally {
-      setCarregando(false)
-    }
-  }
+  useEffect(() => { void carregarPedidos() }, [carregarPedidos])
+  useRecebimentoAutomatico(!carregando && pedidos.some(p => p.status === 'enviado'), carregarPedidos)
 
   // 🚨 ATUALIZADO: Agora ele busca os dados do cliente ao abrir a modal
   const abrirDetalhes = async (pedido: Pedido) => {
@@ -358,7 +355,7 @@ export default function TelaPedidos() {
                 {novoStatus === 'entregue' && <div>
                   <label htmlFor="data-recebimento" className="mb-2 block text-xs text-gray-300">Data real de recebimento pelo cliente</label>
                   <input id="data-recebimento" type="date" required max={diaNaLoja()} value={dataEntrega} disabled={gerandoEtiqueta} onChange={e => setDataEntrega(e.target.value)} className="w-full border border-gray-800 bg-gray-900 p-3 text-base text-white rounded" />
-                  <p className="mt-2 text-xs leading-5 text-gray-400">O prazo de 7 dias para arrependimento é contado a partir desta data. Para pedidos antigos, confira a data real antes de salvar.</p>
+                  <p className="mt-2 text-xs leading-5 text-gray-400">Pedidos com etiqueta vinculada ao Melhor Envio recebem esta data automaticamente após a confirmação da transportadora. O prazo de 7 dias parte do recebimento real. Para pedidos antigos ou correções, confira a data antes de salvar.</p>
                 </div>}
               </form>
 

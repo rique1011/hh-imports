@@ -5,7 +5,7 @@ import Image from 'next/image'
 
 import { useSession, signOut } from 'next-auth/react' 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useState } from 'react'
 import Link from 'next/link' 
 import { 
   User, Package, Heart, Loader2, Lock, 
@@ -18,6 +18,7 @@ import { uploadImagem } from '@/lib/upload-imagem'
 import type { Identificador, Pedido, ItemPedido } from '@/types/loja'
 import { mensagemErro } from '@/lib/erros'
 import { prazoDevolucao, formatarDia } from '@/lib/prazo-devolucao'
+import { useRecebimentoAutomatico } from '@/lib/use-recebimento-automatico'
 
 function ConteudoMinhaConta() {
   const { data: session, status } = useSession()
@@ -28,6 +29,14 @@ function ConteudoMinhaConta() {
   
   const [pedidos, setPedidos] = useState<Pedido[]>([])
   const [carregandoPedidos, setCarregandoPedidos] = useState(true)
+  const recarregarPedidos = useCallback(async () => {
+    const response = await fetch('/api/pedidos')
+    if (response.ok) {
+      const data = await response.json()
+      setPedidos(Array.isArray(data) ? data : [])
+    }
+  }, [])
+  useRecebimentoAutomatico(status === 'authenticated' && !carregandoPedidos && pedidos.some(p => p.status === 'enviado'), recarregarPedidos)
   const { wishlist, toggleWishlist, adicionarAoCarrinho } = useCart(useShallow(state => ({ wishlist: state.wishlist, toggleWishlist: state.toggleWishlist, adicionarAoCarrinho: state.adicionarAoCarrinho })))
   
   const [form, setForm] = useState({ cpf_cnpj: '', whatsapp: '', data_nascimento: '' })

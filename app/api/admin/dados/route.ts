@@ -38,6 +38,7 @@ export async function POST(request: Request) {
     if (operacao === 'delete' && !['produtos','cupons'].includes(tabela)) throw new ErroHttp(403, 'Exclusão indisponível neste recurso.')
     if (['update','delete'].includes(operacao) && !filtros.some((f: { campo: string; op: string; valor: unknown }) => f.campo === 'id' && f.op === 'eq' && ['string','number'].includes(typeof f.valor))) throw new ErroHttp(400, 'Informe o identificador do registro.')
     let valores = body.valores
+    let versaoPedido: { status: string; itens: unknown } | null = null
     if (['insert','update'].includes(operacao)) {
       const lista = Array.isArray(valores) ? valores : [valores]
       if (lista.length !== 1 || !lista[0] || typeof lista[0] !== 'object') throw new ErroHttp(400, 'Dados inválidos.')
@@ -49,13 +50,16 @@ export async function POST(request: Request) {
         const { data: pedido, error } = await user.db.from('pedidos').select('status,itens').eq('id', id).maybeSingle()
         if (error) throw error
         if (!pedido) throw new ErroHttp(404, 'Pedido não encontrado.')
+        versaoPedido = { status: pedido.status, itens: pedido.itens }
         const atual = String(pedido.status || '').toLowerCase()
         const proximo = lista[0].status
         if ('data_entrega' in lista[0]) {
           if (!dataRecebimentoValida(lista[0].data_entrega) || lista[0].data_entrega > diaNaLoja()) throw new ErroHttp(400, 'Informe uma data de recebimento válida, sem datas futuras.')
           if ((proximo || atual) !== 'entregue') throw new ErroHttp(400, 'Registre a data de recebimento somente para um pedido entregue.')
           if (!Array.isArray(pedido.itens) || !pedido.itens.length) throw new ErroHttp(400, 'O pedido não possui itens para registrar o recebimento.')
-          lista[0].itens = pedido.itens.map(item => ({ ...item, data_recebimento: lista[0].data_entrega }))
+          lista[0].itens = pedido.itens.map(item => ({ ...item, data_recebimento: lista[0].data_entrega,
+            ...(item.recebimento_origem && item.data_recebimento !== lista[0].data_entrega
+              ? { recebimento_origem: 'manual', recebimento_confirmado_em: null } : {}) }))
           delete lista[0].data_entrega
         } else if (proximo === 'entregue' && !dataEntregaDosItens(pedido.itens)) {
           throw new ErroHttp(400, 'Informe a data real de recebimento pelo cliente.')
@@ -75,6 +79,8 @@ export async function POST(request: Request) {
     const inicial = operacao === 'select' ? from.select(colunas) : operacao === 'insert' ? from.insert(valores).select(colunas)
       : operacao === 'update' ? from.update(valores).select(colunas) : from.delete().select('id')
     let query = inicial as unknown as Consulta
+    // Uma entrega detectada durante a edição não pode ser sobrescrita por um formulário antigo.
+    if (versaoPedido) query = query.eq('status', versaoPedido.status).eq('itens', JSON.stringify(versaoPedido.itens))
     const campos = new Set(regra.leitura.split(',').filter(c => /^[a-z_]+$/.test(c)))
     for (const filtro of filtros) {
       if (!filtro || !campos.has(filtro.campo) || !['eq','gt','in'].includes(filtro.op)) throw new ErroHttp(400, 'Filtro inválido.')
@@ -96,6 +102,9 @@ export async function POST(request: Request) {
     }
     const result = body.single ? await query.maybeSingle() : await query
     if (result.error) throw result.error
+    if (versaoPedido && (!result.data || (Array.isArray(result.data) && !result.data.length))) {
+      throw new ErroHttp(409, 'Este pedido foi atualizado durante a edição. Atualize a página e confira os dados antes de salvar.')
+    }
     if (operacao !== 'select' && (tabela === 'produtos' || tabela === 'cupons')) {
       revalidateTag('vitrine-publica', { expire: 0 })
     }
