@@ -1,5 +1,7 @@
 'use client'
 import Modal from '@/components/Modal'
+import FotosProdutoEditor from '@/components/FotosProdutoEditor'
+import type { FotoProdutoEdicao } from '@/lib/fotos-produto'
 
 import Image from 'next/image'
 import type { Produto } from '@/types/loja'
@@ -18,10 +20,10 @@ export default function TelaEstoque() {
 
   const [modalAberta, setModalAberta] = useState(false)
   const [salvando, setSalvando] = useState(false)
-  const [fotoArquivo, setFotoArquivo] = useState<File | null>(null)
+  const [fotos, setFotos] = useState<FotoProdutoEdicao[]>([])
+  const [progressoFotos, setProgressoFotos] = useState({ feitas: 0, total: 0 })
   
   const [produtoEditandoId, setProdutoEditandoId] = useState<string | null>(null)
-  const [fotosAntigas, setFotosAntigas] = useState<string[]>([])
 
   const [form, setForm] = useState({
     nome: '',
@@ -54,15 +56,15 @@ export default function TelaEstoque() {
 
   const abrirModalNovo = () => {
     setProdutoEditandoId(null)
-    setFotosAntigas([])
+    setFotos([])
     setForm({ nome: '', preco: '', estoque: '0', material: 'Ouro 18k', descricao: '', video_url: '' })
-    setFotoArquivo(null)
+    setProgressoFotos({ feitas: 0, total: 0 })
     setModalAberta(true)
   }
 
   const abrirModalEditar = (produto: Produto) => {
     setProdutoEditandoId(produto.id)
-    setFotosAntigas(produto.fotos || [])
+    setFotos((produto.fotos || []).map((url, index) => ({ id: String(index) + ':' + url, url })))
     setForm({
       nome: produto.nome || '',
       preco: produto.preco?.toString() || '',
@@ -71,7 +73,7 @@ export default function TelaEstoque() {
       descricao: produto.descricao || '',
       video_url: produto.video_url || ''
     })
-    setFotoArquivo(null)
+    setProgressoFotos({ feitas: 0, total: 0 })
     setModalAberta(true)
   }
 
@@ -84,10 +86,18 @@ export default function TelaEstoque() {
     setSalvando(true)
 
     try {
-      let fotosArray = [...fotosAntigas]
-
-      if (fotoArquivo) {
-        fotosArray = [await uploadImagem(fotoArquivo, 'produtos')]
+      const fotosArray: string[] = []
+      const pendentes = fotos.filter(foto => foto.arquivo).length
+      setProgressoFotos({ feitas: 0, total: pendentes })
+      // Cada sucesso fica no formulário: uma falha pode ser retomada sem reenviar tudo.
+      for (const foto of fotos) {
+        let url = foto.url
+        if (foto.arquivo) {
+          url = await uploadImagem(foto.arquivo, 'produtos')
+          setFotos(atuais => atuais.map(atual => atual.id === foto.id ? { id: atual.id, url } : atual))
+          setProgressoFotos(atual => ({ ...atual, feitas: atual.feitas + 1 }))
+        }
+        fotosArray.push(url)
       }
 
       const dadosProduto = {
@@ -216,13 +226,14 @@ export default function TelaEstoque() {
 
       {/* MODAL ADICIONAR / EDITAR PRODUTO */}
       {modalAberta && (
-        <Modal onClose={() => setModalAberta(false)} labelledBy="titulo-produto" className="bg-hb-gray border border-gray-800 rounded-2xl max-w-2xl p-5 sm:p-8 shadow-2xl relative text-white">
-            <button onClick={() => setModalAberta(false)} aria-label="Fechar janela" className="absolute top-3 right-3 min-w-11 min-h-11 grid place-items-center text-gray-400 hover:text-white transition"><X size={20} /></button>
+        <Modal onClose={() => { if (!salvando) setModalAberta(false) }} labelledBy="titulo-produto" className="bg-hb-gray border border-gray-800 rounded-2xl max-w-2xl p-5 sm:p-8 shadow-2xl relative text-white">
+            <button disabled={salvando} onClick={() => setModalAberta(false)} aria-label="Fechar janela" className="absolute top-3 right-3 min-w-11 min-h-11 grid place-items-center text-gray-400 hover:text-white transition"><X size={20} /></button>
             <h2 id="titulo-produto" className="text-lg font-light uppercase tracking-widest text-white mb-6 border-b border-gray-800 pb-4">
               {produtoEditandoId ? 'Editar Joia' : 'Cadastrar Nova Joia'}
             </h2>
             
             <form onSubmit={handleSalvarProduto} className="space-y-6">
+              <fieldset disabled={salvando} className="min-w-0 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Nome do Produto</label>
@@ -261,17 +272,13 @@ export default function TelaEstoque() {
                 <input id="estoque-disponivel" type="number" inputMode="numeric" min="0" step="1" required value={form.estoque} onChange={e => setForm({ ...form, estoque: e.target.value })} className="min-h-11 w-full bg-hb-black border border-gray-700 rounded p-3" />
                 <p className="mt-2 text-xs text-gray-500">O estoque físico deve cobrir as unidades já reservadas por pedidos.</p>
               </div>
-              <div className="bg-hb-black p-4 rounded-xl border border-gray-800">
-                <label className="flex items-center gap-2 text-[10px] font-bold text-gray-300 uppercase tracking-widest mb-2"><ImageIcon size={14} className="text-hb-gold" /> Foto Principal</label>
-                {produtoEditandoId && fotosAntigas.length > 0 && !fotoArquivo && (
-                  <p className="text-[10px] text-gray-500 mb-2 italic">A joia já possui uma foto. Envie uma nova apenas se quiser substituir.</p>
-                )}
-                <input type="file" accept="image/*" onChange={(e) => setFotoArquivo(e.target.files?.[0] || null)} className="w-full text-xs text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-bold file:uppercase file:bg-gray-800 file:text-gray-200 hover:file:bg-gray-700 cursor-pointer" />
-              </div>
+              <FotosProdutoEditor fotos={fotos} onChange={setFotos} desabilitado={salvando} />
+              {salvando && progressoFotos.total > 0 && <p role="status" className="text-sm text-hb-gold">Enviando fotos: {progressoFotos.feitas}/{progressoFotos.total}. Aguarde para concluir o cadastro.</p>}
 
               <button type="submit" disabled={salvando} className="w-full bg-hb-gold text-hb-black py-4 text-xs font-bold uppercase tracking-widest hover:bg-hb-goldLight transition disabled:opacity-50 flex items-center justify-center gap-2 rounded">
                 {salvando ? <Loader2 size={16} className="animate-spin" /> : (produtoEditandoId ? 'SALVAR ALTERAÇÕES' : 'SALVAR PRODUTO')}
               </button>
+              </fieldset>
             </form>
         </Modal>
       )}

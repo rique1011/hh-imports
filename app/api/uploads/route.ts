@@ -2,15 +2,20 @@ import { NextResponse } from 'next/server'
 import { randomUUID } from 'node:crypto'
 import sharp from 'sharp'
 import { exigirUsuario, validarOrigem, responderErro, ErroHttp } from '@/lib/autorizacao'
+import { MAX_BYTES_FOTO_PRODUTO } from '@/lib/fotos-produto'
 import { limitar } from '@/lib/seguranca'
 export const runtime='nodejs'
 export async function POST(request: Request){try{
  validarOrigem(request);const user=await exigirUsuario(request)
- await limitar(request,'upload',12,86400,String(user.id))
  if(Number(request.headers.get('content-length'))>5*1024*1024+16384)throw new ErroHttp(413,'A imagem deve ter até 5 MB.')
  const form=await request.formData(),file=form.get('arquivo'),tipo=String(form.get('tipo'))
  if(!(file instanceof File)||!['produtos','trocas'].includes(tipo))throw new ErroHttp(400,'Imagem inválida.')
  if(tipo==='produtos'&&!user.admin)throw new ErroHttp(403,'Acesso restrito ao administrador.')
+ if(tipo==='produtos'){
+  await limitar(request,'upload-catalogo',120,600,String(user.id))
+  await limitar(request,'upload-catalogo-dia',600,86400,String(user.id))
+  if(file.size>MAX_BYTES_FOTO_PRODUTO)throw new ErroHttp(400,'As fotos do catálogo devem ter até 4 MB cada.')
+ }else await limitar(request,'upload',12,86400,String(user.id))
  if(file.size<1||file.size>5*1024*1024||!['image/jpeg','image/png','image/webp'].includes(file.type))throw new ErroHttp(400,'Envie JPEG, PNG ou WebP de até 5 MB.')
  const pedido=String(form.get('pedidoId')||''),produto=String(form.get('produtoId')||'')
  if(tipo==='trocas'){
