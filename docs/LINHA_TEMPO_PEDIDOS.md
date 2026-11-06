@@ -28,3 +28,5 @@ No Hobby, a Vercel pode executar dentro da hora agendada. Essas rotinas úteis j
 O Supabase informa que pouca atividade durante sete dias pode pausar projetos Free. Algumas consultas por dia costumam ser suficientes, mas não garantem que o projeto não seja pausado. Acompanhe os avisos por e-mail; planos pagos não sofrem pausa por inatividade. Nenhuma alteração de plano foi feita.
 
 Referências: [pausa no Supabase Free](https://supabase.com/docs/guides/platform/free-project-pausing) e [agendamentos da Vercel](https://vercel.com/docs/cron-jobs/usage-and-pricing).
+
+O horário da aprovação usa `pagamento.aprovado_em`, obtido da API autenticada do Mercado Pago. Pedidos anteriores continuam usando o instante da confirmação persistido na fila. O quarto cron diário, `/api/cron/pagamentos`, concilia às 12h UTC. Veja [Conta e checkout](CONTA_E_CHECKOUT.md).

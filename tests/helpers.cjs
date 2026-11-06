@@ -23,15 +23,15 @@ exports.loadTs = function loadTs(file, mocks = {}, cache = new Map()) {
   return mod.exports
 }
 
-exports.createDb = async function createDb(idType = 'uuid') {
+exports.createDb = async function createDb(idType = 'uuid', usuarioIdType = 'uuid') {
   const { PGlite } = require('@electric-sql/pglite')
   const db = new PGlite()
   await db.exec("CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role BYPASSRLS;")
   await db.exec(
-    'CREATE TABLE usuarios(id uuid primary key default gen_random_uuid(),email text unique,nome text,perfil text,role text,' +
+    'CREATE TABLE usuarios(id ' + (usuarioIdType === 'bigint' ? 'bigint generated always as identity primary key' : 'uuid primary key default gen_random_uuid()') + ',email text unique,nome text,perfil text,role text,' +
     'cpf_cnpj text default \'12345678901\',whatsapp text default \'11999999999\',endereco text default \'{\"cep\":\"01310100\",\"logradouro\":\"Rua Teste\",\"numero\":\"10\",\"bairro\":\"Centro\",\"cidade\":\"Sao Paulo\",\"uf\":\"SP\"}\',saldo_cashback numeric default 0,created_at timestamptz default now());' +
     'CREATE TABLE produtos(id uuid primary key,nome text,preco numeric,estoque integer default 1000,estoque_reservado integer default 0,fotos text[],slug text);' +
-    'CREATE TABLE cupons(codigo text primary key,desconto numeric,ativo boolean default true,usuario_id uuid);' +
+    'CREATE TABLE cupons(codigo text primary key,desconto numeric,ativo boolean default true,usuario_id ' + usuarioIdType + ');' +
     'CREATE TABLE pedidos(id ' + (idType === 'uuid' ? 'uuid primary key default gen_random_uuid()' : 'bigint generated always as identity primary key') +
     ',cliente_email text,cliente_nome text,status text,total numeric,itens jsonb,codigo_rastreio text,created_at timestamptz default now());'
   )
@@ -42,6 +42,8 @@ exports.createDb = async function createDb(idType = 'uuid') {
   await db.exec(fs.readFileSync(path.join(root, 'supabase/migrations', envio), 'utf8'))
   const automatico = fs.readdirSync(path.join(root, 'supabase/migrations')).find(name => name.endsWith('_envio_automatico.sql'))
   await db.exec(fs.readFileSync(path.join(root, 'supabase/migrations', automatico), 'utf8'))
+  const conta = fs.readdirSync(path.join(root, 'supabase/migrations')).find(name => name.endsWith('_conta_enderecos_pagamentos.sql'))
+  await db.exec(fs.readFileSync(path.join(root, 'supabase/migrations', conta), 'utf8'))
   return db
 }
 
@@ -52,11 +54,12 @@ exports.adapter = function adapter(db) {
     update(values) { this.values = values; return this }
     insert(values) { this.insertValues = values; return this }
     limit(value) { this.maxRows = Number(value); return this }
-    column(key) { return key.split('.').map(part => '"' + part + '"').join('.') }
+    column(key) { if (key.includes('->>')) { const [col, field] = key.split('->>'); if (!/^\w+$/.test(col) || !/^\w+$/.test(field)) throw Error('Invalid fixture column'); return '"' + col + '"->>\'' + field + '\'' } return key.split('.').map(part => '"' + part + '"').join('.') }
     eq(key, value) { this.params.push(value); this.filters.push(this.column(key) + '=$' + this.params.length); return this }
     lt(key, value) { this.params.push(value); this.filters.push(this.column(key) + '<$' + this.params.length); return this }
-    order(key, options = {}) { this.orderBy = this.column(key) + (options.ascending === false ? ' DESC' : ' ASC'); return this }
-    is(key, value) { if (value !== null) throw new Error("Fixture supports only IS NULL"); this.filters.push('"' + key + '" IS NULL'); return this }
+    gt(key, value) { this.params.push(value); this.filters.push(this.column(key) + '>$' + this.params.length); return this }
+    order(key, options = {}) { this.orderBy = this.column(key) + (options.ascending === false ? ' DESC' : ' ASC') + (options.nullsFirst ? ' NULLS FIRST' : ''); return this }
+    is(key, value) { if (value !== null) throw new Error("Fixture supports only IS NULL"); this.filters.push(this.column(key) + ' IS NULL'); return this }
     in(key, values) {
       const markers = values.map(value => { this.params.push(value); return '$' + this.params.length })
       this.filters.push('"' + key + '" IN (' + markers.join(',') + ')'); return this

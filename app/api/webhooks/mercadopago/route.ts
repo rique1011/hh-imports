@@ -5,6 +5,9 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { processarNotificacoes } from '@/lib/notificacoes'
 import { processarEnvioAutomatico } from '@/lib/envio-automatico'
 
+import { registrarPagamentoVerificado } from '@/lib/pagamentos'
+import { STATUS_PAGOS } from '@/lib/pagamento-pedido'
+
 export const runtime = 'nodejs'
 export const maxDuration = 120
 
@@ -28,24 +31,15 @@ export async function POST(request: Request) {
 
     // O status confiavel vem da API autenticada, nunca do corpo do webhook.
     const pagamento = await new Payment(getMercadoPagoClient()).get({ id: paymentId })
-    if (pagamento.status !== 'approved') {
-      return NextResponse.json({ received: true, status: pagamento.status })
-    }
-    if (!pagamento.external_reference || pagamento.currency_id !== 'BRL') {
-      throw new Error('Pagamento aprovado sem referencia valida ou moeda BRL.')
-    }
-    const pedidoId = String(pagamento.external_reference)
-    // A transacao atualiza o pedido, credita cashback uma vez e persiste os e-mails.
-    const { error } = await getSupabaseAdmin().rpc('hh_confirmar_pagamento', {
-      p_pedido_id: pedidoId,
-      p_pagamento_id: paymentId,
-      p_total: pagamento.transaction_amount,
-    })
-    if (error) throw new Error('Falha ao confirmar pedido: ' + error.message)
+    const pedido = await registrarPagamentoVerificado(getSupabaseAdmin(), pagamento, paymentId)
+    const pedidoId = String(pedido.id)
+    if (pagamento.status !== 'approved') return NextResponse.json({ received: true, pedidoId })
 
     // A fila ja esta persistida. after mantem o envio ativo na Vercel apos o ACK.
     after(async () => {
-      const resultados = await Promise.allSettled([processarNotificacoes(pedidoId, 6), processarEnvioAutomatico(pedidoId)])
+      const trabalhos: Promise<unknown>[] = [processarNotificacoes(pedidoId, 6)]
+      if (STATUS_PAGOS.has(pedido.status.toLowerCase())) trabalhos.push(processarEnvioAutomatico(pedidoId))
+      const resultados = await Promise.allSettled(trabalhos)
       resultados.forEach((resultado, indice) => {
         if (resultado.status === 'rejected') console.error('[webhook] Trabalho persistido aguarda retry.', { pedidoId, fila: indice === 0 ? 'email' : 'envio' })
       })

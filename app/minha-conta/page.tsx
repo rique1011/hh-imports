@@ -1,22 +1,25 @@
 'use client'
 import Modal from '@/components/Modal'
+import dynamic from 'next/dynamic'
+import { nomePagamento, pedidoNaoConcluido, prazoPagamento, STATUS_PAGOS } from '@/lib/pagamento-pedido'
+const EnderecosConta = dynamic(() => import('@/components/EnderecosConta'))
 import LinhaTempoPedido from '@/components/LinhaTempoPedido'
 
 import Image from 'next/image'
 
-import { useSession, signOut } from 'next-auth/react' 
+import { useSession, signOut } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useCallback, useEffect, useState } from 'react'
-import Link from 'next/link' 
-import { 
-  User, Package, Heart, Loader2, Lock, 
-  ShoppingBag, Trash2, LogOut, RefreshCcw, X, Upload, 
+import Link from 'next/link'
+import {
+  User, Package, Heart, Loader2, Lock,
+  ShoppingBag, Trash2, LogOut, RefreshCcw, X, Upload,
   AlertCircle, CheckCircle2, DollarSign, Sparkles, MapPin, CreditCard, Receipt, Gift
 } from 'lucide-react'
 import { useCart } from '@/lib/store'
 import { useShallow } from 'zustand/react/shallow'
 import { uploadImagem } from '@/lib/upload-imagem'
-import type { Identificador, Pedido, ItemPedido } from '@/types/loja'
+import type { Identificador, Pedido, ItemPedido, EnderecoSalvo } from '@/types/loja'
 import { mensagemErro } from '@/lib/erros'
 import { prazoDevolucao, formatarDia, FUSO_LOJA } from '@/lib/prazo-devolucao'
 import { useRecebimentoAutomatico } from '@/lib/use-recebimento-automatico'
@@ -25,9 +28,9 @@ function ConteudoMinhaConta() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
-  
+
   const [abaAtiva, setAbaAtiva] = useState(() => searchParams.get('aba') || 'pedidos')
-  
+
   const [pedidos, setPedidos] = useState<Pedido[]>([])
   const [carregandoPedidos, setCarregandoPedidos] = useState(true)
   const recarregarPedidos = useCallback(async () => {
@@ -39,20 +42,21 @@ function ConteudoMinhaConta() {
   }, [])
   useRecebimentoAutomatico(status === 'authenticated' && !carregandoPedidos && pedidos.some(p => p.status === 'enviado'), recarregarPedidos)
   const { wishlist, toggleWishlist, adicionarAoCarrinho } = useCart(useShallow(state => ({ wishlist: state.wishlist, toggleWishlist: state.toggleWishlist, adicionarAoCarrinho: state.adicionarAoCarrinho })))
-  
+
   const [form, setForm] = useState({ cpf_cnpj: '', whatsapp: '', data_nascimento: '' })
-  const [endereco, setEndereco] = useState({ cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '' })
-  
+  const [enderecos, setEnderecos] = useState<EnderecoSalvo[]>([])
+  const [editandoEndereco, setEditandoEndereco] = useState(false)
+  const [filtroPedidos, setFiltroPedidos] = useState('compras')
+
   const [saldoCashback, setSaldoCashback] = useState(0)
-  const [isAdmin, setIsAdmin] = useState(false) 
+  const [isAdmin, setIsAdmin] = useState(false)
 
   const [podeEditarCPF, setPodeEditarCPF] = useState(true)
-  const [buscandoCep, setBuscandoCep] = useState(false)
   const [carregando, setCarregando] = useState(true)
   const [salvando, setSalvando] = useState(false)
-  
+
   const [carregandoPagamentoId, setCarregandoPagamentoId] = useState<Identificador | null>(null)
-  const [pedidoExpandido, setPedidoExpandido] = useState<Identificador | null>(null)
+  const [pedidoExpandido, setPedidoExpandido] = useState<Identificador | null>(() => searchParams.get('pedido'))
 
   const [modalAberta, setModalAberta] = useState(false)
   const [itemSelecionado, setItemSelecionado] = useState<ItemPedido | null>(null)
@@ -85,27 +89,20 @@ function ConteudoMinhaConta() {
           return res.json()
         })
         .then(data => {
-          setForm({ 
-            cpf_cnpj: data.cpf_cnpj || '', 
-            whatsapp: data.whatsapp || '', 
-            data_nascimento: data.data_nascimento || '' 
+          setForm({
+            cpf_cnpj: data.cpf_cnpj || '',
+            whatsapp: data.whatsapp || '',
+            data_nascimento: data.data_nascimento || ''
           })
-          
+
           if (data && data.saldo_cashback) setSaldoCashback(Number(data.saldo_cashback))
           if (data.cpf_cnpj) setPodeEditarCPF(false)
-          
+
           if (data && data.role === 'admin') {
             setIsAdmin(true)
           }
-          
-          if (data.endereco) {
-            try { 
-              const endParsed = JSON.parse(data.endereco)
-              setEndereco(endParsed) 
-            } catch {
-              setEndereco(prev => ({ ...prev, logradouro: data.endereco })) 
-            }
-          }
+
+          setEnderecos(Array.isArray(data.enderecos) ? data.enderecos : [])
         })
         .catch(error => { if (!controller.signal.aborted) console.error(error) })
         .finally(() => { if (!controller.signal.aborted) setCarregando(false) })
@@ -125,7 +122,7 @@ function ConteudoMinhaConta() {
   }, [status, router])
 
   useEffect(() => {
-    if (abaAtiva !== 'trocas' && !modalAberta) return
+    if (abaAtiva !== 'trocas' && abaAtiva !== 'pedidos' && !modalAberta) return
     const atualizar = () => setAgoraDevolucao(Date.now())
     const frame = requestAnimationFrame(atualizar)
     const timer = window.setInterval(atualizar, 30_000)
@@ -134,28 +131,12 @@ function ConteudoMinhaConta() {
     return () => { cancelAnimationFrame(frame); clearInterval(timer); window.removeEventListener('focus', atualizar); document.removeEventListener('visibilitychange', atualizar) }
   }, [abaAtiva, modalAberta])
 
-  const buscarCep = async (valor: string) => {
-    const cepLimpo = valor.replace(/\D/g, "")
-    setEndereco(prev => ({ ...prev, cep: valor }))
-    if (cepLimpo.length === 8) {
-      setBuscandoCep(true)
-      try {
-        const res = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`)
-        const data = await res.json()
-        if (!data.erro) {
-          setEndereco(prev => ({ ...prev, logradouro: data.logradouro, bairro: data.bairro, cidade: data.localidade, uf: data.uf }))
-        }
-      } finally {
-        setBuscandoCep(false)
-      }
-    }
-  }
-
   const handleSalvar = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
+    if (editandoEndereco) return
     if (mostrarErros) {
-      if (!form.cpf_cnpj || !form.whatsapp || !endereco.cep || !endereco.logradouro || !endereco.numero || !endereco.bairro) {
+      if (!form.cpf_cnpj || !form.whatsapp || !enderecos.length) {
         alert("Por favor, preencha todos os campos obrigatórios.")
         return
       }
@@ -163,16 +144,16 @@ function ConteudoMinhaConta() {
 
     setSalvando(true)
     try {
-      const response = await fetch('/api/usuario', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, endereco: JSON.stringify(endereco) }) })
+      const response = await fetch('/api/usuario', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
       if (!response.ok) throw new Error('Não foi possível salvar seu cadastro.')
       if (form.cpf_cnpj) setPodeEditarCPF(false)
-      
+
       alert("Perfil atualizado com sucesso!")
-      
+
       if (mostrarErros) {
         router.push('/carrinho')
       }
-      
+
     } catch {
       alert("Erro ao salvar dados.")
     } finally {
@@ -196,8 +177,18 @@ function ConteudoMinhaConta() {
     }
   }
 
+  useEffect(() => {
+    if (status !== 'authenticated' || abaAtiva !== 'pedidos' || !pedidos.some(p => p.status.toLowerCase() === 'pendente')) return
+    const atualizar = () => { if (!document.hidden) recarregarPedidos().catch(() => {}) }
+    const timer = setInterval(atualizar, 15_000)
+    document.addEventListener('visibilitychange', atualizar)
+    return () => { clearInterval(timer); document.removeEventListener('visibilitychange', atualizar) }
+  }, [status, abaAtiva, pedidos, recarregarPedidos])
+  const visiveis = pedidos.filter(p => (searchParams.get('pedido') === String(p.id)) || filtroPedidos === 'todos' || (pedidoNaoConcluido(p, agoraDevolucao) ? filtroPedidos === 'incompletos' : filtroPedidos === 'compras'))
+
   const getStatusFormatado = (status: string) => {
     const s = status?.toLowerCase()
+    if (s === 'pagamento_em_analise') return { titulo: 'PAGAMENTO EM CONFERÊNCIA', cor: 'text-hb-gold' }
     if (s === 'pendente') return { titulo: 'AGUARDANDO PAGAMENTO', cor: 'text-yellow-500' }
     if (s === 'pago' || s === 'confirmado') return { titulo: 'PAGAMENTO APROVADO', cor: 'text-green-400' }
     if (s === 'processando') return { titulo: 'PREPARANDO PEDIDO', cor: 'text-green-400' }
@@ -207,7 +198,11 @@ function ConteudoMinhaConta() {
   }
 
   const toggleDetalhes = (id: Identificador) => {
-    setPedidoExpandido(prev => prev === id ? null : id)
+    setPedidoExpandido(prev => String(prev) === String(id) ? null : id)
+    const pedido = pedidos.find(p => String(p.id) === String(id))
+    if (String(pedidoExpandido) !== String(id) && pedido && (pedido.status.toLowerCase() === 'pendente' || !pedido.pagamento?.metodo)) {
+      fetch('/api/pedidos/' + encodeURIComponent(id) + '/pagamento', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).then(res => { if (res.ok) return recarregarPedidos() }).catch(() => {})
+    }
   }
 
   const abrirModalTroca = (pedidoId: Identificador, item: ItemPedido, motivoInicial = 'arrependimento') => {
@@ -238,13 +233,13 @@ function ConteudoMinhaConta() {
       // Adicionamos o ID do produto real aqui
       const response = await fetch('/api/trocas', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          pedidoId: pedidoIdSelecionado, 
-          produtoId: itemSelecionado.id, 
-          motivo, 
+        body: JSON.stringify({
+          pedidoId: pedidoIdSelecionado,
+          produtoId: itemSelecionado.id,
+          motivo,
           // 👇 A MÁGICA AQUI: Se não tem foto do defeito, manda a foto do produto!
-          fotoUrl: urlFoto || itemSelecionado.foto, 
-          precoProduto: itemSelecionado.preco || 0 
+          fotoUrl: urlFoto || itemSelecionado.foto,
+          precoProduto: itemSelecionado.preco || 0
         })
       })
 
@@ -252,7 +247,7 @@ function ConteudoMinhaConta() {
       if (!response.ok) throw new Error(data.error)
 
       setMensagemSucesso(data.mensagem)
-      
+
       // Adiciona o item à lista de itens com troca solicitada
       setItensComTrocaSolicitada(prev => [...prev, `${pedidoIdSelecionado}-${itemSelecionado.id}`])
 
@@ -268,7 +263,7 @@ function ConteudoMinhaConta() {
 
   return (
     <main className="min-h-screen bg-hb-black text-gray-300 pb-12 md:pb-20">
-      
+
       {/* HEADER LUXO */}
       <div className="bg-gray-950 border-b border-gray-900 py-6 md:py-8 px-4 md:px-6 mb-6 md:mb-8">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
@@ -278,9 +273,9 @@ function ConteudoMinhaConta() {
           </button>
         </div>
       </div>
-      
+
       <div className="max-w-6xl mx-auto px-4 md:px-6 flex flex-col lg:flex-row gap-6 md:gap-12">
-        
+
         {/* MENU LATERAL / SUPERIOR NO MOBILE */}
         <aside className="w-full lg:w-64 flex-shrink-0">
           <nav className="grid grid-cols-2 sm:grid-cols-3 lg:flex lg:flex-col gap-2 lg:gap-1 lg:sticky lg:top-24">
@@ -288,10 +283,10 @@ function ConteudoMinhaConta() {
             <button onClick={() => setAbaAtiva('dados')} className={`flex items-center justify-center lg:justify-start gap-2 px-4 py-3 md:py-4 text-xs font-bold uppercase tracking-wide transition border lg:border-0 lg:border-b border-gray-900 rounded-full lg:rounded-none min-w-0 min-h-12 whitespace-normal leading-relaxed ${abaAtiva === 'dados' ? 'text-hb-gold border-hb-gold lg:border-l-2 lg:border-l-hb-gold lg:border-t-0 lg:border-r-0 lg:border-b-gray-900 bg-hb-gold/10 lg:bg-gray-900/50' : 'text-gray-500 hover:text-white hover:bg-gray-900/30'}`}><User size={14} className="md:w-4 md:h-4" /> Meus Dados</button>
             <button onClick={() => setAbaAtiva('trocas')} className={`flex items-center justify-center lg:justify-start gap-2 px-4 py-3 md:py-4 text-xs font-bold uppercase tracking-wide transition border lg:border-0 lg:border-b border-gray-900 rounded-full lg:rounded-none min-w-0 min-h-12 whitespace-normal leading-relaxed ${abaAtiva === 'trocas' ? 'text-hb-gold border-hb-gold lg:border-l-2 lg:border-l-hb-gold lg:border-t-0 lg:border-r-0 lg:border-b-gray-900 bg-hb-gold/10 lg:bg-gray-900/50' : 'text-gray-500 hover:text-white hover:bg-gray-900/30'}`}><RefreshCcw size={14} className="md:w-4 md:h-4" /> Trocas e Devoluções</button>
             <button onClick={() => setAbaAtiva('desejos')} className={`flex items-center justify-center lg:justify-start gap-2 px-4 py-3 md:py-4 text-xs font-bold uppercase tracking-wide transition border lg:border-0 lg:border-b border-gray-900 rounded-full lg:rounded-none min-w-0 min-h-12 whitespace-normal leading-relaxed ${abaAtiva === 'desejos' ? 'text-hb-gold border-hb-gold lg:border-l-2 lg:border-l-hb-gold lg:border-t-0 lg:border-r-0 lg:border-b-gray-900 bg-hb-gold/10 lg:bg-gray-900/50' : 'text-gray-500 hover:text-white hover:bg-gray-900/30'}`}><Heart size={14} className="md:w-4 md:h-4" /> Desejos</button>
-            
+
             {isAdmin && (
-              <Link 
-                href="/admin" 
+              <Link
+                href="/admin"
                 className="flex items-center justify-center lg:justify-start gap-2 px-4 py-3 md:py-4 text-xs font-black uppercase tracking-wide text-black bg-hb-gold hover:bg-yellow-600 transition-all lg:mt-6 rounded-full lg:rounded min-w-0 min-h-12 whitespace-normal leading-relaxed"
               >
                 <Lock size={14} className="md:w-4 md:h-4" /> <span className="hidden lg:inline">Painel Admin</span><span className="lg:hidden">Admin</span>
@@ -302,11 +297,11 @@ function ConteudoMinhaConta() {
 
         {/* CONTEÚDO */}
         <section className="flex-1 min-w-0">
-          
+
           {/* ABA: DADOS PESSOAIS */}
           {abaAtiva === 'dados' && (
             <div className="space-y-8 md:space-y-10 animate-in fade-in duration-500">
-              
+
               {mostrarErros && (
                 <div className="bg-red-900/20 border border-red-900/50 text-red-400 p-4 rounded-lg flex items-start md:items-center gap-3 shadow-md animate-bounce">
                   <AlertCircle size={20} className="shrink-0 mt-0.5 md:mt-0" />
@@ -331,7 +326,7 @@ function ConteudoMinhaConta() {
                 </div>
               </div>
 
-              <form onSubmit={handleSalvar} className="space-y-8 md:space-y-10">
+              <form id="form-dados" onSubmit={handleSalvar} className="space-y-8 md:space-y-10">
                 <div>
                   <h2 className="text-[11px] md:text-xs font-bold text-white mb-5 md:mb-6 uppercase tracking-[0.2em] border-b border-gray-800 pb-3 md:pb-4">Dados Pessoais</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
@@ -343,104 +338,41 @@ function ConteudoMinhaConta() {
                       <label className="block text-[9px] md:text-[10px] font-bold text-gray-400 mb-2 uppercase">E-mail</label>
                       <input value={session?.user?.email || ''} disabled className="w-full border border-gray-800 p-3 rounded bg-gray-900/50 text-gray-500 text-base md:text-sm" />
                     </div>
-                    
+
                     <div>
                       <label className="text-[9px] md:text-[10px] font-bold text-gray-400 mb-2 uppercase flex justify-between">
                         <span>CPF / CNPJ {!podeEditarCPF && <Lock size={10} className="inline md:w-3 md:h-3 ml-1"/>}</span>
                         {mostrarErros && !form.cpf_cnpj && <span className="text-red-500">* Obrigatório</span>}
                       </label>
-                      <input 
+                      <input
                         inputMode="numeric" autoComplete="off" aria-label="CPF ou CNPJ" value={form.cpf_cnpj}
-                        onChange={(e) => setForm({...form, cpf_cnpj: e.target.value})} 
-                        disabled={!podeEditarCPF} 
-                        className={`w-full border p-3 rounded text-base md:text-sm bg-transparent text-white focus:outline-none focus:border-hb-gold transition-colors ${!podeEditarCPF ? 'bg-gray-900/50 text-gray-500 border-gray-800' : (mostrarErros && !form.cpf_cnpj ? 'border-red-500 bg-red-900/10' : 'border-gray-700')}`} 
+                        onChange={(e) => setForm({...form, cpf_cnpj: e.target.value})}
+                        disabled={!podeEditarCPF}
+                        className={`w-full border p-3 rounded text-base md:text-sm bg-transparent text-white focus:outline-none focus:border-hb-gold transition-colors ${!podeEditarCPF ? 'bg-gray-900/50 text-gray-500 border-gray-800' : (mostrarErros && !form.cpf_cnpj ? 'border-red-500 bg-red-900/10' : 'border-gray-700')}`}
                       />
                     </div>
-                    
+
                     <div>
                       <label className="text-[9px] md:text-[10px] font-bold text-gray-400 mb-2 uppercase flex justify-between">
                         <span>WhatsApp</span>
                         {mostrarErros && !form.whatsapp && <span className="text-red-500">* Obrigatório</span>}
                       </label>
-                      <input 
+                      <input
                         type="tel" inputMode="tel" autoComplete="tel" aria-label="WhatsApp" value={form.whatsapp}
-                        onChange={(e) => setForm({...form, whatsapp: e.target.value})} 
-                        className={`w-full border p-3 rounded text-base md:text-sm bg-transparent text-white focus:outline-none focus:border-hb-gold transition-colors ${mostrarErros && !form.whatsapp ? 'border-red-500 bg-red-900/10' : 'border-gray-700'}`} 
-                        placeholder="(00) 00000-0000" 
+                        onChange={(e) => setForm({...form, whatsapp: e.target.value})}
+                        className={`w-full border p-3 rounded text-base md:text-sm bg-transparent text-white focus:outline-none focus:border-hb-gold transition-colors ${mostrarErros && !form.whatsapp ? 'border-red-500 bg-red-900/10' : 'border-gray-700'}`}
+                        placeholder="(00) 00000-0000"
                       />
                     </div>
                   </div>
                 </div>
 
-                <div>
-                  <h2 className="text-[11px] md:text-xs font-bold text-white mb-5 md:mb-6 uppercase tracking-[0.2em] border-b border-gray-800 pb-3 md:pb-4">Endereço de Entrega</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-                    
-                    <div className="relative">
-                      <label className="text-[9px] md:text-[10px] font-bold text-gray-400 mb-2 uppercase flex justify-between">
-                        <span>CEP</span>
-                        {mostrarErros && !endereco.cep && <span className="text-red-500">* Obrigatório</span>}
-                      </label>
-                      <input 
-                        inputMode="numeric" autoComplete="postal-code" aria-label="CEP" value={endereco.cep}
-                        onChange={(e) => buscarCep(e.target.value)} 
-                        className={`w-full border p-3 rounded text-base md:text-sm bg-transparent text-white focus:outline-none focus:border-hb-gold transition-colors ${mostrarErros && !endereco.cep ? 'border-red-500 bg-red-900/10' : 'border-gray-700'}`} 
-                        placeholder="00000-000" 
-                      />
-                      {buscandoCep && <Loader2 size={16} className="absolute right-3 top-9 animate-spin text-hb-gold" />}
-                    </div>
-                    
-                    <div className="md:col-span-2">
-                      <label className="text-[9px] md:text-[10px] font-bold text-gray-400 mb-2 uppercase flex justify-between">
-                        <span>Rua</span>
-                        {mostrarErros && !endereco.logradouro && <span className="text-red-500">* Obrigatório</span>}
-                      </label>
-                      <input 
-                        value={endereco.logradouro} 
-                        onChange={(e) => setEndereco({...endereco, logradouro: e.target.value})} 
-                        className={`w-full border p-3 rounded text-base md:text-sm bg-transparent text-white focus:outline-none focus:border-hb-gold transition-colors ${mostrarErros && !endereco.logradouro ? 'border-red-500 bg-red-900/10' : 'border-gray-700'}`} 
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="text-[9px] md:text-[10px] font-bold text-gray-400 mb-2 uppercase flex justify-between">
-                        <span>Número</span>
-                        {mostrarErros && !endereco.numero && <span className="text-red-500">* Obrigatório</span>}
-                      </label>
-                      <input 
-                        inputMode="numeric" autoComplete="address-line2" value={endereco.numero}
-                        onChange={(e) => setEndereco({...endereco, numero: e.target.value})} 
-                        className={`w-full border p-3 rounded text-base md:text-sm bg-transparent text-white focus:outline-none focus:border-hb-gold transition-colors ${mostrarErros && !endereco.numero ? 'border-red-500 bg-red-900/10' : 'border-gray-700'}`} 
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="text-[9px] md:text-[10px] font-bold text-gray-400 mb-2 uppercase flex justify-between">
-                        <span>Bairro</span>
-                        {mostrarErros && !endereco.bairro && <span className="text-red-500">* Obrigatório</span>}
-                      </label>
-                      <input 
-                        value={endereco.bairro} 
-                        onChange={(e) => setEndereco({...endereco, bairro: e.target.value})} 
-                        className={`w-full border p-3 rounded text-base md:text-sm bg-transparent text-white focus:outline-none focus:border-hb-gold transition-colors ${mostrarErros && !endereco.bairro ? 'border-red-500 bg-red-900/10' : 'border-gray-700'}`} 
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-[9px] md:text-[10px] font-bold text-gray-400 mb-2 uppercase">Cidade / UF</label>
-                      <input 
-                        value={`${endereco.cidade} - ${endereco.uf}`} 
-                        disabled 
-                        className={`w-full border p-3 rounded bg-gray-900/50 text-gray-500 text-base md:text-sm ${mostrarErros && (!endereco.cidade || !endereco.uf) ? 'border-red-500 border-dashed' : 'border-gray-800'}`} 
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <button type="submit" disabled={salvando} className="w-full md:w-auto bg-hb-gold text-black px-8 md:px-12 py-4 font-bold uppercase tracking-widest text-[10px] md:text-xs hover:bg-yellow-600 transition disabled:opacity-50 flex items-center justify-center gap-2">
-                  {salvando ? <><Loader2 size={16} className="animate-spin"/> Salvando...</> : 'Salvar e Voltar Para Sacola'}
-                </button>
               </form>
+              <EnderecosConta enderecos={enderecos} onChange={setEnderecos} onEdicao={setEditandoEndereco} />
+                <button form="form-dados" type="submit" disabled={salvando || editandoEndereco} className="w-full md:w-auto bg-hb-gold text-black px-8 md:px-12 py-4 font-bold uppercase tracking-widest text-[10px] md:text-xs hover:bg-yellow-600 transition disabled:opacity-50 flex items-center justify-center gap-2">
+                  {salvando ? <><Loader2 size={16} className="animate-spin"/> Salvando...</> : mostrarErros ? 'Salvar e voltar para sacola' : 'Salvar dados pessoais'}
+                </button>
+
             </div>
           )}
 
@@ -448,20 +380,24 @@ function ConteudoMinhaConta() {
           {abaAtiva === 'pedidos' && (
             <div className="animate-in fade-in duration-500">
               <h2 className="text-[11px] md:text-xs font-bold text-white mb-6 md:mb-8 uppercase tracking-[0.2em] border-b border-gray-800 pb-3 md:pb-4">Histórico de Compras</h2>
-              
+
+              <div className="flex flex-wrap gap-2 mb-6">{[['compras','Compras'],['incompletos','Não concluídos'],['todos','Todos']].map(([valor, nome]) => <button key={valor} type="button" aria-pressed={filtroPedidos === valor} onClick={() => setFiltroPedidos(valor)} className={`min-h-11 border rounded px-4 text-xs ${filtroPedidos === valor ? 'border-hb-gold text-hb-gold' : 'border-gray-700 text-gray-400'}`}>{nome}</button>)}</div>
+              {searchParams.get('pagamento') === 'confirmado' && pedidos.some(p => String(p.id) === searchParams.get('pedido') && STATUS_PAGOS.has(p.status.toLowerCase())) && <p role="status" className="mb-6 border border-green-800 p-4 rounded text-sm text-green-300">Pagamento confirmado. Acompanhe seu pedido abaixo.</p>}
               {carregandoPedidos ? (
                 <div className="flex justify-center py-12"><Loader2 className="animate-spin text-gray-500" size={32} /></div>
-              ) : pedidos.length === 0 ? (
+              ) : visiveis.length === 0 ? (
                 <div className="text-center py-12 text-gray-500 uppercase text-[10px] font-bold tracking-widest">Nenhum pedido encontrado.</div>
               ) : (
                 <div className="space-y-6 md:space-y-8">
-                  {pedidos.map((pedido) => {
+                  {visiveis.map((pedido) => {
                     const statusInfo = getStatusFormatado(pedido.status)
-                    const expandido = pedidoExpandido === pedido.id
+                    const expandido = String(pedidoExpandido) === String(pedido.id)
+                    const endereco = pedido.entrega || {}
+                    const podePagar = pedido.status.toLowerCase() === 'pendente' && Date.parse(prazoPagamento(pedido)) > agoraDevolucao && pedido.pode_pagar !== false
 
                     return (
                       <div key={pedido.id} className="border border-gray-800 rounded-xl overflow-hidden shadow-sm">
-                        
+
                         {/* CABEÇALHO DO PEDIDO */}
                         <div className="bg-gray-900/40 p-4 md:p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-gray-800">
                           <div className="flex w-full md:w-auto justify-between md:justify-start gap-4 md:gap-12">
@@ -479,9 +415,12 @@ function ConteudoMinhaConta() {
                             <p className={`text-[10px] md:text-xs font-black uppercase tracking-widest ${statusInfo.cor}`}>{statusInfo.titulo}</p>
                           </div>
                         </div>
-                        
+
                         {/* CORPO DO PEDIDO */}
                         <div className="p-4 md:p-6 bg-hb-black">
+                          {pedido.status.toLowerCase() === 'pendente' && !podePagar && <p className="mb-5 text-sm text-gray-400">O prazo de 24 horas para iniciar um pagamento terminou. Se já pagou ou gerou boleto, aguarde a confirmação. Você pode acompanhar este pedido em Não concluídos.</p>}
+                          {pedido.status === 'pagamento_em_analise' && <p className="mb-5 text-sm text-hb-gold">Recebemos o pagamento e estamos conferindo seu pedido. Aguarde o atendimento e evite realizar outra compra para o mesmo pedido.</p>}
+                          {pedido.pagamento?.expirado_em && <p className="mb-5 text-sm text-gray-400">Prazo encerrado sem tentativa de pagamento. Você pode comprar os itens novamente.</p>}
                           {pedido.itens?.map((item, idx) => (
                             <div key={idx} className="flex flex-col sm:flex-row gap-4 md:gap-6 border-b border-gray-800 pb-5 md:pb-6 mb-5 md:mb-6 last:border-0 last:pb-0 last:mb-0">
                               <Image width={96} height={96} sizes="96px" alt={item.nome} src={item.foto || '/icon.svg'} className="w-20 h-20 md:w-24 md:h-24 object-cover border border-gray-800 rounded shrink-0" />
@@ -491,15 +430,15 @@ function ConteudoMinhaConta() {
                                 <p className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-hb-gold mt-2 md:mt-3 flex items-center gap-1"><Gift size={10} className="md:w-3 md:h-3" /> Joia Exclusiva</p>
                               </div>
                               <div className="w-full sm:w-40 md:w-48 shrink-0 flex flex-col gap-2 md:gap-3 mt-2 sm:mt-0">
-                                <button 
-                                  onClick={() => adicionarAoCarrinho(item)} 
+                                <button
+                                  onClick={() => adicionarAoCarrinho(item)}
                                   className="w-full border border-hb-gold text-hb-gold text-[9px] font-black uppercase tracking-widest py-3 rounded hover:bg-hb-gold hover:text-black transition"
                                 >
                                   Comprar Novamente
                                 </button>
-                                
-                                {pedido.status?.toLowerCase() === 'pendente' && (
-                                  <button 
+
+                                {podePagar && (
+                                  <button
                                     onClick={() => pagarPedidoPendente(pedido.id)}
                                     disabled={carregandoPagamentoId === pedido.id}
                                     className="w-full bg-hb-gold text-black text-[9px] font-black uppercase tracking-widest py-3 rounded hover:bg-yellow-600 transition flex justify-center items-center gap-2"
@@ -512,8 +451,8 @@ function ConteudoMinhaConta() {
                           ))}
 
                           <div className="pt-2 md:pt-4 flex justify-end">
-                            <button 
-                              onClick={() => toggleDetalhes(pedido.id)} 
+                            <button
+                              onClick={() => toggleDetalhes(pedido.id)}
                               aria-expanded={expandido}
                               aria-controls={`detalhes-pedido-${pedido.id}`}
                               aria-label={`${expandido ? 'Ocultar' : 'Ver'} detalhes do pedido #${pedido.id}`}
@@ -527,11 +466,11 @@ function ConteudoMinhaConta() {
                         {/* DETALHES EXPANSÍVEIS (Rastreio) */}
                         {expandido && (
                           <div id={`detalhes-pedido-${pedido.id}`} className="bg-gray-900/50 p-4 md:p-8 border-t border-gray-800 animate-in slide-in-from-top-2">
-                            
+
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 md:gap-8 border-b border-gray-800 pb-6 md:pb-8 mb-6 md:mb-8">
                               <div>
                                 <h4 className="text-[11px] md:text-sm font-light text-white uppercase tracking-widest mb-3 md:mb-4 flex items-center gap-2"><MapPin size={14} className="text-gray-500 md:w-4 md:h-4" /> Endereço</h4>
-                                <p className="text-[10px] md:text-xs text-white font-bold mb-1">{endereco.logradouro || 'Endereço cadastrado'}</p>
+                                <p className="text-[10px] md:text-xs text-white font-bold mb-1">{endereco.logradouro || 'Endereço não registrado neste pedido'}</p>
                                 <p className="text-[10px] md:text-xs text-gray-400 leading-relaxed">
                                   {endereco.numero && `Número: ${endereco.numero}`} <br/>
                                   {endereco.bairro && `Bairro: ${endereco.bairro}`} <br/>
@@ -542,7 +481,7 @@ function ConteudoMinhaConta() {
                               <div>
                                 <h4 className="text-[11px] md:text-sm font-light text-white uppercase tracking-widest mb-3 md:mb-4 flex items-center gap-2"><CreditCard size={14} className="text-gray-500 md:w-4 md:h-4" /> Pagamento</h4>
                                 <p className="text-[10px] md:text-xs text-gray-400 flex items-center gap-2">
-                                  <span className="bg-blue-900/30 text-blue-400 px-2 py-1 rounded text-[9px] md:text-[10px] font-bold border border-blue-800">Mercado Pago</span>
+                                  <span className="bg-blue-900/30 text-blue-400 px-2 py-1 rounded text-[9px] md:text-[10px] font-bold border border-blue-800">{nomePagamento(pedido)}</span>
                                 </p>
                               </div>
                               <div className="sm:col-span-2 md:col-span-1">
@@ -555,7 +494,7 @@ function ConteudoMinhaConta() {
                             </div>
 
                             <LinhaTempoPedido pedido={pedido} />
-                            
+
                           </div>
                         )}
                       </div>
@@ -575,7 +514,9 @@ function ConteudoMinhaConta() {
                   A devolução por arrependimento fica disponível até o fim do 7º dia após o recebimento. Depois desse prazo, a opção é desativada. O atendimento para defeitos e garantia continua disponível, conforme o caso.
                 </p>
               </div>
-              
+
+              <div className="flex flex-wrap gap-2 mb-6">{[['compras','Compras'],['incompletos','Não concluídos'],['todos','Todos']].map(([valor, nome]) => <button key={valor} type="button" aria-pressed={filtroPedidos === valor} onClick={() => setFiltroPedidos(valor)} className={`min-h-11 border rounded px-4 text-xs ${filtroPedidos === valor ? 'border-hb-gold text-hb-gold' : 'border-gray-700 text-gray-400'}`}>{nome}</button>)}</div>
+              {searchParams.get('pagamento') === 'confirmado' && pedidos.some(p => String(p.id) === searchParams.get('pedido') && STATUS_PAGOS.has(p.status.toLowerCase())) && <p role="status" className="mb-6 border border-green-800 p-4 rounded text-sm text-green-300">Pagamento confirmado. Acompanhe seu pedido abaixo.</p>}
               {carregandoPedidos ? (
                 <div className="flex justify-center py-12"><Loader2 className="animate-spin text-gray-500" size={32} /></div>
               ) : pedidos.filter(p => p.status?.toLowerCase() === 'entregue').length === 0 ? (
@@ -604,7 +545,7 @@ function ConteudoMinhaConta() {
                               <div key={`troca-item-${idx}`} className="flex flex-wrap items-center gap-3 md:gap-4 border-b border-gray-800 pb-4 last:border-0 last:pb-0">
                                 <Image width={96} height={96} sizes="96px" alt={item.nome} src={item.foto || '/icon.svg'} className="w-10 h-10 md:w-12 md:h-12 object-cover rounded border border-gray-800 shrink-0" />
                                 <div className="flex-1 min-w-0"><p className="text-[10px] md:text-xs font-bold text-gray-200 uppercase tracking-tight truncate">{item.nome}</p></div>
-                                
+
                                 {jaSolicitouTroca ? (
                                   <span className="text-[8px] md:text-[9px] font-bold uppercase border border-gray-600 bg-transparent text-gray-500 px-3 md:px-4 py-2 rounded flex items-center justify-center gap-1 shrink-0 cursor-not-allowed">
                                     Solicitada

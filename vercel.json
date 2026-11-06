@@ -9,6 +9,10 @@
       "schedule": "0 11 * * *"
     },
     {
+      "path": "/api/cron/pagamentos",
+      "schedule": "0 12 * * *"
+    },
+    {
       "path": "/api/cron/entregas",
       "schedule": "0 13 * * *"
     }

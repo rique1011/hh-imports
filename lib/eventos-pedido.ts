@@ -3,7 +3,7 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { eventosDosItens, instanteRegistrado } from '@/lib/linha-tempo-pedido'
 import type { EtapaPedido, EventoPedido, Identificador, ItemPedido } from '@/types/loja'
 
-interface PedidoComEventos { id: Identificador; created_at: string; itens: ItemPedido[] }
+interface PedidoComEventos { id: Identificador; created_at: string; itens: ItemPedido[]; pagamento?: { aprovado_em?: string | null } }
 interface Confirmacao { pedido_id: string; evento: 'pagamento_aprovado' | 'enviado'; criado_em: string }
 const ordem: Record<EtapaPedido, number> = { realizado: 1, pagamento_aprovado: 2, preparando: 3, enviado: 4, entregue: 5 }
 
@@ -37,6 +37,12 @@ export async function incluirEventosPedidos<T extends PedidoComEventos>(db: Retu
       const anterior = linha.find(evento => evento.etapa === registro.evento)
       if (!anterior) linha.push({ etapa: registro.evento, ocorrido_em: registro.criado_em, data_local: null })
       else if (Date.parse(registro.criado_em) < Date.parse(anterior.ocorrido_em!)) anterior.ocorrido_em = registro.criado_em
+    }
+    const aprovado = pedido.pagamento?.aprovado_em
+    if (aprovado && instanteRegistrado(aprovado) && Date.parse(aprovado) >= Date.parse(pedido.created_at)) {
+      const anterior = linha.find(e => e.etapa === 'pagamento_aprovado')
+      if (anterior) anterior.ocorrido_em = aprovado
+      else linha.push({ etapa: 'pagamento_aprovado', ocorrido_em: aprovado, data_local: null })
     }
     return { ...pedido, linha_tempo: linha.sort((a, b) => ordem[a.etapa] - ordem[b.etapa]) }
   })

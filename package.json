@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --test tests/*.test.cjs",
+    "test": "node --test --test-concurrency=4 tests/*.test.cjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -50,7 +50,7 @@ async function setup(t, idType) {
       Payment: class { async get() { return payment } },
       Preference: class { async create(options) {
         preference = options.body
-        return { init_point: 'https://pagamento.example.test/pagar' }
+        return { id: 'preference-fixture', init_point: 'https://pagamento.example.test/pagar' }
       } },
     },
     'next/server': { ...require('next/server'), after: callback => callbacks.push(callback) },

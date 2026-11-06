@@ -30,7 +30,7 @@ test('pagamento aprovado e preparação são etapas distintas; entrega exige ori
 
 test('histórico privado aproveita o instante da confirmação, preserva preparação e não exporta dados da fila', async t => {
   const db = new PGlite(); t.after(() => db.close())
-  await db.exec(`create table pedidos(id bigint generated always as identity primary key,cliente_email text,cliente_nome text,status text,itens jsonb,created_at timestamptz,total numeric,codigo_rastreio text);
+  await db.exec(`create table pedidos(id bigint generated always as identity primary key,cliente_email text,cliente_nome text,status text,itens jsonb,created_at timestamptz,total numeric,codigo_rastreio text,entrega jsonb,pagamento jsonb default '{}',pagamento_expira_em timestamptz,cashback_debitado numeric default 0);
     create table pedido_notificacoes(pedido_id text,evento text,destinatario text,criado_em timestamptz,enviada_em timestamptz,payload jsonb);
   `)
   const client = adapter(db)

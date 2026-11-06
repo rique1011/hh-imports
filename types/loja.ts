@@ -45,7 +45,19 @@ export interface Pedido {
   codigo_rastreio?: string | null
   data_entrega?: string | null
   linha_tempo?: EventoPedido[]
+  entrega?: Endereco | null
+  pagamento?: PagamentoPedido
+  pagamento_expira_em?: string | null
+  pode_pagar?: boolean
+  cashback_debitado?: number
 }
+
+export interface PagamentoPedido {
+  status?: string; metodo?: string; tipo?: string; parcelas?: number
+  aprovado_em?: string | null; atualizado_em?: string | null
+  expirado_em?: string | null; requer_revisao?: boolean
+}
+export interface EnderecoSalvo extends Endereco { id: string; apelido: string; padrao: boolean }
 
 export interface Endereco {
   cep?: string

@@ -15,7 +15,7 @@ interface Consulta extends PromiseLike<{ data: unknown; error: { message: string
 type Operacao = 'select' | 'insert' | 'update' | 'delete'
 const recursos = {
   produtos: { leitura: 'id,nome,slug,preco,estoque,estoque_reservado,material,descricao,video_url,fotos,categoria_id,categoria_slug,criado_em,visitas', escrita: ['nome','slug','preco','estoque','material','descricao','video_url','fotos','categoria_id','categoria_slug'] },
-  pedidos: { leitura: 'id,created_at,cliente_email,cliente_nome,status,total,itens,codigo_rastreio', escrita: ['status','codigo_rastreio','data_entrega'] },
+  pedidos: { leitura: 'id,created_at,cliente_email,cliente_nome,status,total,itens,codigo_rastreio,entrega', escrita: ['status','codigo_rastreio','data_entrega'] },
   usuarios: { leitura: 'id,nome,email,cpf_cnpj,whatsapp,endereco,perfil,role', escrita: [] },
   cupons: { leitura: 'id,codigo,desconto,valor_fixo,usuario_id,ativo,criado_em', escrita: ['codigo','desconto','valor_fixo','usuario_id','ativo'] },
   trocas: { leitura: 'id,pedido_id,produto_id,usuario_id,motivo,foto_url,status,criado_em,usuarios(nome,email)', escrita: ['status'] },

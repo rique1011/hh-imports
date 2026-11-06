@@ -148,6 +148,9 @@ export async function notificarAdminNovoPedido(pedido: PedidoEmail) {
 }
 
 export async function notificarAdminPagamentoAprovado(pedido: PedidoEmail) {
+  if (pedido.status === 'pagamento_em_analise') return enviar(process.env.ADMIN_EMAIL?.trim() || CONTACT_EMAIL,
+    'Pagamento recebido — Conferência necessária — #' + pedido.id,
+    '<p>O pagamento foi confirmado depois da liberação da reserva. Confira estoque e cashback antes de preparar ou enviar. A expedição automática está suspensa.</p>' + resumoPedido(pedido))
   return enviar(process.env.ADMIN_EMAIL?.trim() || CONTACT_EMAIL,
     'Pagamento confirmado — Hora de separar o produto — #' + pedido.id,
     '<p><strong>Pagamento aprovado. Separe o produto para envio.</strong></p>' +

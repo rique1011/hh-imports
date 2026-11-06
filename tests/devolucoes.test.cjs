@@ -23,7 +23,7 @@ test('API protege o prazo e o admin registra recebimento sem alterar os itens co
   t.after(() => db.close())
   await db.exec(`
     create table pedidos(id bigint generated always as identity primary key, cliente_email text,cliente_nome text,
-      status text,total numeric,itens jsonb,created_at timestamptz default now(),codigo_rastreio text);
+      status text,total numeric,itens jsonb,created_at timestamptz default now(),codigo_rastreio text,entrega jsonb,pagamento jsonb default '{}',pagamento_expira_em timestamptz,cashback_debitado numeric default 0);
     create table trocas(id uuid primary key default gen_random_uuid(), pedido_id text, produto_id uuid,
       usuario_id bigint, motivo text, foto_url text, status text, unique(pedido_id,produto_id));
   `)

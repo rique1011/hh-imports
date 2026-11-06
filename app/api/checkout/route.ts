@@ -3,12 +3,13 @@ import { snapshotEntrega } from '@/lib/entrega'
 import { validarCupom } from '@/lib/cupons'
 import { ErroHttp, validarOrigem } from '@/lib/autorizacao'
 import { NextResponse, after } from 'next/server'
-import { Preference } from 'mercadopago'
-import { BRAND_NAME } from '@/lib/brand'
 import { getRequestUser } from '@/lib/request-user'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { getMercadoPagoClient } from '@/lib/mercadopago'
 import { getSiteUrl } from '@/lib/site-url'
+import { criarPreferenciaPedido } from '@/lib/pagamentos'
+import { listarEnderecos } from '@/lib/enderecos-servidor'
+import { enderecoPadrao } from '@/lib/enderecos'
 import { processarNotificacoes } from '@/lib/notificacoes'
 import { processarEnvioAutomatico } from '@/lib/envio-automatico'
 
@@ -49,9 +50,12 @@ export async function POST(request: Request) {
     const subtotal = valor(itens.reduce((sum: number, item: { preco: number; quantidade: number }) =>
       sum + item.preco * item.quantidade, 0))
     const { data: cadastro, error: cadastroError } = await db.from('usuarios')
-      .select('nome,email,cpf_cnpj,whatsapp,endereco').eq('email', user.email).single()
+      .select('id,nome,email,cpf_cnpj,whatsapp,endereco').eq('email', user.email).single()
     if (cadastroError || !cadastro) throw new Error('Falha ao consultar o endereço de entrega.')
-    const entrega = snapshotEntrega(cadastro)
+    const enderecos = await listarEnderecos(db, cadastro.id)
+    const escolhido = body.enderecoId ? enderecos.find(e => e.id === body.enderecoId) : enderecoPadrao(enderecos)
+    if (body.enderecoId && !escolhido) throw new ErroHttp(404, 'Endereço não encontrado.')
+    const entrega = snapshotEntrega({ ...cadastro, endereco: escolhido ? JSON.stringify(escolhido) : cadastro.endereco })
     if (!/^\d{8}$/.test(entrega.cep) || !entrega.logradouro || !entrega.numero || !entrega.bairro || !entrega.cidade || !entrega.uf) {
       return NextResponse.json({ error: 'Complete o endereço de entrega no seu cadastro.' }, { status: 400 })
     }
@@ -72,7 +76,7 @@ export async function POST(request: Request) {
     const total = valor(antesCashback - cashback)
     const baseUrl = getSiteUrl()
     // Validar credenciais antes de criar o pedido.
-    const mp = total > 0 ? getMercadoPagoClient() : null
+    if (total > 0) getMercadoPagoClient()
     const { data: pedido, error: pedidoError } = await db.rpc('hh_criar_pedido_com_envio', {
       p_email: user.email, p_nome: user.name, p_total: total,
       p_itens: itens, p_cashback: cashback, p_entrega: entrega, p_frete: cotacao,
@@ -92,21 +96,10 @@ export async function POST(request: Request) {
     })
     if (total === 0) {
       return NextResponse.json({ pedidoId: pedido.id,
-        urlPagamento: baseUrl + '/sucesso?external_reference=' + encodeURIComponent(pedido.id) })
+        urlPagamento: baseUrl + '/sucesso?pedido=' + encodeURIComponent(pedido.id) })
     }
-    const preference = await new Preference(mp!).create({
-      body: {
-        items: [{ id: String(pedido.id), title: 'Pedido ' + BRAND_NAME,
-          quantity: 1, unit_price: total, currency_id: 'BRL' }],
-        payer: { email: user.email },
-        external_reference: String(pedido.id),
-        notification_url: baseUrl + '/api/webhooks/mercadopago',
-        back_urls: { success: baseUrl + '/sucesso', failure: baseUrl + '/carrinho', pending: baseUrl + '/carrinho' },
-        ...(baseUrl.startsWith('https://') ? { auto_return: 'approved' as const } : {}),
-      },
-    })
-    if (!preference.init_point) throw new Error('Mercado Pago nao retornou o link de pagamento.')
-    return NextResponse.json({ pedidoId: pedido.id, urlPagamento: preference.init_point })
+    const urlPagamento = await criarPreferenciaPedido(db, pedido, user.email, true)
+    return NextResponse.json({ pedidoId: pedido.id, urlPagamento })
   } catch (error) {
     if (error instanceof ErroHttp) return NextResponse.json({ error: error.message }, { status: error.status })
     console.error('[checkout] Falha:', error)

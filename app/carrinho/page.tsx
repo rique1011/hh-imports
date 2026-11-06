@@ -1,5 +1,7 @@
 'use client'
 import Modal from '@/components/Modal'
+import type { EnderecoSalvo } from '@/types/loja'
+import { enderecoPadrao, textoEndereco } from '@/lib/enderecos'
 
 import Image from 'next/image'
 import type { ProdutoCarrinho } from '@/lib/store'
@@ -9,7 +11,7 @@ import { mensagemErro } from '@/lib/erros'
 import { useCart } from '@/lib/store'
 import Link from 'next/link'
 import { Trash2, Loader2, Ticket, CheckCircle2, X, Truck, Sparkles, Plus, Gift, AlertCircle, DollarSign } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react' 
 import { useRouter } from 'next/navigation' 
 import { useShallow } from 'zustand/react/shallow'
@@ -31,11 +33,14 @@ export default function PaginaCarrinho() {
   const [validandoCupom, setValidandoCupom] = useState(false)
 
   const [cep, setCep] = useState('')
+  const [enderecos, setEnderecos] = useState<EnderecoSalvo[]>([])
+  const [enderecoId, setEnderecoId] = useState('')
+  const consultaFrete = useRef<AbortController | null>(null)
   const [opcoesFrete, setOpcoesFrete] = useState<OpcaoFrete[]>([])
   const [freteSelecionado, setFreteSelecionado] = useState<number>(0)
   const [freteToken, setFreteToken] = useState('')
   const [baseCotacao, setBaseCotacao] = useState('')
-  const contextoFrete = cep.replace(/\D/g, '') + JSON.stringify(itens.map(({ id, quantidade, preco }) => ({ id, quantidade, preco })))
+  const contextoFrete = enderecoId + cep.replace(/\D/g, '') + JSON.stringify(itens.map(({ id, quantidade, preco }) => ({ id, quantidade, preco })))
   const cotacaoAtual = baseCotacao === contextoFrete
   const [carregandoFrete, setCarregandoFrete] = useState(false)
   const [erroFrete, setErroFrete] = useState('')
@@ -89,16 +94,12 @@ export default function PaginaCarrinho() {
 
           const temDocumento = Boolean(usuarioDb.cpf_cnpj && usuarioDb.whatsapp)
           
-          let temEndereco = false
-          if (usuarioDb.endereco) {
-            try {
-              const endParsed = JSON.parse(usuarioDb.endereco)
-              temEndereco = Boolean(endParsed.cep && endParsed.logradouro && endParsed.numero && endParsed.bairro)
-            } catch {
-              temEndereco = usuarioDb.endereco.length > 10
-            }
-          }
-          
+          const lista: EnderecoSalvo[] = Array.isArray(usuarioDb.enderecos) ? usuarioDb.enderecos : []
+          const padrao = enderecoPadrao(lista)
+          setEnderecos(lista); setEnderecoId(padrao?.id || '')
+          if (padrao?.cep) setCep(padrao.cep.replace(/^(\d{5})(\d{3})$/, '$1-$2'))
+          const temEndereco = Boolean(padrao?.cep && padrao.logradouro && padrao.numero && padrao.bairro && padrao.cidade && padrao.uf)
+
           setPerfilCompleto(temEndereco && temDocumento)
         }
 
@@ -199,6 +200,13 @@ export default function PaginaCarrinho() {
     }
   }, [itens, session, subtotal])
 
+  useEffect(() => () => consultaFrete.current?.abort(), [contextoFrete])
+
+  const mudarEndereco = (id: string) => {
+    consultaFrete.current?.abort(); setCarregandoFrete(false); setEnderecoId(id); setCep(enderecos.find(e => e.id === id)?.cep?.replace(/^(\d{5})(\d{3})$/, '$1-$2') || '')
+    setOpcoesFrete([]); setFreteSelecionado(0); setFreteToken(''); setBaseCotacao(''); setErroFrete('')
+  }
+
   // 4. FUNÇÕES DE AÇÃO
   const aplicarDescontoRetencao = () => {
     aplicarCupom(codigoRetencao, novoDescontoRetencao)
@@ -213,7 +221,9 @@ export default function PaginaCarrinho() {
 
   const calcularFrete = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (cep.length < 9) return
+    if (cep.replace(/\D/g, '').length !== 8) return
+    consultaFrete.current?.abort()
+    const controller = new AbortController(); consultaFrete.current = controller
 
     setCarregandoFrete(true)
     setErroFrete('')
@@ -223,11 +233,13 @@ export default function PaginaCarrinho() {
 
     try {
       const response = await fetch('/api/frete', {
+        signal: controller.signal,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cepDestino: cep, itens: itens.map(({ id, quantidade }) => ({ id: String(id), quantidade })) })
       })
       const data = await response.json()
+      if (controller.signal.aborted) return
 
       if (!response.ok) {
         setErroFrete(data.error || 'Erro ao calcular frete.')
@@ -241,9 +253,9 @@ export default function PaginaCarrinho() {
         }
       }
     } catch {
-      setErroFrete('Erro de conexão ao calcular frete.')
+      if (!controller.signal.aborted) setErroFrete('Erro de conexão ao calcular frete.')
     } finally {
-      setCarregandoFrete(false)
+      if (consultaFrete.current === controller) setCarregandoFrete(false)
     }
   }
 
@@ -291,7 +303,8 @@ export default function PaginaCarrinho() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          itens, 
+          itens,
+          enderecoId,
           frete: freteFinal,
           freteToken: cotacaoAtual ? freteToken : '',
           codigoCupom: cupom?.codigo || null,
@@ -371,12 +384,17 @@ export default function PaginaCarrinho() {
                 )}
               </div>
 
+              {session && <div className="mb-6 space-y-3">
+                {enderecos.length > 0 && <><label htmlFor="endereco-entrega" className="block text-sm text-gray-300">Entregar em</label><select id="endereco-entrega" value={enderecoId} onChange={e => mudarEndereco(e.target.value)} className="w-full min-h-11 rounded border border-gray-700 bg-hb-black px-3 py-3 text-base text-white">{enderecos.map(e => <option value={e.id} key={e.id}>{e.apelido}{e.padrao ? ' · Padrão' : ''}</option>)}</select><p className="text-sm leading-relaxed text-gray-400 break-words">{textoEndereco(enderecos.find(e => e.id === enderecoId) || {})}</p></>}
+                <Link href="/minha-conta?aba=dados" className="min-h-11 inline-flex items-center text-sm text-hb-gold underline underline-offset-4">{enderecos.length ? 'Gerenciar endereços' : 'Cadastrar endereço de entrega'}</Link>
+              </div>}
               {!freteGratis ? (
                 <>
                   <form onSubmit={calcularFrete} className="flex gap-2 mb-5 md:mb-6">
                     <input
                       type="text" inputMode="numeric" autoComplete="postal-code" aria-label="CEP de entrega"
                       value={cep}
+                      readOnly={Boolean(enderecoId)}
                       onChange={handleCepChange}
                       maxLength={9}
                       placeholder="00000-000"
@@ -385,7 +403,7 @@ export default function PaginaCarrinho() {
                     />
                     <button 
                       type="submit" 
-                      disabled={carregandoFrete || cep.length < 9}
+                      disabled={carregandoFrete || cep.replace(/\D/g, '').length !== 8}
                       className="bg-hb-gold text-hb-black px-4 md:px-6 py-3 text-[9px] md:text-[10px] font-bold uppercase tracking-widest hover:bg-hb-goldLight transition disabled:opacity-50 flex items-center justify-center gap-2 shrink-0 rounded"
                     >
                       {carregandoFrete ? <Loader2 size={14} className="animate-spin" /> : 'Calcular'}

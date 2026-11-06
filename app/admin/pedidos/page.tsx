@@ -79,7 +79,7 @@ export default function TelaPedidos() {
             try { enderecoParsed = JSON.parse(usuarioDb.endereco) } 
             catch { enderecoParsed = { logradouro: usuarioDb.endereco } }
           }
-          setDadosCliente({ ...usuarioDb, enderecoParsed })
+          setDadosCliente({ ...usuarioDb, enderecoParsed: pedido.entrega || enderecoParsed })
         }
       } catch (error) {
         console.error("Erro ao buscar dados adicionais do cliente", error)

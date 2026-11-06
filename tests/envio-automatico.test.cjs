@@ -47,7 +47,7 @@ async function setup(t, options = {}) {
     '@/lib/melhor-envio': { ...api, melhorEnvio: fornecedor },
     '@/lib/notificacoes': { processarNotificacoes: async id => { emails.push(id) } },
     '@/lib/request-user': { getRequestUser: async () => ({ email: entrega.email, name: entrega.nome }) },
-    'mercadopago': { MercadoPagoConfig: class {}, Payment: class { async get() { return payment } }, Preference: class { async create() { return { init_point: 'https://pagamento.example.test' } } } },
+    'mercadopago': { MercadoPagoConfig: class {}, Payment: class { async get() { return payment } }, Preference: class { async create() { return { id: 'preference-fixture', init_point: 'https://pagamento.example.test' } } } },
     'next/server': { ...require('next/server'), after: callback => callbacks.push(callback) },
   }
   const lib = loadTs('lib/envio-automatico', mocks)
