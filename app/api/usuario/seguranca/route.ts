@@ -6,10 +6,11 @@ import QRCode from 'qrcode'
 import { exigirUsuario, validarOrigem, responderErro, ErroHttp } from '@/lib/autorizacao'
 import { cifrarMfa, consumirMfa, decifrarMfa, hash, lerJson, limitar, passoMfa, senhaConfere, totp, validarSenha } from '@/lib/seguranca'
 const headers={'Cache-Control':'no-store'}
-export async function GET(request: Request){try{ const user=await exigirUsuario(request,true); return NextResponse.json({mfaAtiva:user.mfaAtiva,admin:user.admin},{headers}) }catch(e){return responderErro(e)}}
+export async function GET(request: Request){try{ const user=await exigirUsuario(request,true); if(!user.administrador)throw new ErroHttp(403,'Acesso restrito ao administrador.'); return NextResponse.json({mfaAtiva:user.mfaAtiva,admin:true},{headers}) }catch(e){return responderErro(e)}}
 export async function POST(request: Request){try{
  validarOrigem(request); const user=await exigirUsuario(request,true)
  await limitar(request,'seguranca',10,900,String(user.id)); const body=await lerJson(request)
+ if(!user.administrador && !['senha','sair'].includes(String(body.acao))) throw new ErroHttp(403,'Autenticador disponível somente para administradores.')
  const {data:u,error}=await user.db.from('usuarios').select('id,email,senha,mfa_secret,mfa_pendente,mfa_pendente_expires,sessao_versao').eq('id',user.id).single()
  if(error||!u||u.sessao_versao!==user.versao) throw new ErroHttp(401,'Entre novamente.')
  if(body.acao==='ativar'){
@@ -22,7 +23,7 @@ export async function POST(request: Request){try{
   return NextResponse.json({codigos,entrarNovamente:true},{headers})
  }
  if(!await senhaConfere(body.senha,u.senha)) throw new ErroHttp(400,'Não foi possível confirmar suas credenciais.')
- if(u.mfa_secret && !await consumirMfa(user.db,u,String(body.codigo||'').trim())) throw new ErroHttp(400,'Confirme o código do autenticador ou de recuperação.')
+ if(user.administrador && u.mfa_secret && !await consumirMfa(user.db,u,String(body.codigo||'').trim())) throw new ErroHttp(400,'Confirme o código do autenticador ou de recuperação.')
  if(body.acao==='configurar'){
   if(u.mfa_secret) throw new ErroHttp(409,'Autenticador já ativo.')
   const secret=new OTPAuth.Secret({size:20}).base32,encrypted=cifrarMfa(secret)

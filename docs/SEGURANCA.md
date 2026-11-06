@@ -6,7 +6,8 @@ Atualização de 06/11/2026. Executar a migração `20261106194511_seguranca_eco
 
 - Senhas novas: frase exclusiva com pelo menos 15 caracteres e até 72 bytes; bcrypt custo 12. Contas antigas com senha curta entram em sessão restrita para atualização.
 - Cada requisição privada valida identificação, versão de sessão, e-mail confirmado e bloqueio no banco. Troca de senha, papel, e-mail, bloqueio ou MFA revoga sessões anteriores.
-- Administradores precisam de TOTP. Após entrar: Minha conta → Segurança da conta → configurar autenticador → guardar os dez códigos de recuperação → entrar novamente com código. O reset de senha preserva o segundo fator.
+- Clientes confirmam o e-mail no cadastro e entram com e-mail e senha, sem aplicativo autenticador ou aba de segurança administrativa. A troca comum de senha fica em Meus dados; senhas legadas fracas são atualizadas uma vez nesse formulário.
+- Administradores precisam de TOTP. O campo de código aparece somente depois da validação da senha de uma conta administradora. Após entrar: Minha conta → Segurança do administrador → configurar autenticador → guardar os dez códigos de recuperação → entrar novamente com código. O reset de senha preserva o segundo fator.
 - Códigos de confirmação são criptográficos, armazenados com HMAC, expiram em 15 minutos e permitem cinco erros. Recuperação usa token aleatório, hash SHA-256, uma hora de validade e consumo atômico.
 - Proteção persistente de tentativas no Postgres; não depende da memória de uma função Vercel. Falha na proteção recusa a operação.
 

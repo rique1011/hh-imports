@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { useCart } from '@/lib/store'
 import { useShallow } from 'zustand/react/shallow'
+import AlterarSenhaConta from '@/components/AlterarSenhaConta'
 import SegurancaConta from '@/components/SegurancaConta'
 import { uploadImagem } from '@/lib/upload-imagem'
 import type { Identificador, Pedido, ItemPedido, EnderecoSalvo } from '@/types/loja'
@@ -32,7 +33,10 @@ function ConteudoMinhaConta() {
 
   const [abaEscolhida, setAbaAtiva] = useState(() => searchParams.get('aba') || 'pedidos')
 
-  const abaAtiva=session?.user && (session.user.senhaAtual===false || (session.user.role==='admin'&&!session.user.mfa)) ? 'seguranca' : abaEscolhida
+  const contaAdmin=session?.user?.role==='admin'
+  const senhaPendente=session?.user?.senhaAtual===false
+  const abaAtiva=contaAdmin && (senhaPendente || !session?.user?.mfa) ? 'seguranca'
+    : !contaAdmin && senhaPendente ? 'dados' : !contaAdmin && abaEscolhida==='seguranca' ? 'pedidos' : abaEscolhida
   const [pedidos, setPedidos] = useState<Pedido[]>([])
   const [carregandoPedidos, setCarregandoPedidos] = useState(true)
   const recarregarPedidos = useCallback(async () => {
@@ -100,7 +104,7 @@ function ConteudoMinhaConta() {
           if (data && data.saldo_cashback) setSaldoCashback(Number(data.saldo_cashback))
           if (data.cpf_cnpj) setPodeEditarCPF(false)
 
-          if (data && data.role === 'admin') {
+          if (data && [data.perfil,data.role].includes('admin')) {
             setIsAdmin(true)
           }
 
@@ -284,7 +288,7 @@ function ConteudoMinhaConta() {
             <button onClick={() => setAbaAtiva('pedidos')} className={`flex items-center justify-center lg:justify-start gap-2 px-4 py-3 md:py-4 text-xs font-bold uppercase tracking-wide transition border lg:border-0 lg:border-b border-gray-900 rounded-full lg:rounded-none min-w-0 min-h-12 whitespace-normal leading-relaxed ${abaAtiva === 'pedidos' ? 'text-hb-gold border-hb-gold lg:border-l-2 lg:border-l-hb-gold lg:border-t-0 lg:border-r-0 lg:border-b-gray-900 bg-hb-gold/10 lg:bg-gray-900/50' : 'text-gray-500 hover:text-white hover:bg-gray-900/30'}`}><Package size={14} className="md:w-4 md:h-4" /> Meus Pedidos</button>
             <button onClick={() => setAbaAtiva('dados')} className={`flex items-center justify-center lg:justify-start gap-2 px-4 py-3 md:py-4 text-xs font-bold uppercase tracking-wide transition border lg:border-0 lg:border-b border-gray-900 rounded-full lg:rounded-none min-w-0 min-h-12 whitespace-normal leading-relaxed ${abaAtiva === 'dados' ? 'text-hb-gold border-hb-gold lg:border-l-2 lg:border-l-hb-gold lg:border-t-0 lg:border-r-0 lg:border-b-gray-900 bg-hb-gold/10 lg:bg-gray-900/50' : 'text-gray-500 hover:text-white hover:bg-gray-900/30'}`}><User size={14} className="md:w-4 md:h-4" /> Meus Dados</button>
             <button onClick={() => setAbaAtiva('trocas')} className={`flex items-center justify-center lg:justify-start gap-2 px-4 py-3 md:py-4 text-xs font-bold uppercase tracking-wide transition border lg:border-0 lg:border-b border-gray-900 rounded-full lg:rounded-none min-w-0 min-h-12 whitespace-normal leading-relaxed ${abaAtiva === 'trocas' ? 'text-hb-gold border-hb-gold lg:border-l-2 lg:border-l-hb-gold lg:border-t-0 lg:border-r-0 lg:border-b-gray-900 bg-hb-gold/10 lg:bg-gray-900/50' : 'text-gray-500 hover:text-white hover:bg-gray-900/30'}`}><RefreshCcw size={14} className="md:w-4 md:h-4" /> Trocas e Devoluções</button>
-            <button onClick={() => setAbaAtiva('seguranca')} className="min-h-12 px-4 py-3 text-xs text-hb-gold border-b border-gray-900">Segurança da conta</button>
+            {contaAdmin && <button onClick={() => setAbaAtiva('seguranca')} className="min-h-12 px-4 py-3 text-xs text-hb-gold border-b border-gray-900">Segurança do administrador</button>}
             <button onClick={() => setAbaAtiva('desejos')} className={`flex items-center justify-center lg:justify-start gap-2 px-4 py-3 md:py-4 text-xs font-bold uppercase tracking-wide transition border lg:border-0 lg:border-b border-gray-900 rounded-full lg:rounded-none min-w-0 min-h-12 whitespace-normal leading-relaxed ${abaAtiva === 'desejos' ? 'text-hb-gold border-hb-gold lg:border-l-2 lg:border-l-hb-gold lg:border-t-0 lg:border-r-0 lg:border-b-gray-900 bg-hb-gold/10 lg:bg-gray-900/50' : 'text-gray-500 hover:text-white hover:bg-gray-900/30'}`}><Heart size={14} className="md:w-4 md:h-4" /> Desejos</button>
 
             {isAdmin && (
@@ -302,9 +306,10 @@ function ConteudoMinhaConta() {
         <section className="flex-1 min-w-0">
 
           {/* ABA: DADOS PESSOAIS */}
-          {abaAtiva === 'seguranca' && <SegurancaConta />}
+          {contaAdmin && abaAtiva === 'seguranca' && <SegurancaConta />}
           {abaAtiva === 'dados' && (
             <div className="space-y-8 md:space-y-10 animate-in fade-in duration-500">
+              {!contaAdmin && <AlterarSenhaConta obrigatoria={senhaPendente} />}
 
               {mostrarErros && (
                 <div className="bg-red-900/20 border border-red-900/50 text-red-400 p-4 rounded-lg flex items-start md:items-center gap-3 shadow-md animate-bounce">

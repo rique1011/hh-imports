@@ -20,9 +20,10 @@ export async function exigirUsuario(request: Request, restrita = false) {
   const { data, error } = await db.from('usuarios')
     .select('id,email,nome,perfil,role,email_verificado,sessao_versao,bloqueado,senha_politica_versao,mfa_secret').eq('email', session.email).single()
   if (error || !data || !data.email_verificado || data.bloqueado || String(data.id)!==session.id || data.sessao_versao!==session.sessaoVersao) throw new ErroHttp(401, 'Sessão inválida.')
-  if (!restrita && (!session.senhaAtual || data.senha_politica_versao!==1)) throw new ErroHttp(403, 'Atualize sua senha em Minha conta > Segurança.')
-  return { mfa:session.mfa, versao:data.sessao_versao as number, mfaAtiva:!!data.mfa_secret, id: data.id as string | number, email: String(data.email), nome: String(data.nome || 'Cliente'),
-    admin: session.mfa && !!data.mfa_secret && [data.perfil, data.role].some(value => value === 'admin'), db }
+  const administrador = [data.perfil, data.role].some(value => value === 'admin')
+  if (!restrita && (!session.senhaAtual || data.senha_politica_versao!==1)) throw new ErroHttp(403, administrador ? 'Atualize sua senha em Minha conta > Segurança.' : 'Atualize sua senha em Minha conta > Meus dados.')
+  return { administrador, mfa:session.mfa, versao:data.sessao_versao as number, mfaAtiva:administrador && !!data.mfa_secret, id: data.id as string | number, email: String(data.email), nome: String(data.nome || 'Cliente'),
+    admin: administrador && session.mfa && !!data.mfa_secret, db }
 }
 
 export async function exigirAdmin(request: Request) {

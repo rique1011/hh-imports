@@ -5,7 +5,7 @@ import { signOut } from 'next-auth/react'
 export default function SegurancaConta(){
  const [ativa,setAtiva]=useState(false),[senha,setSenha]=useState(''),[nova,setNova]=useState(''),[codigo,setCodigo]=useState(''),[erro,setErro]=useState(''),[busy,setBusy]=useState(false)
  const [setup,setSetup]=useState<{secret:string;qr:string}|null>(null),[codigos,setCodigos]=useState<string[]>([])
- useEffect(()=>{fetch('/api/usuario/seguranca').then(r=>r.json()).then(d=>setAtiva(!!d.mfaAtiva)).catch(()=>setErro('Não foi possível carregar a segurança.'))},[])
+ useEffect(()=>{fetch('/api/usuario/seguranca').then(async r=>{if(!r.ok)throw Error();return r.json()}).then(d=>setAtiva(!!d.mfaAtiva)).catch(()=>setErro('Não foi possível carregar a segurança.'))},[])
  async function agir(acao:string){setBusy(true);setErro('');try{
   const r=await fetch('/api/usuario/seguranca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({acao,senha,novaSenha:nova,codigo})});const d=await r.json();if(!r.ok)throw Error(d.error||'Falha na operação.')
   if(d.codigos){setCodigos(d.codigos);setSetup(null);setSenha('');setCodigo('');return}
@@ -13,7 +13,7 @@ export default function SegurancaConta(){
   if(d.entrarNovamente)await signOut({callbackUrl:'/login'})
  }catch(e){setErro(e instanceof Error?e.message:'Tente novamente.')}finally{setBusy(false)}}
  const input='w-full rounded border border-gray-700 bg-hb-black p-3 text-base text-white'
- return <section className="space-y-6 max-w-xl"><h2 className="text-xl text-hb-gold">Segurança da conta</h2>
+ return <section className="space-y-6 max-w-xl"><h2 className="text-xl text-hb-gold">Segurança do administrador</h2>
  <p className="text-sm text-gray-300">Use uma senha exclusiva de pelo menos 15 caracteres. Para administrar a loja, ative um aplicativo autenticador, como Google Authenticator ou Microsoft Authenticator.</p>
  {erro&&<p role="alert" className="text-red-300">{erro}</p>}
  {codigos.length>0?<div className="space-y-4"><p>Autenticador ativado. Guarde estes códigos em um local seguro. Cada um funciona uma única vez se você perder o celular. Eles não serão exibidos novamente.</p><div className="grid grid-cols-1 sm:grid-cols-2 gap-2 font-mono text-sm break-all">{codigos.map(c=><code key={c}>{c}</code>)}</div><button className="btn-luxury p-3" onClick={()=>signOut({callbackUrl:'/login'})}>Guardei os códigos. Entrar novamente</button></div>:<>
