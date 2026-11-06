@@ -71,6 +71,11 @@ export async function POST(request: Request) {
         if (proximo && proximo !== atual && !transicoes[atual]?.includes(proximo)) {
           throw new ErroHttp(409, 'A confirmação e o cancelamento financeiro exigem conciliação com o provedor. Atualize somente a entrega de pedidos pagos.')
         }
+        if (proximo === 'processando' && atual !== 'processando') {
+          if (!Array.isArray(pedido.itens) || !pedido.itens.length) throw new ErroHttp(400, 'O pedido não possui itens para iniciar a preparação.')
+          const inicio = new Date().toISOString()
+          lista[0].itens = pedido.itens.map(item => ({ ...item, preparacao_iniciada_em: item.preparacao_iniciada_em || inicio }))
+        }
       }
       valores = Array.isArray(valores) ? lista : lista[0]
     }

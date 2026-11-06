@@ -1,5 +1,6 @@
 'use client'
 import Modal from '@/components/Modal'
+import LinhaTempoPedido from '@/components/LinhaTempoPedido'
 
 import Image from 'next/image'
 
@@ -10,14 +11,14 @@ import Link from 'next/link'
 import { 
   User, Package, Heart, Loader2, Lock, 
   ShoppingBag, Trash2, LogOut, RefreshCcw, X, Upload, 
-  AlertCircle, CheckCircle2, Truck, DollarSign, Sparkles, MapPin, CreditCard, Receipt, Gift
+  AlertCircle, CheckCircle2, DollarSign, Sparkles, MapPin, CreditCard, Receipt, Gift
 } from 'lucide-react'
 import { useCart } from '@/lib/store'
 import { useShallow } from 'zustand/react/shallow'
 import { uploadImagem } from '@/lib/upload-imagem'
 import type { Identificador, Pedido, ItemPedido } from '@/types/loja'
 import { mensagemErro } from '@/lib/erros'
-import { prazoDevolucao, formatarDia } from '@/lib/prazo-devolucao'
+import { prazoDevolucao, formatarDia, FUSO_LOJA } from '@/lib/prazo-devolucao'
 import { useRecebimentoAutomatico } from '@/lib/use-recebimento-automatico'
 
 function ConteudoMinhaConta() {
@@ -198,19 +199,11 @@ function ConteudoMinhaConta() {
   const getStatusFormatado = (status: string) => {
     const s = status?.toLowerCase()
     if (s === 'pendente') return { titulo: 'AGUARDANDO PAGAMENTO', cor: 'text-yellow-500' }
-    if (s === 'pago' || s === 'confirmado') return { titulo: 'PREPARANDO PEDIDO', cor: 'text-green-400' }
+    if (s === 'pago' || s === 'confirmado') return { titulo: 'PAGAMENTO APROVADO', cor: 'text-green-400' }
+    if (s === 'processando') return { titulo: 'PREPARANDO PEDIDO', cor: 'text-green-400' }
     if (s === 'enviado') return { titulo: 'PEDIDO ENVIADO', cor: 'text-blue-400' }
     if (s === 'entregue') return { titulo: 'PEDIDO ENTREGUE', cor: 'text-hb-gold' }
     return { titulo: status?.toUpperCase(), cor: 'text-gray-300' }
-  }
-
-  const getProgressoStepper = (status: string) => {
-    const s = status?.toLowerCase()
-    let nivel = 1
-    if (s === 'pago' || s === 'confirmado') nivel = 3
-    if (s === 'enviado') nivel = 4
-    if (s === 'entregue') nivel = 5
-    return nivel
   }
 
   const toggleDetalhes = (id: Identificador) => {
@@ -474,7 +467,7 @@ function ConteudoMinhaConta() {
                           <div className="flex w-full md:w-auto justify-between md:justify-start gap-4 md:gap-12">
                             <div>
                               <p className="text-[9px] md:text-[10px] text-gray-500 font-medium mb-1 uppercase">Data do pedido</p>
-                              <p className="text-xs md:text-sm font-medium text-white">{new Date(pedido.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
+                              <p className="text-xs md:text-sm font-medium text-white">{new Date(pedido.created_at).toLocaleDateString('pt-BR', { timeZone: FUSO_LOJA, day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
                             </div>
                             <div className="text-right md:text-left">
                               <p className="text-[9px] md:text-[10px] text-gray-500 font-medium mb-1 uppercase">Total</p>
@@ -521,6 +514,9 @@ function ConteudoMinhaConta() {
                           <div className="pt-2 md:pt-4 flex justify-end">
                             <button 
                               onClick={() => toggleDetalhes(pedido.id)} 
+                              aria-expanded={expandido}
+                              aria-controls={`detalhes-pedido-${pedido.id}`}
+                              aria-label={`${expandido ? 'Ocultar' : 'Ver'} detalhes do pedido #${pedido.id}`}
                               className="w-full md:w-56 bg-gray-800 text-white text-[9px] md:text-[10px] font-black uppercase tracking-widest py-3 md:py-4 rounded hover:bg-gray-700 transition shadow-sm"
                             >
                               {expandido ? 'Ocultar Detalhes' : 'Ver Detalhes do Pedido'}
@@ -530,7 +526,7 @@ function ConteudoMinhaConta() {
 
                         {/* DETALHES EXPANSÍVEIS (Rastreio) */}
                         {expandido && (
-                          <div className="bg-gray-900/50 p-4 md:p-8 border-t border-gray-800 animate-in slide-in-from-top-2">
+                          <div id={`detalhes-pedido-${pedido.id}`} className="bg-gray-900/50 p-4 md:p-8 border-t border-gray-800 animate-in slide-in-from-top-2">
                             
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 md:gap-8 border-b border-gray-800 pb-6 md:pb-8 mb-6 md:mb-8">
                               <div>
@@ -558,43 +554,7 @@ function ConteudoMinhaConta() {
                               </div>
                             </div>
 
-                            {/* LINHA DO TEMPO (STEPPER) */}
-                            <div>
-                              <h4 className="text-[11px] md:text-sm font-light text-white uppercase tracking-widest mb-6 md:mb-8 text-center md:text-left">Status do Pedido</h4>
-                              
-                              <div className="overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
-                                <div className="min-w-[500px] md:min-w-full relative flex justify-between items-center max-w-2xl mx-auto">
-                                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-[2px] bg-gray-800 z-0"></div>
-                                  <div className="absolute left-0 top-1/2 -translate-y-1/2 h-[2px] bg-hb-gold z-0 transition-all duration-1000" style={{ width: `${(getProgressoStepper(pedido.status) - 1) * 25}%` }}></div>
-                                  
-                                  {/* Passo 1 */}
-                                  <div className="relative z-10 flex flex-col items-center gap-2 md:gap-3">
-                                    <div className={`w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center border-2 bg-hb-black ${getProgressoStepper(pedido.status) >= 1 ? 'border-hb-gold text-hb-gold' : 'border-gray-700 text-gray-700'}`}><CheckCircle2 size={12} className="md:w-4 md:h-4" /></div>
-                                    <span className={`text-[8px] md:text-[9px] uppercase font-bold tracking-widest text-center w-16 md:w-20 ${getProgressoStepper(pedido.status) >= 1 ? 'text-white' : 'text-gray-600'}`}>Realizado</span>
-                                  </div>
-                                  {/* Passo 2 */}
-                                  <div className="relative z-10 flex flex-col items-center gap-2 md:gap-3">
-                                    <div className={`w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center border-2 bg-hb-black ${getProgressoStepper(pedido.status) >= 3 ? 'border-hb-gold text-hb-gold' : 'border-gray-700 text-gray-700'}`}><CheckCircle2 size={12} className="md:w-4 md:h-4" /></div>
-                                    <span className={`text-[8px] md:text-[9px] uppercase font-bold tracking-widest text-center w-16 md:w-20 ${getProgressoStepper(pedido.status) >= 3 ? 'text-white' : 'text-gray-600'}`}>Aprovado</span>
-                                  </div>
-                                  {/* Passo 3 */}
-                                  <div className="relative z-10 flex flex-col items-center gap-2 md:gap-3">
-                                    <div className={`w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center border-2 bg-hb-black ${getProgressoStepper(pedido.status) >= 3 ? 'border-hb-gold text-hb-gold' : 'border-gray-700 text-gray-700'}`}><Package size={12} className="md:w-4 md:h-4" /></div>
-                                    <span className={`text-[8px] md:text-[9px] uppercase font-bold tracking-widest text-center w-16 md:w-20 ${getProgressoStepper(pedido.status) >= 3 ? 'text-white' : 'text-gray-600'}`}>Preparando</span>
-                                  </div>
-                                  {/* Passo 4 */}
-                                  <div className="relative z-10 flex flex-col items-center gap-2 md:gap-3">
-                                    <div className={`w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center border-2 bg-hb-black ${getProgressoStepper(pedido.status) >= 4 ? 'border-hb-gold text-hb-gold' : 'border-gray-700 text-gray-700'}`}><Truck size={12} className="md:w-4 md:h-4" /></div>
-                                    <span className={`text-[8px] md:text-[9px] uppercase font-bold tracking-widest text-center w-16 md:w-20 ${getProgressoStepper(pedido.status) >= 4 ? 'text-white' : 'text-gray-600'}`}>Enviado</span>
-                                  </div>
-                                  {/* Passo 5 */}
-                                  <div className="relative z-10 flex flex-col items-center gap-2 md:gap-3">
-                                    <div className={`w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center border-2 bg-hb-black ${getProgressoStepper(pedido.status) >= 5 ? 'border-hb-gold text-hb-gold' : 'border-gray-700 text-gray-700'}`}><MapPin size={12} className="md:w-4 md:h-4" /></div>
-                                    <span className={`text-[8px] md:text-[9px] uppercase font-bold tracking-widest text-center w-16 md:w-20 ${getProgressoStepper(pedido.status) >= 5 ? 'text-white' : 'text-gray-600'}`}>Entregue</span>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
+                            <LinhaTempoPedido pedido={pedido} />
                             
                           </div>
                         )}

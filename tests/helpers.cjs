@@ -95,7 +95,9 @@ exports.adapter = function adapter(db) {
         }
         const result = await db.query(query, params)
         if (this.head) return { data: null, count: result.rows[0].count, error: null }
-        return { data: single ? result.rows[0] || null : result.rows, error: null }
+        // PostgREST transporta timestamps como JSON/ISO, enquanto PGlite retorna Date.
+        const rows = JSON.parse(JSON.stringify(result.rows))
+        return { data: single ? rows[0] || null : rows, error: null }
       } catch (error) { return { data: null, error: { message: error.message, code: error.code } } }
     }
     single() { return this.execute(true) }

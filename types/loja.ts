@@ -24,6 +24,14 @@ export interface ItemPedido extends ProdutoCarrinho {
   data_recebimento?: string | null
   recebimento_origem?: 'melhor_envio' | 'manual'
   recebimento_confirmado_em?: string | null
+  preparacao_iniciada_em?: string | null
+}
+
+export type EtapaPedido = 'realizado' | 'pagamento_aprovado' | 'preparando' | 'enviado' | 'entregue'
+export interface EventoPedido {
+  etapa: EtapaPedido
+  ocorrido_em: string | null
+  data_local: string | null
 }
 
 export interface Pedido {
@@ -36,6 +44,7 @@ export interface Pedido {
   itens: ItemPedido[]
   codigo_rastreio?: string | null
   data_entrega?: string | null
+  linha_tempo?: EventoPedido[]
 }
 
 export interface Endereco {
