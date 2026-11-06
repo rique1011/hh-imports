@@ -1,6 +1,6 @@
 # Segurança da H&H IMPORTS
 
-Atualização de 06/11/2026. Executar a migração `20261106194511_seguranca_ecommerce.sql` antes de publicar o código correspondente.
+Atualização de 06/11/2026. Executar a migração `20261106194511_seguranca_ecommerce.sql` e `20261106200903_revogar_envios_estornados.sql` antes de publicar o código correspondente.
 
 ## Autenticação
 

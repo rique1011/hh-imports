@@ -82,7 +82,7 @@ export async function POST(request: Request) {
     // Validar credenciais antes de criar o pedido.
     if (total > 0) getMercadoPagoClient()
     const { data: pedido, error: pedidoError } = await db.rpc('hh_checkout_seguro', {
-      p_email: user.email, p_nome: user.nome, p_chave: chave, p_hash: createHash('sha256').update(JSON.stringify({itens:body.itens,enderecoId:body.enderecoId,embalagem:body.embalagemPresente,cupom:body.codigoCupom,cashback:body.cashbackUsado})).digest('hex'), p_total: total,
+      p_email: user.email, p_nome: user.nome, p_chave: chave, p_hash: createHash('sha256').update(JSON.stringify({itens:itens.map((i:{id:string;quantidade:number;preco:number})=>({id:i.id,quantidade:i.quantidade,preco:i.preco})),entrega,servico:cotacao?.servico,frete,total,embalagem:!!body.embalagemPresente,cupom:body.codigoCupom||null,cashback})).digest('hex'), p_total: total,
       p_itens: itens, p_cashback: cashback, p_entrega: entrega, p_frete: cotacao,
     })
     if (pedidoError && /Estoque insuficiente|Produto indisponivel/.test(pedidoError.message)) return NextResponse.json({ error: 'Estoque insuficiente. Atualize sua sacola.' }, { status: 409 })

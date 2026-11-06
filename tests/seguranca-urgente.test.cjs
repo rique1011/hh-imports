@@ -96,3 +96,15 @@ test('Bearer malformado e JWT antigo sem versão são recusados',async()=>{
  const old=await jwt.encode({secret:process.env.NEXTAUTH_SECRET,token:{email}})
  assert.equal(await get(new Request('http://localhost',{headers:{cookie:'next-auth.session-token='+old}})),null)
 })
+test('foto de devolução é regravada sem metadados e guardada no bucket privado com vínculo ao item',async t=>{
+ const s=await setup(t);await s.db.query('insert into usuarios(email,nome) values($1,$2)',[email,'Cliente']);const p=await pedido(s)
+ await s.db.query("update pedidos set status='entregue' where id=$1",[p.id])
+ const uploaded=[];s.client.storage={from:bucket=>({upload:async(path,bytes,opts)=>{uploaded.push({bucket,path,bytes,opts});return{error:null}}})}
+ const auth=loadTs('lib/autorizacao'),mocks={...s.mocks,'@/lib/autorizacao':{...auth,exigirUsuario:async()=>({id:1,email,nome:'Cliente',admin:false,db:s.client})}}
+ const route=loadTs('app/api/uploads/route',mocks),sharp=require('sharp')
+ const image=await sharp({create:{width:2,height:2,channels:3,background:'#222222'}}).jpeg().toBuffer()
+ const request=()=>{const f=new FormData();f.set('arquivo',new File([image],'foto.jpg',{type:'image/jpeg'}));f.set('tipo','trocas');f.set('pedidoId',String(p.id));f.set('produtoId',sku);return new Request('https://loja.test/api/uploads',{method:'POST',headers:{origin:'https://loja.test'},body:f})}
+ const r=await route.POST(request());assert.equal(r.status,200);assert.match((await r.json()).publicUrl,/^private:devolucoes\/trocas\/1\//);assert.equal(uploaded[0].bucket,'devolucoes')
+ const meta=await sharp(uploaded[0].bytes).metadata();assert.equal(meta.format,'webp');assert.equal(meta.exif,undefined)
+ await s.db.query("update pedidos set cliente_email='outra@example.test' where id=$1",[p.id]);assert.equal((await route.POST(request())).status,404)
+})

@@ -96,7 +96,7 @@ export default function PaginaCadastro() {
               Senha
             </label>
             <input 
-              type="password" 
+              type="password" minLength={15} 
               required 
               value={senha}
               onChange={(e) => setSenha(e.target.value)}

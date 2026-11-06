@@ -1,3 +1,4 @@
+import { limitar, lerJson } from '@/lib/seguranca'
 import { NextResponse } from 'next/server'
 import { exigirUsuario, validarOrigem, responderErro, ErroHttp } from '@/lib/autorizacao'
 export async function GET() { return NextResponse.json({ status: 'Rota disponível.' }) }
@@ -5,7 +6,8 @@ export async function POST(request: Request) {
   try {
     validarOrigem(request)
     const user = await exigirUsuario(request)
-    const { itens } = await request.json()
+    await limitar(request,'salvar-sacola',60,600,String(user.id))
+    const { itens } = await lerJson(request) as {itens:{id:string;quantidade:number}[]}
     if (!Array.isArray(itens) || itens.length > 100) throw new ErroHttp(400, 'Carrinho inválido.')
     if (!itens.length) {
       const { error } = await user.db.from('carrinhos_abandonados').delete().eq('cliente_email', user.email)

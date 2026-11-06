@@ -76,6 +76,10 @@ export async function processarEnvioAutomatico(pedidoId?: string, passos = 2, so
       proxima_tentativa: new Date(Date.now() + minutos * 60000).toISOString(),
       lease_id: null, locked_until: null, atualizado_em: new Date().toISOString(),
     }).eq('pedido_id', id).eq('lease_id', lease).select('pedido_id').maybeSingle()
+    if(!error && !salvo){
+      const {data:atual,error:leitura}=await db.from('envio_automatico_fila').select('estado').eq('pedido_id',id).maybeSingle()
+      if(!leitura && atual && ['atencao','manual','concluida'].includes(atual.estado)) return {processado:false,pedidoId:id,estado:atual.estado as EnvioAutomatico['estado']}
+    }
     if (error || !salvo) throw new Error('Não foi possível persistir a etapa de expedição.')
     return { processado: true, pedidoId: id, estado }
   }

@@ -1,4 +1,4 @@
-import { limitar } from '@/lib/seguranca'
+import { limitar, lerJson } from '@/lib/seguranca'
 import { responderErro, validarOrigem } from '@/lib/autorizacao'
 import { NextResponse } from 'next/server'
 import { unstable_cache } from 'next/cache'
@@ -10,7 +10,7 @@ export async function POST(request: Request) {
   try {
     validarOrigem(request)
     await limitar(request,'frete',30,60)
-    const { cepDestino, itens } = await request.json()
+    const { cepDestino, itens } = await lerJson(request) as {cepDestino:string;itens:{id:string;quantidade:number}[]}
     if (typeof cepDestino !== 'string' || !/^\d{8}$/.test(cepDestino.replace(/\D/g, ''))) return NextResponse.json({ error: 'CEP inválido.' }, { status: 400 })
     if (!Array.isArray(itens) || !itens.length || itens.length > 100 || itens.some(item =>
       !item || typeof item.id !== 'string' || !/^[0-9a-f-]{36}$/i.test(item.id) || !Number.isSafeInteger(item.quantidade) || item.quantidade < 1 || item.quantidade > 100)) {

@@ -299,7 +299,7 @@ export default function PaginaCarrinho() {
 
     setCarregando(true)
     try {
-      const compraHash=JSON.stringify({itens:itens.map(i=>({id:i.id,quantidade:i.quantidade})),enderecoId,codigoCupom:cupom?.codigo,embalagemPresente,cashbackUsado:valorCashbackAplicado})
+      const compraHash=JSON.stringify({itens:itens.map(i=>({id:i.id,quantidade:i.quantidade})),enderecoId,servico:opcoesFrete.find(o=>o.token===freteToken)?.servico,codigoCupom:cupom?.codigo,embalagemPresente,cashbackUsado:valorCashbackAplicado})
       const anterior=JSON.parse(sessionStorage.getItem('hh-checkout-idempotencia')||'null')
       const chave=anterior?.hash===compraHash ? anterior.chave : crypto.randomUUID()
       sessionStorage.setItem('hh-checkout-idempotencia',JSON.stringify({hash:compraHash,chave}))
@@ -423,7 +423,7 @@ export default function PaginaCarrinho() {
                         <label 
                           key={index} 
                           className={`flex items-center justify-between p-3 md:p-4 rounded-lg border cursor-pointer transition-all ${
-                            freteSelecionado === Number(opcao.preco) ? 'border-hb-gold bg-hb-black' : 'border-gray-700 hover:border-hb-gold'
+                            freteToken === opcao.token ? 'border-hb-gold bg-hb-black' : 'border-gray-700 hover:border-hb-gold'
                           }`}
                         >
                           <div className="flex items-center gap-3 md:gap-4">
@@ -431,7 +431,7 @@ export default function PaginaCarrinho() {
                               type="radio" 
                               name="frete" 
                               value={opcao.preco} 
-                              checked={freteSelecionado === Number(opcao.preco)}
+                              checked={freteToken === opcao.token}
                               onChange={() => { setFreteSelecionado(Number(opcao.preco)); setFreteToken(opcao.token || '') }}
                               className="w-4 h-4 text-hb-gold focus:ring-hb-gold accent-hb-gold cursor-pointer shrink-0"
                             />
