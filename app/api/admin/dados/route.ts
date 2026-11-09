@@ -5,6 +5,8 @@ import { dataRecebimentoValida, diaNaLoja, dataEntregaDosItens } from '@/lib/pra
 import { exigirAdmin, validarOrigem, responderErro, ErroHttp } from '@/lib/autorizacao'
 import { inferirCategoriaNome, obterCategoria } from '@/lib/categorias'
 import { vitrinesValidas } from '@/lib/selecoes'
+import { resumoPagamentoAdmin } from '@/lib/pedidos-admin'
+import type { Pedido } from '@/types/loja'
 
 interface Consulta extends PromiseLike<{ data: unknown; error: { message: string } | null }> {
   eq(campo: string, valor: unknown): Consulta
@@ -18,7 +20,7 @@ interface Consulta extends PromiseLike<{ data: unknown; error: { message: string
 type Operacao = 'select' | 'insert' | 'update' | 'delete'
 const recursos = {
   produtos: { leitura: 'id,nome,slug,preco,estoque,estoque_reservado,material,descricao,video_url,fotos,categoria_id,categoria_slug,criado_em,visitas,vitrines', escrita: ['nome','slug','preco','estoque','material','descricao','video_url','fotos','categoria_id','categoria_slug','vitrines'] },
-  pedidos: { leitura: 'id,created_at,cliente_email,cliente_nome,status,total,itens,codigo_rastreio,entrega', escrita: ['status','codigo_rastreio','data_entrega'] },
+  pedidos: { leitura: 'id,created_at,cliente_email,cliente_nome,status,total,itens,codigo_rastreio,entrega,pagamento,pagamento_expira_em,cashback_debitado', escrita: ['status','codigo_rastreio','data_entrega'] },
   usuarios: { leitura: 'id,nome,email,cpf_cnpj,whatsapp,endereco,perfil,role', escrita: [] },
   cupons: { leitura: 'id,codigo,desconto,valor_fixo,usuario_id,ativo,criado_em', escrita: ['codigo','desconto','valor_fixo','usuario_id','ativo'] },
   trocas: { leitura: 'id,pedido_id,produto_id,usuario_id,motivo,foto_url,status,criado_em,usuarios(nome,email)', escrita: ['status'] },
@@ -134,7 +136,7 @@ export async function POST(request: Request) {
     const incluirData = (dado: unknown) => {
       if (!dado || typeof dado !== 'object') return dado
       const pedido = dado as Record<string, unknown>
-      return { ...pedido, data_entrega: dataEntregaDosItens(pedido.itens) }
+      return { ...pedido, data_entrega: dataEntregaDosItens(pedido.itens), pagamento: resumoPagamentoAdmin(pedido as unknown as Pedido) }
     }
     if(tabela==='trocas'){const proteger=(t:Record<string,unknown>)=>({...t,foto_url:typeof t.foto_url==='string'&&t.foto_url.startsWith('private:devolucoes/')?'/api/trocas/'+t.id+'/foto':t.foto_url});result.data=Array.isArray(result.data)?result.data.map(proteger):result.data?proteger(result.data as Record<string,unknown>):result.data}
     const resposta = tabela === 'pedidos' ? { ...result, data: Array.isArray(result.data) ? result.data.map(incluirData) : incluirData(result.data) } : result

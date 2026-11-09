@@ -9,15 +9,20 @@ import type { Pedido, Usuario, Endereco } from '@/types/loja'
 import { mensagemErro } from '@/lib/erros'
 import { diaNaLoja } from '@/lib/prazo-devolucao'
 import { useRecebimentoAutomatico } from '@/lib/use-recebimento-automatico'
+import { FILTROS_PEDIDOS_ADMIN, filtrarPedidosAdmin, grupoPedidoAdmin, type FiltroPedidosAdmin } from '@/lib/pedidos-admin'
+import { nomePagamento } from '@/lib/pagamento-pedido'
+import toast from 'react-hot-toast'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Search, Loader2, ShoppingBag, Eye, Truck, CheckCircle2, X, User, MapPin, Phone, FileText } from 'lucide-react'
+import { Search, Loader2, ShoppingBag, Eye, Truck, CheckCircle2, X, User, MapPin, Phone, FileText, RefreshCw } from 'lucide-react'
 import { supabaseAdmin as supabase } from '@/lib/admin-client'
 
 export default function TelaPedidos() {
   const [pedidos, setPedidos] = useState<Pedido[]>([])
   const [carregando, setCarregando] = useState(true)
   const [busca, setBusca] = useState('')
+  const [filtro, setFiltro] = useState<FiltroPedidosAdmin>('a_enviar')
+  const [erro, setErro] = useState('')
 
   const [modalAberta, setModalAberta] = useState(false)
   const [pedidoSelecionado, setPedidoSelecionado] = useState<Pedido | null>(null)
@@ -47,8 +52,9 @@ export default function TelaPedidos() {
       .then(({ data, error }) => {
         if (error) throw error
         setPedidos(data || [])
+        setErro('')
       })
-      .catch(error => console.error('Erro ao carregar pedidos:', error))
+      .catch(() => setErro('Não foi possível carregar os pedidos. Atualize a lista para tentar novamente.'))
       .finally(() => setCarregando(false))
   }, [])
 
@@ -58,7 +64,7 @@ export default function TelaPedidos() {
   // 🚨 ATUALIZADO: Agora ele busca os dados do cliente ao abrir a modal
   const abrirDetalhes = async (pedido: Pedido) => {
     setPedidoSelecionado(pedido)
-    setNovoStatus(pedido.status || 'pendente')
+    setNovoStatus((pedido.status || 'pendente').trim().toLowerCase())
     setNovoRastreio(pedido.codigo_rastreio || '')
     setDataEntrega(pedido.data_entrega || '')
     setDadosCliente(null)
@@ -90,7 +96,7 @@ export default function TelaPedidos() {
 
   const handleSalvarAlteracoes = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!pedidoSelecionado) return
+    if (!pedidoSelecionado || !podeOperarSelecionado) return
     setSalvando(true)
 
     try {
@@ -109,13 +115,13 @@ export default function TelaPedidos() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pedidoId: pedidoSelecionado.id })
       })
-      alert(notificacao.ok
+      toast.success(notificacao.ok
         ? "Pedido atualizado. A notificacao foi registrada para envio."
         : "Pedido atualizado. A notificacao sera retomada pela fila automatica.")
       setModalAberta(false)
       carregarPedidos() 
     } catch (error) {
-      alert("Erro ao atualizar pedido: " + mensagemErro(error))
+      toast.error("Erro ao atualizar pedido: " + mensagemErro(error))
     } finally {
       setSalvando(false)
     }
@@ -129,10 +135,11 @@ export default function TelaPedidos() {
     return 'bg-yellow-900/30 text-yellow-400 border border-yellow-800'
   }
 
-  const pedidosFiltrados = pedidos.filter(p => 
-    p.id.toString().includes(busca) || 
-    (p.cliente_email && p.cliente_email.toLowerCase().includes(busca.toLowerCase()))
-  )
+  const pedidosFiltrados = filtrarPedidosAdmin(pedidos, filtro, busca)
+  const filtroAtual = FILTROS_PEDIDOS_ADMIN.find(f => f.id === filtro)!
+  const podeOperarSelecionado = !!pedidoSelecionado && ['a_enviar', 'enviados', 'entregues'].includes(grupoPedidoAdmin(pedidoSelecionado))
+  const quantidades: Record<FiltroPedidosAdmin, number> = { a_enviar: 0, enviados: 0, entregues: 0, aguardando: 0, revisao: 0, todos: pedidos.length }
+  for (const pedido of pedidos) { const grupo = grupoPedidoAdmin(pedido); if (grupo !== 'historico') quantidades[grupo]++ }
 
   const formatarZapParaLink = (numero: string) => {
     if (!numero) return ''
@@ -143,14 +150,14 @@ export default function TelaPedidos() {
     <div className="text-gray-300 bg-hb-black min-h-screen">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl break-words font-light text-white uppercase tracking-widest mb-2">Pedidos Realizados</h1>
-          <p className="text-sm text-gray-400">Gerencie as vendas, atualize status e insira códigos de rastreio.</p>
+          <h1 className="text-2xl sm:text-3xl break-words font-light text-white uppercase tracking-widest mb-2">Pedidos</h1>
+          <p className="text-sm text-gray-400">Comece pelos pedidos pagos que precisam ser preparados e enviados.</p>
         </div>
         <div className="bg-hb-gray border border-gray-800 rounded-full px-4 py-2 flex items-center gap-2 shadow-sm w-full md:w-64">
           <Search size={16} className="text-gray-500" />
           <input 
-            type="text" 
-            placeholder="Buscar pedido ou email..." 
+            type="search" aria-label="Buscar pedido, cliente ou e-mail"
+            placeholder="Pedido, cliente ou e-mail..."
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
             className="outline-none text-sm text-white bg-transparent w-full placeholder-gray-600" 
@@ -160,13 +167,26 @@ export default function TelaPedidos() {
 
       <EnvioAutomaticoConfig onAbrirPedido={id => { const pedido = pedidos.find(item => String(item.id) === id); if (pedido) void abrirDetalhes(pedido) }} />
 
-      {carregando ? (
+      <nav aria-label="Filtrar pedidos" className="mb-5 flex flex-wrap gap-2">
+        {FILTROS_PEDIDOS_ADMIN.map(f => <button key={f.id} type="button" aria-pressed={filtro === f.id} onClick={() => setFiltro(f.id)}
+          className={`inline-flex min-h-11 items-center gap-2 rounded-lg border px-3 py-2 text-xs transition-colors focus-visible:outline-2 focus-visible:outline-hb-gold ${filtro === f.id ? 'border-hb-gold bg-hb-gold/10 text-hb-goldLight' : 'border-gray-800 bg-hb-gray text-gray-400 hover:border-hb-gold/50 hover:text-white'}`}>
+          {f.nome}<span className="rounded-full bg-black/30 px-2 py-0.5 text-[10px] tabular-nums">{carregando ? '…' : quantidades[f.id]}</span>
+        </button>)}
+      </nav>
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div><h2 className="font-serif text-xl text-luxury-ivory">{filtroAtual.nome}</h2><p className="mt-2 max-w-2xl text-xs leading-6 text-gray-400">{filtroAtual.descricao}</p>
+          {!carregando && !erro && <p role="status" className="mt-1 text-xs text-gray-500">{pedidosFiltrados.length} pedido(s){busca.trim() ? ' nesta busca' : ' nesta visão'}.</p>}</div>
+        <button type="button" disabled={carregando} onClick={() => { setCarregando(true); void carregarPedidos() }} className="inline-flex min-h-11 items-center gap-2 text-xs text-hb-gold hover:text-hb-goldLight disabled:opacity-50"><RefreshCw size={14} className={carregando ? 'animate-spin' : ''} />Atualizar pedidos</button>
+      </div>
+
+      {erro ? <p role="alert" className="rounded-xl border border-red-800 bg-red-950/20 p-5 text-sm text-red-200">{erro}</p> : carregando ? (
         <div className="flex justify-center py-20"><Loader2 className="animate-spin text-hb-gold" size={32} /></div>
       ) : pedidosFiltrados.length === 0 ? (
         <div className="bg-hb-gray p-12 rounded-2xl border border-gray-800 text-center shadow-sm">
           <ShoppingBag size={48} className="mx-auto text-gray-600 mb-4" />
-          <p className="text-gray-400 uppercase tracking-widest text-sm font-bold mb-2">Nenhum pedido encontrado.</p>
-          <p className="text-xs text-gray-500">Assim que você fizer a primeira venda, ela aparecerá aqui.</p>
+          <p className="text-gray-300 uppercase tracking-widest text-sm font-bold mb-2">{busca.trim() ? 'Nenhum pedido corresponde à busca nesta visão.' : filtroAtual.vazio}</p>
+          <p className="text-xs leading-6 text-gray-500">{busca.trim() ? 'Confira outro filtro ou limpe a busca.' : filtro === 'a_enviar' ? 'Novos pagamentos confirmados aparecerão aqui. Consulte pendentes e histórico nos filtros acima.' : filtroAtual.descricao}</p>
+          {busca.trim() && <button type="button" onClick={() => setBusca('')} className="mt-4 min-h-11 text-xs text-hb-gold underline">Limpar busca</button>}
         </div>
       ) : (
         <div className="bg-hb-gray border border-gray-800 rounded-xl shadow-sm overflow-hidden">
@@ -197,12 +217,12 @@ export default function TelaPedidos() {
                       R$ {Number(pedido.total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </td>
                     <td className="p-4">
-                      <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${getStatusColor(pedido.status)}`}>
-                        {pedido.status || 'Pendente'}
+                      <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${getStatusColor(grupoPedidoAdmin(pedido) === 'revisao' ? 'pagamento_em_analise' : pedido.status)}`}>
+                        {grupoPedidoAdmin(pedido) === 'revisao' ? 'Revisão financeira' : pedido.status || 'Pendente'}
                       </span>
                     </td>
                     <td className="p-4 text-center">
-                      <button onClick={() => abrirDetalhes(pedido)} className="p-2 text-gray-500 hover:text-hb-gold bg-hb-black border border-gray-800 rounded transition" title="Ver Detalhes">
+                      <button onClick={() => abrirDetalhes(pedido)} className="inline-flex min-h-11 min-w-11 items-center justify-center p-2 text-gray-500 hover:text-hb-gold bg-hb-black border border-gray-800 rounded transition" title="Ver Detalhes" aria-label={`Ver detalhes do pedido ${pedido.id}`}>
                         <Eye size={16} />
                       </button>
                     </td>
@@ -319,7 +339,11 @@ export default function TelaPedidos() {
               </div>
 
               {/* Formulário de Atualização */}
-              {['pago','confirmado','processando','enviado','entregue'].includes(pedidoSelecionado.status) && <EtiquetaMelhorEnvio
+              <div className={`rounded-xl border p-4 text-sm leading-6 ${podeOperarSelecionado ? 'border-hb-gold/30 bg-hb-gold/5 text-gray-300' : 'border-amber-900 bg-amber-950/20 text-amber-200'}`}>
+                <p className="font-medium">Pagamento: {nomePagamento(pedidoSelecionado)}</p>
+                <p className="mt-1 text-xs">{podeOperarSelecionado ? 'Pagamento confirmado. Confira os dados da entrega e acompanhe a etiqueta abaixo.' : grupoPedidoAdmin(pedidoSelecionado) === 'revisao' ? 'Confira a pendência financeira antes de preparar ou postar este pedido.' : 'Este pedido não está liberado para envio. A liberação depende da confirmação do pagamento.'}</p>
+              </div>
+              {podeOperarSelecionado && <EtiquetaMelhorEnvio
                 key={pedidoSelecionado.id} pedidoId={String(pedidoSelecionado.id)} onAtualizado={etiquetaAtualizada} onOcupado={setGerandoEtiqueta} />}
               <form id="form-pedido" onSubmit={handleSalvarAlteracoes} className="bg-hb-black p-5 rounded-xl border border-gray-800 space-y-4">
                 <h3 className="text-[10px] font-black text-hb-gold uppercase tracking-widest mb-4 flex items-center gap-2"><Truck size={14}/> Logística e Status</h3>
@@ -328,7 +352,7 @@ export default function TelaPedidos() {
                   <div>
                     <label htmlFor="status-pedido" className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Status do Pedido</label>
                     <select id="status-pedido"
-                      value={novoStatus} disabled={gerandoEtiqueta}
+                      value={novoStatus} disabled={gerandoEtiqueta || !podeOperarSelecionado}
                       onChange={(e) => setNovoStatus(e.target.value)} 
                       className="w-full bg-gray-900 border border-gray-800 text-white p-3 rounded text-sm outline-none focus:border-hb-gold font-medium"
                     >
@@ -345,7 +369,7 @@ export default function TelaPedidos() {
                     <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Código de Rastreio</label>
                     <input 
                       type="text" 
-                      value={novoRastreio} disabled={gerandoEtiqueta}
+                      value={novoRastreio} disabled={gerandoEtiqueta || !podeOperarSelecionado}
                       onChange={(e) => setNovoRastreio(e.target.value.toUpperCase())} 
                       className="w-full bg-gray-900 border border-gray-800 text-white p-3 rounded text-sm outline-none focus:border-hb-gold uppercase placeholder-gray-600" 
                       placeholder="Ex: QQ123456789BR" 
@@ -354,7 +378,7 @@ export default function TelaPedidos() {
                 </div>
                 {novoStatus === 'entregue' && <div>
                   <label htmlFor="data-recebimento" className="mb-2 block text-xs text-gray-300">Data real de recebimento pelo cliente</label>
-                  <input id="data-recebimento" type="date" required max={diaNaLoja()} value={dataEntrega} disabled={gerandoEtiqueta} onChange={e => setDataEntrega(e.target.value)} className="w-full border border-gray-800 bg-gray-900 p-3 text-base text-white rounded" />
+                  <input id="data-recebimento" type="date" required max={diaNaLoja()} value={dataEntrega} disabled={gerandoEtiqueta || !podeOperarSelecionado} onChange={e => setDataEntrega(e.target.value)} className="w-full border border-gray-800 bg-gray-900 p-3 text-base text-white rounded" />
                   <p className="mt-2 text-xs leading-5 text-gray-400">Pedidos com etiqueta vinculada ao Melhor Envio recebem esta data automaticamente após a confirmação da transportadora. O prazo de 7 dias parte do recebimento real. Para pedidos antigos ou correções, confira a data antes de salvar.</p>
                 </div>}
               </form>
@@ -366,7 +390,7 @@ export default function TelaPedidos() {
                 <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Total do Pedido</p>
                 <p className="text-xl font-black text-hb-gold">R$ {Number(pedidoSelecionado.total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
               </div>
-              <button type="submit" form="form-pedido" disabled={salvando || gerandoEtiqueta} className="bg-hb-gold text-hb-black px-8 py-3 rounded font-bold uppercase tracking-widest text-[10px] flex items-center gap-2 hover:bg-hb-goldLight transition disabled:opacity-50">
+              <button type="submit" form="form-pedido" disabled={salvando || gerandoEtiqueta || !podeOperarSelecionado} className="bg-hb-gold text-hb-black px-4 sm:px-8 py-3 rounded font-bold uppercase tracking-widest text-[10px] flex items-center gap-2 hover:bg-hb-goldLight transition disabled:opacity-50">
                 {salvando ? <Loader2 size={16} className="animate-spin" /> : <><CheckCircle2 size={16} /> Salvar Alterações</>}
               </button>
             </div>
