@@ -10,13 +10,15 @@ import ZoomImagem from '@/components/ZoomImagem'
 import ProductCard from '@/components/ProductCard'
 import { formatarPreco } from '@/lib/formatacao'
 import { ArrowRight, ChevronRight, Play, ShieldCheck, Truck } from 'lucide-react'
+import { categoriaDoProduto } from '@/lib/categorias'
+import { produtosDaCategoria } from '@/lib/catalogo-categorias'
 
 export const revalidate = 0
 
 async function PecasRelacionadas({ produtoId, categoria }: { produtoId: string; categoria: string | null }) {
-  let query = supabase.from('produtos').select('id,nome,slug,preco,fotos,material,estoque,estoque_reservado').neq('id', produtoId)
-  if (categoria) query = query.eq('categoria_slug', categoria)
-  const { data: produtos } = await query.order('criado_em', { ascending: false }).limit(4)
+  const produtos = categoria ? (await produtosDaCategoria(categoria).catch(() => [])).filter(p => p.id !== produtoId).slice(0, 4)
+    : (await supabase.from('produtos').select('id,nome,slug,preco,fotos,material,estoque,estoque_reservado')
+      .neq('id', produtoId).order('criado_em', { ascending: false }).limit(4)).data
   if (!produtos?.length) return null
   return <section className="border-t border-luxury-line pt-14 sm:pt-20"><div className="mb-8 flex flex-wrap items-end justify-between gap-5"><div><p className="eyebrow mb-3">Continue descobrindo</p><h2 className="luxury-title">Uma boa <span className="italic text-luxury-gold-light">companhia.</span></h2></div><Link href="/produtos" className="luxury-link">Todas as peças <ArrowRight size={15} /></Link></div><div className="grid grid-cols-2 gap-x-4 gap-y-10 sm:gap-x-6 lg:grid-cols-4 lg:gap-8">{produtos.map(produto => <ProductCard key={produto.id} produto={produto} />)}</div></section>
 }
@@ -48,7 +50,7 @@ export default async function PaginaProduto({ params }: { params: Promise<{ slug
         </div>
       </div>
       <div className="mb-16 border-t border-luxury-line pt-10 sm:mb-24"><AvaliacoesDiferidas produtoId={produto.id} /></div>
-      <Suspense fallback={null}><PecasRelacionadas produtoId={produto.id} categoria={produto.categoria_slug} /></Suspense>
+      <Suspense fallback={null}><PecasRelacionadas produtoId={produto.id} categoria={categoriaDoProduto(produto)} /></Suspense>
     </div>
   </main>
 }

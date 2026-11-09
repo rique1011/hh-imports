@@ -1,5 +1,7 @@
-import { supabase } from '@/lib/supabase'
 import FiltroCategoria from '../FiltroCategoria'
+import { notFound } from 'next/navigation'
+import { obterCategoria } from '@/lib/categorias'
+import { produtosDaCategoria } from '@/lib/catalogo-categorias'
 
 export const revalidate = 0
 
@@ -10,24 +12,15 @@ interface PageProps {
 export default async function PaginaCategoria({ params }: PageProps) {
   const { slug } = await params
 
-  const nomesTitulos: Record<string, string> = {
-    'aneis': 'Anéis',
-    'colares': 'Colares',
-    'pulseiras': 'Pulseiras',
-    'relogios': 'Relógios',
-    'brincos': 'Brincos',
-  }
-  const tituloCategoria = nomesTitulos[slug] || slug
-
-  const { data: produtos } = await supabase
-    .from('produtos')
-    .select('id,nome,slug,preco,fotos,material,estoque,estoque_reservado')
-    .eq('categoria_slug', slug)
+  const categoria = obterCategoria(slug)
+  if (!categoria) notFound()
+  const produtos = await produtosDaCategoria(categoria.slug)
 
   return (
     <FiltroCategoria 
-      produtosOriginais={produtos || []} 
-      tituloCategoria={tituloCategoria} 
+      key={categoria.slug}
+      produtosOriginais={produtos}
+      tituloCategoria={categoria.nome}
     />
   )
 }

@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { revalidateTag } from 'next/cache'
 import { dataRecebimentoValida, diaNaLoja, dataEntregaDosItens } from '@/lib/prazo-devolucao'
 import { exigirAdmin, validarOrigem, responderErro, ErroHttp } from '@/lib/autorizacao'
+import { inferirCategoriaNome, obterCategoria } from '@/lib/categorias'
 
 interface Consulta extends PromiseLike<{ data: unknown; error: { message: string } | null }> {
   eq(campo: string, valor: unknown): Consulta
@@ -46,6 +47,16 @@ export async function POST(request: Request) {
       for (const chave of Object.keys(lista[0])) if (!(regra.escrita as readonly string[]).includes(chave)) throw new ErroHttp(400, 'Campo não permitido: ' + chave)
       if ('preco' in lista[0] && (!Number.isFinite(Number(lista[0].preco)) || Number(lista[0].preco) < 0)) throw new ErroHttp(400, 'Preço inválido.')
       if ('estoque' in lista[0] && (!Number.isSafeInteger(Number(lista[0].estoque)) || Number(lista[0].estoque) < 0)) throw new ErroHttp(400, 'Estoque inválido.')
+      if (tabela === 'produtos') {
+        if ('categoria_slug' in lista[0]) {
+          const categoria = obterCategoria(lista[0].categoria_slug)
+          if (!categoria) throw new ErroHttp(400, 'Selecione uma categoria válida para a peça.')
+          lista[0].categoria_slug = categoria.slug
+          lista[0].categoria_id = null
+        } else if (operacao === 'insert' && !lista[0].categoria_id) {
+          lista[0].categoria_slug = inferirCategoriaNome(typeof lista[0].nome === 'string' ? lista[0].nome : '') || 'outros'
+        }
+      }
       if(tabela==='produtos' && 'fotos' in lista[0]){
         const fotos=lista[0].fotos
         if(!Array.isArray(fotos)||fotos.length>MAX_FOTOS_PRODUTO||fotos.some(foto=>typeof foto!=='string'||!foto.trim()||foto.length>2048)) throw new ErroHttp(400,`Envie até ${MAX_FOTOS_PRODUTO} fotos válidas por produto.`)

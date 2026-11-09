@@ -12,6 +12,8 @@ import { uploadImagem } from '@/lib/upload-imagem'
 import { useState, useEffect } from 'react'
 import { Plus, Search, Edit, Trash2, Loader2, Image as ImageIcon, Box, X } from 'lucide-react'
 import { supabaseAdmin as supabase } from '@/lib/admin-client'
+import { CATEGORIAS, categoriaDoProduto, obterCategoria } from '@/lib/categorias'
+import toast from 'react-hot-toast'
 
 export default function TelaEstoque() {
   const [produtos, setProdutos] = useState<Produto[]>([])
@@ -31,7 +33,8 @@ export default function TelaEstoque() {
     estoque: '0',
     material: 'Ouro 18k',
     descricao: '',
-    video_url: ''
+    video_url: '',
+    categoria_slug: ''
   })
 
   useEffect(() => {
@@ -57,7 +60,7 @@ export default function TelaEstoque() {
   const abrirModalNovo = () => {
     setProdutoEditandoId(null)
     setFotos([])
-    setForm({ nome: '', preco: '', estoque: '0', material: 'Ouro 18k', descricao: '', video_url: '' })
+    setForm({ nome: '', preco: '', estoque: '0', material: 'Ouro 18k', descricao: '', video_url: '', categoria_slug: '' })
     setProgressoFotos({ feitas: 0, total: 0 })
     setModalAberta(true)
   }
@@ -71,7 +74,8 @@ export default function TelaEstoque() {
       estoque: String(produto.estoque ?? 0),
       material: produto.material || 'Ouro 18k',
       descricao: produto.descricao || '',
-      video_url: produto.video_url || ''
+      video_url: produto.video_url || '',
+      categoria_slug: categoriaDoProduto(produto) || ''
     })
     setProgressoFotos({ feitas: 0, total: 0 })
     setModalAberta(true)
@@ -108,23 +112,24 @@ export default function TelaEstoque() {
         material: form.material,
         descricao: form.descricao,
         video_url: form.video_url || null,
+        categoria_slug: form.categoria_slug,
         fotos: fotosArray
       }
 
       if (produtoEditandoId) {
         const { error } = await supabase.from('produtos').update(dadosProduto).eq('id', produtoEditandoId)
         if (error) throw error
-        alert("Produto atualizado com sucesso!")
+        toast.success("Produto atualizado com sucesso!")
       } else {
         const { error } = await supabase.from('produtos').insert([dadosProduto])
         if (error) throw error
-        alert("Produto adicionado com sucesso!")
+        toast.success("Produto adicionado com sucesso!")
       }
 
       setModalAberta(false)
       carregarProdutos()
     } catch (error) {
-      alert("Erro ao salvar produto: " + mensagemErro(error))
+      toast.error("Erro ao salvar produto: " + mensagemErro(error))
     } finally {
       setSalvando(false)
     }
@@ -201,6 +206,7 @@ export default function TelaEstoque() {
                         <div>
                           <p className="text-xs font-bold text-gray-200 uppercase">{produto.nome}</p>
                           <p className="text-[10px] text-gray-500">Slug: /{produto.slug}</p>
+                          <p className="mt-1 text-[10px] text-hb-goldLight">Categoria: {obterCategoria(categoriaDoProduto(produto))?.nome || 'Não definida'}</p>
                         </div>
                       </div>
                     </td>
@@ -234,6 +240,15 @@ export default function TelaEstoque() {
             
             <form onSubmit={handleSalvarProduto} className="space-y-6">
               <fieldset disabled={salvando} className="min-w-0 space-y-6">
+              <div>
+                <label htmlFor="categoria-produto" className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Categoria da peça *</label>
+                <select id="categoria-produto" required value={form.categoria_slug} onChange={e => setForm({ ...form, categoria_slug: e.target.value })}
+                  className="min-h-11 w-full bg-hb-black border border-gray-700 p-3 rounded text-base text-white outline-none focus:border-hb-gold">
+                  <option value="">Selecione a coleção</option>
+                  {CATEGORIAS.map(c => <option key={c.slug} value={c.slug}>{c.nome}</option>)}
+                </select>
+                <p className="mt-2 text-xs text-gray-400">Define em qual coleção a peça aparece na loja.</p>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Nome do Produto</label>
