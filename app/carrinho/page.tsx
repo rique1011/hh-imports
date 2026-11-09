@@ -15,10 +15,13 @@ import { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react' 
 import { useRouter } from 'next/navigation' 
 import { useShallow } from 'zustand/react/shallow'
+import toast from 'react-hot-toast'
+import { camposCompraPendentes, ROTULOS_CADASTRO, type CampoCompra } from '@/lib/cadastro-compra'
+import { linkComRetorno } from '@/lib/navegacao'
 
 export default function PaginaCarrinho() {
   const router = useRouter()
-  const { data: session } = useSession() 
+  const { data: session, status: statusSessao } = useSession()
   
   // 1. ESTADOS (HOOKS)
   const { itens, cupom, adicionarAoCarrinho, removerDoCarrinho, atualizarQuantidade, aplicarCupom, removerCupom } = useCart(useShallow(state => ({
@@ -55,7 +58,9 @@ export default function PaginaCarrinho() {
   const [saldoCashback, setSaldoCashback] = useState(0)
   const [usarCashback, setUsarCashback] = useState(false)
 
-  const [perfilCompleto, setPerfilCompleto] = useState(true)
+  const [pendenciasCadastro, setPendenciasCadastro] = useState<CampoCompra[]>([])
+  const [carregandoPerfil, setCarregandoPerfil] = useState(true)
+  const [erroPerfil, setErroPerfil] = useState('')
 
   // 2. CÁLCULOS GERAIS
   const subtotal = itens.reduce((acc, item) => acc + (item.preco * item.quantidade), 0)
@@ -74,33 +79,43 @@ export default function PaginaCarrinho() {
 
   // 3. EFEITOS (USE_EFFECTS)
   useEffect(() => {
-    removerCupom()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    // Lê o armazenamento após a hidratação, preservando o HTML inicial do servidor.
+    const frame = requestAnimationFrame(() => {
+      try {
+        const salvo = JSON.parse(sessionStorage.getItem('hh-sacola-retorno') || 'null')
+        sessionStorage.removeItem('hh-sacola-retorno')
+        if (salvo && salvo.expira > Date.now()) {
+          setEmbalagemPresente(salvo.embalagemPresente === true)
+          setUsarCashback(salvo.usarCashback === true)
+          return
+        }
+      } catch { /* A sacola continua funcionando se o armazenamento não estiver disponível. */ }
+      removerCupom()
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [removerCupom])
 
   useEffect(() => {
+    const controller = new AbortController()
     async function carregarDadosUsuario() {
       if (!session?.user?.email) return
-
+      setCarregandoPerfil(true); setErroPerfil('')
       try {
-        const response = await fetch('/api/usuario', { cache: 'no-store' })
+        const response = await fetch('/api/usuario', { cache: 'no-store', signal: controller.signal })
         if (!response.ok) throw new Error('Falha ao carregar cadastro.')
         const usuarioDb = await response.json()
+        if (controller.signal.aborted) return
 
         if (usuarioDb) {
           if (usuarioDb.saldo_cashback) {
             setSaldoCashback(Number(usuarioDb.saldo_cashback))
           }
 
-          const temDocumento = Boolean(usuarioDb.cpf_cnpj && usuarioDb.whatsapp)
-          
           const lista: EnderecoSalvo[] = Array.isArray(usuarioDb.enderecos) ? usuarioDb.enderecos : []
           const padrao = enderecoPadrao(lista)
           setEnderecos(lista); setEnderecoId(padrao?.id || '')
           if (padrao?.cep) setCep(padrao.cep.replace(/^(\d{5})(\d{3})$/, '$1-$2'))
-          const temEndereco = Boolean(padrao?.cep && padrao.logradouro && padrao.numero && padrao.bairro && padrao.cidade && padrao.uf)
-
-          setPerfilCompleto(temEndereco && temDocumento)
+          setPendenciasCadastro(camposCompraPendentes(usuarioDb, lista))
         }
 
         if (usuarioDb.possui_pedidos) return
@@ -114,10 +129,11 @@ export default function PaginaCarrinho() {
           setElegivelBoasVindas(true)
         }
       } catch (e) {
-        console.error("Erro ao buscar dados do usuário", e)
-      }
+        if (!controller.signal.aborted) { console.error("Erro ao buscar dados do usuário", e); setErroPerfil('Não foi possível conferir seu cadastro. Atualize a página para continuar.') }
+      } finally { if (!controller.signal.aborted) setCarregandoPerfil(false) }
     }
     carregarDadosUsuario()
+    return () => controller.abort()
   }, [session])
 
   useEffect(() => {
@@ -266,7 +282,7 @@ export default function PaginaCarrinho() {
     setValidandoCupom(true)
 
     if (codigo === 'BEMVINDO10' && !elegivelBoasVindas) {
-      alert("Este cupom é exclusivo para contas criadas há menos de 7 dias em sua primeira compra.")
+      toast.error("Este cupom é exclusivo para contas criadas há menos de 7 dias em sua primeira compra.", { id: 'cupom' })
       setValidandoCupom(false)
       return
     }
@@ -280,22 +296,28 @@ export default function PaginaCarrinho() {
       aplicarCupom(data.codigo, data.desconto)
       setInputCupom('')
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Erro ao verificar cupom. Tente novamente.")
+      toast.error(err instanceof Error ? err.message : "Erro ao verificar cupom. Tente novamente.", { id: 'cupom' })
     } finally {
       setValidandoCupom(false)
     }
   }
 
   const finalizarCompra = async () => {
-    if (!session) { router.push('/login'); return; }
+    const guardarPreferencias = () => {
+      try { sessionStorage.setItem('hh-sacola-retorno', JSON.stringify({ embalagemPresente, usarCashback, expira: Date.now() + 2 * 3600_000 })) } catch {}
+    }
+    if (!session) { guardarPreferencias(); router.push(linkComRetorno('/login', '/carrinho')); return }
+    if (carregandoPerfil) return
+    if (erroPerfil) { toast.error(erroPerfil, { id: 'compra' }); return }
 
-    if (!perfilCompleto) {
-      alert("Quase lá! Para podermos enviar suas joias, precisamos do seu Endereço e CPF.\n\nVamos te redirecionar para você preencher os dados.")
-      router.push('/minha-conta?aba=dados&alerta=campos_vazios')
-      return;
+    if (pendenciasCadastro.length) {
+      guardarPreferencias()
+      toast('Antes de continuar, complete: ' + pendenciasCadastro.map(campo => ROTULOS_CADASTRO[campo]).join(', ') + '.', { id: 'compra', duration: 6500 })
+      router.push(linkComRetorno('/minha-conta?aba=dados&alerta=campos_vazios', '/carrinho'))
+      return
     }
 
-    if (freteFinal === 0 && !freteGratis) { alert("Por favor, calcule e selecione um frete para a entrega."); return; }
+    if (freteFinal === 0 && !freteGratis) { toast.error("Calcule e selecione um frete para a entrega.", { id: 'compra' }); return }
 
     setCarregando(true)
     try {
@@ -320,11 +342,17 @@ export default function PaginaCarrinho() {
       const dados = await resposta.json()
       
       if (resposta.status===409) sessionStorage.removeItem('hh-checkout-idempotencia')
+      if (dados.cadastroIncompleto) {
+        guardarPreferencias()
+        toast.error(dados.error || 'Complete os dados de entrega para continuar.', { id: 'compra' })
+        router.push(linkComRetorno('/minha-conta?aba=dados&alerta=campos_vazios', '/carrinho'))
+        return
+      }
       if (!resposta.ok) throw new Error(dados.error || "Erro ao gerar pagamento")
       
       if (dados.urlPagamento) window.location.href = dados.urlPagamento
     } catch (error) {
-      alert(mensagemErro(error, "Erro ao processar. Tente novamente."))
+      toast.error(mensagemErro(error, "Erro ao processar. Tente novamente."), { id: 'compra' })
     } finally { 
       setCarregando(false) 
     }
@@ -629,7 +657,7 @@ export default function PaginaCarrinho() {
                   <div className="min-w-0 flex-1">
               <button 
                 onClick={finalizarCompra} 
-                disabled={carregando || (freteFinal === 0 && !freteGratis)} 
+                disabled={carregando || statusSessao === 'loading' || (!!session && carregandoPerfil)}
                 className="luxury-button w-full"
               >
                 {carregando ? <Loader2 className="animate-spin" size={16} /> : 'Finalizar Compra'}

@@ -151,7 +151,7 @@
 
 @media (max-width: 1023px) {
   body:has(.mobile-bottom-nav) { padding-bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px)); }
-  body:has(input:focus, textarea:focus, select:focus) :is(.mobile-bottom-nav, .mobile-checkout-bar),
+  body:has(input:not([type='checkbox']):not([type='radio']):not([type='range']):focus, textarea:focus, select:focus) :is(.mobile-bottom-nav, .mobile-checkout-bar),
   body:has(.cart-page form:focus-within) .mobile-checkout-bar { visibility: hidden; pointer-events: none; }
 }
 @media (prefers-reduced-motion: reduce) {

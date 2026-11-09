@@ -5,9 +5,13 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Star, Loader2 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
+import toast from 'react-hot-toast'
+import { usePathname } from 'next/navigation'
+import { linkComRetorno } from '@/lib/navegacao'
 
 export default function Avaliacoes({ produtoId }: { produtoId: string }) {
   const { data: session } = useSession()
+  const pathname = usePathname()
   const [reviews, setReviews] = useState<{ id: number; nota: number; usuario_nome: string; comentario: string }[]>([])
   const [nota, setNota] = useState(5)
   const [comentario, setComentario] = useState('')
@@ -27,7 +31,7 @@ export default function Avaliacoes({ produtoId }: { produtoId: string }) {
 
   const enviarReview = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!session) return alert("Faça login para avaliar!")
+    if (!session) { toast('Faça login para avaliar.'); return }
     setEnviando(true)
 
     try {
@@ -43,7 +47,7 @@ export default function Avaliacoes({ produtoId }: { produtoId: string }) {
       setReviews(atualizadas || [])
       setComentario('')
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Falha de conexão.')
+      toast.error(error instanceof Error ? error.message : 'Falha de conexão.')
     } finally { setEnviando(false) }
   }
 
@@ -111,7 +115,7 @@ export default function Avaliacoes({ produtoId }: { produtoId: string }) {
           ) : (
             <div className="text-center py-6">
               <p className="text-[10px] md:text-xs text-neutral-400 mb-4 leading-relaxed">Você precisa estar logado para avaliar este produto e compartilhar sua experiência.</p>
-              <Link href="/login" className="inline-block border-b border-hb-gold text-hb-gold text-[9px] md:text-[10px] font-bold uppercase tracking-widest pb-1 hover:text-hb-goldLight transition">
+              <Link href={linkComRetorno('/login', pathname)} className="inline-block border-b border-hb-gold text-hb-gold text-[9px] md:text-[10px] font-bold uppercase tracking-widest pb-1 hover:text-hb-goldLight transition">
                 Fazer Login
               </Link>
             </div>

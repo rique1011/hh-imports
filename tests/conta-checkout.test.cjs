@@ -160,3 +160,19 @@ test('linha do tempo prefere a data autenticada do pagamento ao horário posteri
  const [p]=await incluirEventosPedidos({from:()=>q},[{id:1,itens:[],created_at:'2026-11-06T12:00:00Z',pagamento:{aprovado_em:'2026-11-06T12:05:00Z'}}])
  assert.equal(p.linha_tempo.find(e=>e.etapa==='pagamento_aprovado').ocorrido_em,'2026-11-06T12:05:00Z')
 })
+
+test('checkout bloqueia CPF, telefone ou endereço incompletos também no servidor, antes de criar pedido', async t => {
+ const s = await setup(t), checkout = loadTs('app/api/checkout/route', s.mocks)
+ const body = { itens: [{ id: sku, quantidade: 1 }] }
+ for (const campo of ['cpf_cnpj', 'whatsapp']) {
+  await s.db.exec("update usuarios set cpf_cnpj='12345678901',whatsapp='11999999999' where email='cliente@example.test'")
+  await s.db.query('update usuarios set ' + campo + "='' where email=$1", [email])
+  const res = await checkout.POST(s.request('/api/checkout', body))
+  assert.equal(res.status, 400); assert.equal((await res.json()).cadastroIncompleto, true)
+ }
+ await s.db.exec("update usuarios set cpf_cnpj='12345678901',whatsapp='11999999999',endereco='{}' where email='cliente@example.test';delete from usuario_enderecos where usuario_id=1")
+ const res = await checkout.POST(s.request('/api/checkout', body))
+ assert.equal(res.status, 400); assert.equal((await res.json()).cadastroIncompleto, true)
+ assert.equal((await s.db.query('select count(*)::int n from pedidos')).rows[0].n, 0)
+ assert.equal(s.created.length, 0)
+})

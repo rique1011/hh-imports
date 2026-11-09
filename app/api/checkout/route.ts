@@ -13,6 +13,7 @@ import { listarEnderecos } from '@/lib/enderecos-servidor'
 import { enderecoPadrao } from '@/lib/enderecos'
 import { processarNotificacoes } from '@/lib/notificacoes'
 import { processarEnvioAutomatico } from '@/lib/envio-automatico'
+import { documentoValido, telefoneValido, enderecoCompleto } from '@/lib/cadastro-compra'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -60,8 +61,8 @@ export async function POST(request: Request) {
     const escolhido = body.enderecoId ? enderecos.find(e => e.id === body.enderecoId) : enderecoPadrao(enderecos)
     if (body.enderecoId && !escolhido) throw new ErroHttp(404, 'Endereço não encontrado.')
     const entrega = snapshotEntrega({ ...cadastro, endereco: escolhido ? JSON.stringify(escolhido) : cadastro.endereco })
-    if (!/^\d{8}$/.test(entrega.cep) || !entrega.logradouro || !entrega.numero || !entrega.bairro || !entrega.cidade || !entrega.uf) {
-      return NextResponse.json({ error: 'Complete o endereço de entrega no seu cadastro.' }, { status: 400 })
+    if (!documentoValido(entrega.documento) || !telefoneValido(entrega.telefone) || !enderecoCompleto(entrega)) {
+      return NextResponse.json({ error: 'Confira CPF/CNPJ, WhatsApp com DDD e endereço de entrega completo no seu cadastro.', cadastroIncompleto: true }, { status: 400 })
     }
     let frete = 0
     const cotacao = body.freteToken ? validarFretePedido(body.freteToken, entrega.cep, itens) : null

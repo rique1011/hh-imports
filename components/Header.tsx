@@ -7,6 +7,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useCart } from '@/lib/store'
 import { useHidratado } from '@/lib/use-hidratado'
 import { travarRolagem } from '@/lib/scroll-lock'
+import { linkComRetorno } from '@/lib/navegacao'
 
 const links = [{ href: '/produtos', nome: 'Todas as peças' }, { href: '/colecoes', nome: 'Coleções' }, { href: '/sobre', nome: 'A H&H' }]
 const alvo = 'min-h-11 min-w-11 inline-flex items-center justify-center transition-colors hover:text-hb-goldLight focus-visible:outline-2 focus-visible:outline-hb-gold'
@@ -64,7 +65,7 @@ export default function Header() {
           {session.user?.role === 'admin' && <Link className={`${alvo} text-hb-goldLight px-2 gap-1 text-xs`} href="/admin"><Shield size={16} /> Admin</Link>}
           <Link className={`${alvo} px-2 gap-2 text-xs`} href="/minha-conta"><User size={16} /><span className="max-w-24 truncate">Olá, {session.user?.name?.split(' ')[0]}</span></Link>
           <button className={alvo} aria-label="Sair da conta" onClick={() => signOut()}><LogOut size={18} /></button>
-        </div> : <Link className={`${alvo} max-lg:hidden`} href="/login" aria-label="Entrar na conta"><User size={20} /></Link>}
+        </div> : <Link className={`${alvo} max-lg:hidden`} href={linkComRetorno('/login', pathname)} aria-label="Entrar na conta"><User size={20} /></Link>}
         <Link className={`${alvo} relative`} href="/carrinho" aria-label={`Sacola de compras${hidratado ? `, ${quantidade} itens` : ''}`}><ShoppingBag size={20} />
           {hidratado && quantidade > 0 && <span className="absolute right-0 top-1 grid place-items-center min-w-4 h-4 px-1 rounded-full bg-hb-gold text-hb-black text-[10px] font-bold">{quantidade}</span>}
         </Link>
@@ -85,7 +86,7 @@ export default function Header() {
         <div className="border-t border-gray-800 my-3" />
         {session ? <><Link className="min-h-11 flex items-center gap-3" href="/minha-conta" onClick={fechar}><User size={18} />Minha conta</Link>
           {session.user?.role === 'admin' && <Link className="min-h-11 flex items-center gap-3 text-hb-goldLight" href="/admin" onClick={fechar}><Shield size={18} />Painel admin</Link>}
-          <button className="min-h-11 flex items-center gap-3" onClick={() => { fechar(); signOut() }}><LogOut size={18} />Sair</button></> : <Link className="min-h-11 flex items-center text-hb-gold" href="/login" onClick={fechar}>Entrar / Cadastrar</Link>}
+          <button className="min-h-11 flex items-center gap-3" onClick={() => { fechar(); signOut() }}><LogOut size={18} />Sair</button></> : <Link className="min-h-11 flex items-center text-hb-gold" href={linkComRetorno('/login', pathname)} onClick={fechar}>Entrar / Cadastrar</Link>}
       </nav>
     </div>
   </header>

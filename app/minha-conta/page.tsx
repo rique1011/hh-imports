@@ -25,18 +25,24 @@ import type { Identificador, Pedido, ItemPedido, EnderecoSalvo } from '@/types/l
 import { mensagemErro } from '@/lib/erros'
 import { prazoDevolucao, formatarDia, FUSO_LOJA } from '@/lib/prazo-devolucao'
 import { useRecebimentoAutomatico } from '@/lib/use-recebimento-automatico'
+import toast from 'react-hot-toast'
+import { camposCompraPendentes, documentoValido, telefoneValido, ROTULOS_CADASTRO } from '@/lib/cadastro-compra'
+import { destinoInterno, linkComRetorno } from '@/lib/navegacao'
 
 function ConteudoMinhaConta() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const mostrarErros = searchParams.get('alerta') === 'campos_vazios'
+  const retorno = destinoInterno(searchParams.get('retorno'), mostrarErros ? '/carrinho' : '/')
+  const caminhoConta = '/minha-conta' + (searchParams.toString() ? '?' + searchParams.toString() : '')
 
   const [abaEscolhida, setAbaAtiva] = useState(() => searchParams.get('aba') || 'pedidos')
 
   const contaAdmin=session?.user?.role==='admin'
   const senhaPendente=session?.user?.senhaAtual===false
   const abaAtiva=contaAdmin && (senhaPendente || !session?.user?.mfa) ? 'seguranca'
-    : !contaAdmin && senhaPendente ? 'dados' : !contaAdmin && abaEscolhida==='seguranca' ? 'pedidos' : abaEscolhida
+    : (!contaAdmin && senhaPendente) || mostrarErros ? 'dados' : !contaAdmin && abaEscolhida==='seguranca' ? 'pedidos' : abaEscolhida
   const [pedidos, setPedidos] = useState<Pedido[]>([])
   const [carregandoPedidos, setCarregandoPedidos] = useState(true)
   const recarregarPedidos = useCallback(async () => {
@@ -76,14 +82,16 @@ function ConteudoMinhaConta() {
   const [mensagemSucesso, setMensagemSucesso] = useState('')
   const [erroTroca, setErroTroca] = useState('')
 
-  const [mostrarErros] = useState(() => searchParams.get('alerta') === 'campos_vazios')
+  const [errosCadastro, setErrosCadastro] = useState(false)
+  const camposPendentes = camposCompraPendentes(form, enderecos)
+  const destacarErros = mostrarErros || errosCadastro
 
   // Novo estado para controlar itens que já tiveram troca solicitada na sessão atual
   const [itensComTrocaSolicitada, setItensComTrocaSolicitada] = useState<string[]>([])
 
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push('/login')
+      router.replace(linkComRetorno('/login', caminhoConta))
       return
     }
 
@@ -102,7 +110,7 @@ function ConteudoMinhaConta() {
           })
 
           if (data && data.saldo_cashback) setSaldoCashback(Number(data.saldo_cashback))
-          if (data.cpf_cnpj) setPodeEditarCPF(false)
+          setPodeEditarCPF(!documentoValido(data.cpf_cnpj || ''))
 
           if (data && [data.perfil,data.role].includes('admin')) {
             setIsAdmin(true)
@@ -125,7 +133,7 @@ function ConteudoMinhaConta() {
         .finally(() => { if (!controller.signal.aborted) setCarregandoPedidos(false) })
       return () => controller.abort()
     }
-  }, [status, router])
+  }, [status, router, caminhoConta])
 
   useEffect(() => {
     if (abaAtiva !== 'trocas' && abaAtiva !== 'pedidos' && !modalAberta) return
@@ -137,34 +145,37 @@ function ConteudoMinhaConta() {
     return () => { cancelAnimationFrame(frame); clearInterval(timer); window.removeEventListener('focus', atualizar); document.removeEventListener('visibilitychange', atualizar) }
   }, [abaAtiva, modalAberta])
 
-  const handleSalvar = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (editandoEndereco) return
-    if (mostrarErros) {
-      if (!form.cpf_cnpj || !form.whatsapp || !enderecos.length) {
-        alert("Por favor, preencha todos os campos obrigatórios.")
-        return
-      }
+  const salvarDados = async (listaEnderecos = enderecos) => {
+    if (salvando) return
+    const faltantes = camposCompraPendentes(form, listaEnderecos)
+    const invalidos = faltantes.filter(campo => campo === 'cpf_cnpj' ? !!form.cpf_cnpj : campo === 'whatsapp' ? !!form.whatsapp : false)
+    const pendentes = mostrarErros ? faltantes : invalidos
+    if (pendentes.length) {
+      setErrosCadastro(true)
+      toast.error('Para continuar, confira: ' + pendentes.map(campo => ROTULOS_CADASTRO[campo]).join(', ') + '.', { id: 'compra' })
+      const id = pendentes[0] === 'endereco' ? 'endereco-entrega' : pendentes[0] === 'cpf_cnpj' ? 'cadastro-cpf' : 'cadastro-whatsapp'
+      document.getElementById(id)?.focus()
+      return
     }
-
     setSalvando(true)
     try {
       const response = await fetch('/api/usuario', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
-      if (!response.ok) throw new Error('Não foi possível salvar seu cadastro.')
-      if (form.cpf_cnpj) setPodeEditarCPF(false)
-
-      alert("Perfil atualizado com sucesso!")
-
-      if (mostrarErros) {
-        router.push('/carrinho')
-      }
-
-    } catch {
-      alert("Erro ao salvar dados.")
+      const data = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(data?.error || 'Não foi possível salvar seu cadastro.')
+      if (documentoValido(form.cpf_cnpj)) setPodeEditarCPF(false)
+      setErrosCadastro(false)
+      toast.success(mostrarErros ? 'Cadastro concluído. Continue finalizando sua compra.' : 'Dados pessoais salvos.', { id: 'compra' })
+      if (mostrarErros || searchParams.has('retorno')) router.push(retorno)
+    } catch (error) {
+      toast.error(mensagemErro(error, 'Erro ao salvar seus dados. Tente novamente.'), { id: 'compra' })
     } finally {
       setSalvando(false)
     }
+  }
+
+  const handleSalvar = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editandoEndereco) await salvarDados()
   }
 
   const pagarPedidoPendente = async (pedidoId: Identificador) => {
@@ -177,7 +188,7 @@ function ConteudoMinhaConta() {
       if (!res.ok) throw new Error(dados.error || "Erro ao gerar link de pagamento")
       if (dados.urlPagamento) window.location.assign(dados.urlPagamento)
     } catch (error) {
-      alert(mensagemErro(error, "Erro ao abrir o pagamento."))
+      toast.error(mensagemErro(error, "Erro ao abrir o pagamento."))
     } finally {
       setCarregandoPagamentoId(null)
     }
@@ -309,16 +320,20 @@ function ConteudoMinhaConta() {
           {contaAdmin && abaAtiva === 'seguranca' && <SegurancaConta />}
           {abaAtiva === 'dados' && (
             <div className="space-y-8 md:space-y-10 animate-in fade-in duration-500">
-              {!contaAdmin && <AlterarSenhaConta obrigatoria={senhaPendente} />}
+              {!contaAdmin && (!mostrarErros || senhaPendente) && <AlterarSenhaConta obrigatoria={senhaPendente} />}
 
               {mostrarErros && (
-                <div className="bg-red-900/20 border border-red-900/50 text-red-400 p-4 rounded-lg flex items-start md:items-center gap-3 shadow-md animate-bounce">
-                  <AlertCircle size={20} className="shrink-0 mt-0.5 md:mt-0" />
-                  <p className="text-[10px] md:text-xs font-bold uppercase tracking-widest leading-relaxed">Atenção: Preencha os campos em vermelho para finalizar sua compra.</p>
+                <div role="status" className={`border p-4 md:p-5 rounded-xl flex items-start gap-3 bg-hb-gray ${camposPendentes.length ? 'border-hb-gold/50 text-hb-goldLight' : 'border-hb-gold text-hb-goldLight'}`}>
+                  <AlertCircle size={20} className="shrink-0 mt-0.5" />
+                  <div className="text-sm leading-relaxed min-w-0">
+                    <p className="font-medium">{camposPendentes.length ? 'Complete seu cadastro para receber sua compra.' : 'Tudo preenchido. Salve os dados para continuar sua compra.'}</p>
+                    {camposPendentes.length > 0 && <ul className="mt-2 list-disc pl-5 text-luxury-ivory space-y-1">{camposPendentes.map(campo => <li key={campo}>{ROTULOS_CADASTRO[campo]}</li>)}</ul>}
+                    <p className="mt-2 text-xs text-luxury-muted">Depois de salvar, você volta à sua compra com os itens na sacola.</p>
+                  </div>
                 </div>
               )}
 
-              <div className="bg-gradient-to-br from-gray-950 via-gray-900 to-black text-white rounded-xl p-6 md:p-8 shadow-2xl border border-gray-800 relative overflow-hidden group">
+              {!mostrarErros && <div className="bg-gradient-to-br from-gray-950 via-gray-900 to-black text-white rounded-xl p-6 md:p-8 shadow-2xl border border-gray-800 relative overflow-hidden group">
                 <div className="absolute -right-10 -bottom-10 bg-hb-gold/10 w-32 h-32 md:w-40 md:h-40 rounded-full group-hover:scale-110 transition-transform duration-700"></div>
                 <div className="flex justify-between items-start relative z-10">
                   <div className="space-y-1">
@@ -333,7 +348,7 @@ function ConteudoMinhaConta() {
                     {saldoCashback > 0 ? '✨ Seus créditos estão disponíveis para sua próxima joia!' : 'Compre joias e acumule 5% de volta para a próxima compra.'}
                   </p>
                 </div>
-              </div>
+              </div>}
 
               <form id="form-dados" onSubmit={handleSalvar} className="space-y-8 md:space-y-10">
                 <div>
@@ -351,36 +366,40 @@ function ConteudoMinhaConta() {
                     <div>
                       <label className="text-[9px] md:text-[10px] font-bold text-gray-400 mb-2 uppercase flex justify-between">
                         <span>CPF / CNPJ {!podeEditarCPF && <Lock size={10} className="inline md:w-3 md:h-3 ml-1"/>}</span>
-                        {mostrarErros && !form.cpf_cnpj && <span className="text-red-500">* Obrigatório</span>}
+                        {destacarErros && !documentoValido(form.cpf_cnpj) && <span className="text-red-300">* Obrigatório</span>}
                       </label>
                       <input
-                        inputMode="numeric" autoComplete="off" aria-label="CPF ou CNPJ" value={form.cpf_cnpj}
+                        id="cadastro-cpf" inputMode="numeric" autoComplete="off" aria-label="CPF ou CNPJ" value={form.cpf_cnpj}
+                        required={mostrarErros} maxLength={18} aria-invalid={destacarErros && !documentoValido(form.cpf_cnpj) || undefined}
                         onChange={(e) => setForm({...form, cpf_cnpj: e.target.value})}
                         disabled={!podeEditarCPF}
-                        className={`w-full border p-3 rounded text-base md:text-sm bg-transparent text-white focus:outline-none focus:border-hb-gold transition-colors ${!podeEditarCPF ? 'bg-gray-900/50 text-gray-500 border-gray-800' : (mostrarErros && !form.cpf_cnpj ? 'border-red-500 bg-red-900/10' : 'border-gray-700')}`}
+                        className={`w-full border p-3 rounded text-base md:text-sm bg-transparent text-white focus:outline-none focus:border-hb-gold transition-colors ${!podeEditarCPF ? 'bg-gray-900/50 text-gray-500 border-gray-800' : (destacarErros && !documentoValido(form.cpf_cnpj) ? 'border-red-400 bg-red-900/10' : 'border-gray-700')}`}
                       />
+                      {destacarErros && !documentoValido(form.cpf_cnpj) && <p className="mt-2 text-xs text-red-300">Informe 11 dígitos para CPF ou 14 para CNPJ.</p>}
                     </div>
 
                     <div>
                       <label className="text-[9px] md:text-[10px] font-bold text-gray-400 mb-2 uppercase flex justify-between">
                         <span>WhatsApp</span>
-                        {mostrarErros && !form.whatsapp && <span className="text-red-500">* Obrigatório</span>}
+                        {destacarErros && !telefoneValido(form.whatsapp) && <span className="text-red-300">* Obrigatório</span>}
                       </label>
                       <input
-                        type="tel" inputMode="tel" autoComplete="tel" aria-label="WhatsApp" value={form.whatsapp}
+                        id="cadastro-whatsapp" type="tel" inputMode="tel" autoComplete="tel" aria-label="WhatsApp" value={form.whatsapp}
+                        required={mostrarErros} maxLength={20} aria-invalid={destacarErros && !telefoneValido(form.whatsapp) || undefined}
                         onChange={(e) => setForm({...form, whatsapp: e.target.value})}
-                        className={`w-full border p-3 rounded text-base md:text-sm bg-transparent text-white focus:outline-none focus:border-hb-gold transition-colors ${mostrarErros && !form.whatsapp ? 'border-red-500 bg-red-900/10' : 'border-gray-700'}`}
+                        className={`w-full border p-3 rounded text-base md:text-sm bg-transparent text-white focus:outline-none focus:border-hb-gold transition-colors ${destacarErros && !telefoneValido(form.whatsapp) ? 'border-red-400 bg-red-900/10' : 'border-gray-700'}`}
                         placeholder="(00) 00000-0000"
                       />
+                      {destacarErros && !telefoneValido(form.whatsapp) && <p className="mt-2 text-xs text-red-300">Informe seu telefone com DDD.</p>}
                     </div>
                   </div>
                 </div>
 
               </form>
-              <EnderecosConta enderecos={enderecos} onChange={setEnderecos} onEdicao={setEditandoEndereco} />
-                <button form="form-dados" type="submit" disabled={salvando || editandoEndereco} className="w-full md:w-auto bg-hb-gold text-black px-8 md:px-12 py-4 font-bold uppercase tracking-widest text-[10px] md:text-xs hover:bg-yellow-600 transition disabled:opacity-50 flex items-center justify-center gap-2">
-                  {salvando ? <><Loader2 size={16} className="animate-spin"/> Salvando...</> : mostrarErros ? 'Salvar e voltar para sacola' : 'Salvar dados pessoais'}
-                </button>
+              <EnderecosConta enderecos={enderecos} onChange={setEnderecos} onEdicao={setEditandoEndereco} obrigatorio={mostrarErros} onSalvo={mostrarErros ? salvarDados : undefined} />
+              {!editandoEndereco && <button form="form-dados" type="submit" disabled={salvando} className="w-full md:w-auto min-h-12 bg-hb-gold text-black px-8 md:px-12 py-4 font-bold uppercase tracking-widest text-[10px] md:text-xs enabled:hover:bg-hb-goldLight transition disabled:opacity-50 flex items-center justify-center gap-2">
+                {salvando ? <><Loader2 size={16} className="animate-spin"/> Salvando...</> : mostrarErros ? 'Salvar e continuar compra' : 'Salvar dados pessoais'}
+              </button>}
 
             </div>
           )}

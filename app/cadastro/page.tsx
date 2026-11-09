@@ -2,13 +2,16 @@
 
 import CampoSenha from '@/components/CampoSenha'
 import { MIN_SENHA_CLIENTE } from '@/lib/politica-senha'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Loader2, ArrowRight, ShieldCheck } from 'lucide-react'
+import toast from 'react-hot-toast'
+import { destinoInterno, linkComRetorno } from '@/lib/navegacao'
 
-export default function PaginaCadastro() {
+function FormularioCadastro() {
   const router = useRouter()
+  const retorno = destinoInterno(useSearchParams().get('retorno'))
   const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
@@ -40,12 +43,12 @@ export default function PaginaCadastro() {
 
       if (res.ok && data?.sucesso) {
         // Redireciona para a tela de digitar o código enviado por e-mail
-        router.push(`/verificar?email=${encodeURIComponent(email.toLowerCase().trim())}`)
+        router.push(linkComRetorno(`/verificar?email=${encodeURIComponent(email.toLowerCase().trim())}`, retorno))
       } else {
-        alert(data?.error || "Erro ao criar conta. Tente novamente.")
+        toast.error(data?.error || "Erro ao criar conta. Tente novamente.", { id: 'conta' })
       }
     } catch {
-      alert("Erro de conexão ao tentar contatar o servidor.")
+      toast.error("Erro de conexão ao tentar contatar o servidor.", { id: 'conta' })
     } finally {
       setCarregando(false)
     }
@@ -147,7 +150,7 @@ export default function PaginaCadastro() {
         <div className="mt-6 md:mt-8 text-center border-t border-luxury-line pt-5 md:pt-6">
           <p className="text-[10px] md:text-xs text-luxury-muted">
             Já possui uma conta?{' '}
-            <Link href="/login" className="font-bold text-hb-goldLight uppercase tracking-widest hover:underline">
+            <Link href={linkComRetorno('/login', retorno)} className="font-bold text-hb-goldLight uppercase tracking-widest hover:underline">
               Fazer Login
             </Link>
           </p>
@@ -156,4 +159,8 @@ export default function PaginaCadastro() {
       </div>
     </main>
   )
+}
+
+export default function PaginaCadastro() {
+  return <Suspense fallback={<div className="min-h-screen grid place-items-center bg-hb-black"><Loader2 className="animate-spin text-hb-gold" aria-label="Carregando cadastro" /></div>}><FormularioCadastro /></Suspense>
 }

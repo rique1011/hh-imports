@@ -3,6 +3,8 @@
 import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Loader2, ShieldCheck } from 'lucide-react'
+import toast from 'react-hot-toast'
+import { destinoInterno, linkComRetorno } from '@/lib/navegacao'
 
 function FormularioVerificacao() {
   const [codigo, setCodigo] = useState('')
@@ -12,6 +14,7 @@ function FormularioVerificacao() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const email = searchParams.get('email')
+  const retorno = destinoInterno(searchParams.get('retorno'))
 
   const validarCodigo = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -30,8 +33,8 @@ function FormularioVerificacao() {
       if (!resposta.ok) {
         setErro(dados.error)
       } else {
-        alert('Conta verificada com sucesso! Faça login para continuar.')
-        router.push('/login')
+        toast.success('E-mail confirmado! Faça login para continuar.', { id: 'conta' })
+        router.replace(linkComRetorno('/login', retorno))
       }
     } catch {
       setErro('Erro de conexão. Tente novamente.')
@@ -54,7 +57,7 @@ function FormularioVerificacao() {
         <div className="bg-hb-black border border-gray-700 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
           <ShieldCheck size={32} className="text-hb-gold" />
         </div>
-        <h1 className="text-2xl font-light uppercase tracking-[0.2em] text-white mb-2">Segurança</h1>
+        <h1 className="text-2xl font-light uppercase tracking-[0.2em] text-white mb-2">Confirme seu e-mail</h1>
         <p className="text-xs text-gray-400 mb-8 leading-relaxed font-medium">
           Enviamos um código de acesso para <br/><strong className="text-hb-gold font-bold">{email}</strong>
         </p>

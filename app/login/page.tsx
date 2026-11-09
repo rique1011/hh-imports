@@ -2,13 +2,16 @@
 
 import { getSession, signIn } from 'next-auth/react'
 import CampoSenha from '@/components/CampoSenha'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
+import { destinoAposLogin, destinoInterno, linkComRetorno } from '@/lib/navegacao'
 
-export default function PaginaLogin() {
+function FormularioLogin() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const retorno = destinoInterno(searchParams.get('retorno') || searchParams.get('callbackUrl'))
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [codigo,setCodigo]=useState('')
@@ -35,7 +38,7 @@ export default function PaginaLogin() {
       setCarregando(false)
     } else {
       const session=await getSession()
-      router.push(session?.user?.role==='admin' && (session.user.senhaAtual===false || !session.user.mfa) ? '/minha-conta?aba=seguranca' : session?.user?.senhaAtual===false ? '/minha-conta?aba=dados' : '/minha-conta?aba=pedidos')
+      router.replace(destinoAposLogin(session?.user, retorno))
     }
   }
 
@@ -97,7 +100,7 @@ export default function PaginaLogin() {
         <div className="mt-6 md:mt-8 pt-5 md:pt-6 border-t border-gray-800 text-center space-y-4">
           <p className="text-[10px] md:text-xs text-gray-400 uppercase tracking-widest border-b border-gray-800 pb-4 leading-relaxed">
             Ainda não tem uma conta? <br className="sm:hidden" />
-            <Link href="/cadastro" className="text-white font-bold hover:text-hb-gold transition inline-block py-1 sm:py-0 sm:ml-1">
+            <Link href={linkComRetorno('/cadastro', retorno)} className="text-white font-bold hover:text-hb-gold transition inline-block py-1 sm:py-0 sm:ml-1">
               Cadastre-se aqui
             </Link>
           </p>
@@ -110,4 +113,8 @@ export default function PaginaLogin() {
       </div>
     </main>
   )
+}
+
+export default function PaginaLogin() {
+  return <Suspense fallback={<div className="min-h-[80vh] grid place-items-center bg-hb-black"><Loader2 className="animate-spin text-hb-gold" aria-label="Carregando login" /></div>}><FormularioLogin /></Suspense>
 }

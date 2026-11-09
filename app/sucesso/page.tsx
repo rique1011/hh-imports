@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Loader2 } from 'lucide-react'
 import { useCart } from '@/lib/store'
 import { STATUS_PAGOS } from '@/lib/pagamento-pedido'
+import { linkComRetorno } from '@/lib/navegacao'
 function Confirmacao() {
   const params = useSearchParams(), router = useRouter()
   const id = params.get('pedido') || params.get('external_reference')
@@ -38,7 +39,7 @@ function Confirmacao() {
     <h1 className="text-2xl">{erro ? 'Acompanhe seu pedido' : id ? 'Conferindo pagamento' : 'Pedido não informado'}</h1>
     <p className="text-sm text-gray-400">{erro || (id ? 'Estamos consultando a confirmação para abrir seus pedidos.' : 'Acesse sua conta para localizar sua compra.')}</p>
     <Link className="min-h-11 flex items-center justify-center bg-hb-gold text-black rounded px-5 py-3 font-bold" href={'/minha-conta?aba=pedidos' + (id ? '&pedido=' + encodeURIComponent(id) : '')}>Meus pedidos</Link>
-    {erro && <Link href="/login" className="min-h-11 inline-flex items-center text-sm text-gray-400">Entrar na conta</Link>}
+    {erro && <Link href={linkComRetorno('/login', id ? '/sucesso?pedido=' + encodeURIComponent(id) + (paymentId && /^\d+$/.test(paymentId) ? '&payment_id=' + encodeURIComponent(paymentId) : '') : '/minha-conta?aba=pedidos')} className="min-h-11 inline-flex items-center text-sm text-gray-400">Entrar na conta</Link>}
   </section></main>
 }
 export default function Sucesso() { return <Suspense fallback={<div className="min-h-[70vh] grid place-items-center"><Loader2 className="animate-spin" /></div>}><Confirmacao /></Suspense> }
