@@ -7,6 +7,7 @@ import Footer from "@/components/Footer";
 import Providers from "@/components/Providers";
 import Feedback from "@/components/Feedback";
 import MobileBottomNav from "@/components/MobileBottomNav";
+import { getAparenciaPublica } from '@/lib/aparencia-servidor';
 
 // Fontes servidas pelo próprio Next, sem chamadas ao Google no navegador.
 const inter = Inter({ 
@@ -49,6 +50,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   await headers(); // Render dinâmico: cada HTML recebe um nonce novo no Proxy.
+  const aparencia = await getAparenciaPublica();
   return (
     <html
       lang="pt-BR"
@@ -61,13 +63,13 @@ export default async function RootLayout({
 
         {process.env.VERCEL_ENV==='preview' && <p className="bg-amber-100 p-3 text-center text-sm text-black">Ambiente de demonstração. Compras indisponíveis.</p>}
         <Providers>
-          <Header />
+          <Header logoUrl={aparencia.logoUrl} />
           
           <div id="conteudo" tabIndex={-1} className="flex-grow min-w-0 focus:outline-none">
             {children}
           </div>
 
-          <Footer />
+          <Footer logoUrl={aparencia.logoUrl} />
           <MobileBottomNav />
         </Providers>
         

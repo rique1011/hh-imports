@@ -1,4 +1,5 @@
 import { Truck, ShieldCheck, Clock } from 'lucide-react'
+import { MENSAGEM_FRETE_GRATIS } from '@/lib/politica-frete'
 
 export default function FretesEntregas() {
   return (
@@ -24,9 +25,16 @@ export default function FretesEntregas() {
           </div>
         </div>
 
+        <div className="rounded-xl border border-hb-gold/40 bg-hb-gray p-6">
+          <h2 className="mb-4 font-serif text-2xl text-hb-goldLight">Frete grátis para todo o Brasil</h2>
+          <p className="text-white">{MENSAGEM_FRETE_GRATIS}</p>
+          <p className="mt-3">O benefício considera o subtotal das peças antes de cupons e créditos. A embalagem para presente não entra nesse valor. A modalidade gratuita é econômica e escolhida pela loja entre os serviços disponíveis para o seu CEP. Consulte a transportadora e o prazo no carrinho.</p>
+          <p className="mt-3">Informe nome completo, CPF ou CNPJ, telefone e endereço completo com CEP, número e complemento, se houver. Esses dados serão usados na etiqueta de envio.</p>
+        </div>
+
         <div>
           <h2 className="text-xl font-light uppercase tracking-widest text-white mb-4 border-l-2 border-hb-gold pl-4">1. Prazos de Envio</h2>
-          <p>Após a confirmação do pagamento, seu pedido passará por uma rigorosa conferência de qualidade. O despacho ocorre em até 2 dias úteis. O prazo de entrega começa a contar a partir do momento em que o código de rastreio é gerado e varia de acordo com a modalidade escolhida e o seu CEP.</p>
+          <p>Após a confirmação do pagamento, seu pedido passará por uma rigorosa conferência de qualidade. O despacho ocorre em até 2 dias úteis. O prazo de transporte começa após a postagem ou coleta e varia conforme a modalidade e o seu CEP. A geração da etiqueta prepara o envio; acompanhe a movimentação da transportadora em Meus Pedidos.</p>
         </div>
 
         <div>

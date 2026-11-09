@@ -11,13 +11,14 @@ import { mensagemErro } from '@/lib/erros'
 import { useCart } from '@/lib/store'
 import Link from 'next/link'
 import { Trash2, Loader2, Ticket, CheckCircle2, X, Truck, Sparkles, Plus, Gift, AlertCircle, DollarSign } from 'lucide-react'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSession } from 'next-auth/react' 
 import { useRouter } from 'next/navigation' 
 import { useShallow } from 'zustand/react/shallow'
 import toast from 'react-hot-toast'
 import { camposCompraPendentes, ROTULOS_CADASTRO, type CampoCompra } from '@/lib/cadastro-compra'
 import { linkComRetorno } from '@/lib/navegacao'
+import { temFreteGratis, faltaParaFreteGratis, MENSAGEM_FRETE_GRATIS } from '@/lib/politica-frete'
 
 export default function PaginaCarrinho() {
   const router = useRouter()
@@ -44,7 +45,7 @@ export default function PaginaCarrinho() {
   const [freteToken, setFreteToken] = useState('')
   const [baseCotacao, setBaseCotacao] = useState('')
   const contextoFrete = enderecoId + cep.replace(/\D/g, '') + JSON.stringify(itens.map(({ id, quantidade, preco }) => ({ id, quantidade, preco })))
-  const cotacaoAtual = baseCotacao === contextoFrete
+  const cotacaoAtual = baseCotacao === contextoFrete && !!freteToken && opcoesFrete.some(o => o.token === freteToken)
   const [carregandoFrete, setCarregandoFrete] = useState(false)
   const [erroFrete, setErroFrete] = useState('')
   
@@ -64,7 +65,7 @@ export default function PaginaCarrinho() {
 
   // 2. CÁLCULOS GERAIS
   const subtotal = itens.reduce((acc, item) => acc + (item.preco * item.quantidade), 0)
-  const freteGratis = subtotal >= 100 
+  const freteGratis = temFreteGratis(subtotal)
   const freteFinal = freteGratis || !cotacaoAtual ? 0 : freteSelecionado
   const valorDesconto = cupom ? (subtotal * (cupom.desconto / 100)) : 0
   const valorEmbalagem = embalagemPresente ? 15.00 : 0
@@ -235,8 +236,8 @@ export default function PaginaCarrinho() {
     setCep(value)
   }
 
-  const calcularFrete = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const calcularFrete = useCallback(async (e?: React.FormEvent) => {
+    e?.preventDefault()
     if (cep.replace(/\D/g, '').length !== 8) return
     consultaFrete.current?.abort()
     const controller = new AbortController(); consultaFrete.current = controller
@@ -273,7 +274,13 @@ export default function PaginaCarrinho() {
     } finally {
       if (consultaFrete.current === controller) setCarregandoFrete(false)
     }
-  }
+  }, [cep, itens, contextoFrete])
+
+  useEffect(() => {
+    if (!freteGratis || !itens.length || cep.replace(/\D/g, '').length !== 8 || cotacaoAtual) return
+    const timer = setTimeout(() => { void calcularFrete() }, 300)
+    return () => clearTimeout(timer)
+  }, [freteGratis, itens.length, cep, cotacaoAtual, calcularFrete])
 
   const validarCupom = async () => {
     const codigo = inputCupom.toUpperCase().trim()
@@ -317,7 +324,7 @@ export default function PaginaCarrinho() {
       return
     }
 
-    if (freteFinal === 0 && !freteGratis) { toast.error("Calcule e selecione um frete para a entrega.", { id: 'compra' }); return }
+    if (!cotacaoAtual || carregandoFrete) { toast.error("Calcule o frete para confirmar a transportadora e o prazo da entrega.", { id: 'compra' }); return }
 
     setCarregando(true)
     try {
@@ -421,7 +428,8 @@ export default function PaginaCarrinho() {
                 {enderecos.length > 0 && <><label htmlFor="endereco-entrega" className="block text-sm text-gray-300">Entregar em</label><select id="endereco-entrega" value={enderecoId} onChange={e => mudarEndereco(e.target.value)} className="w-full min-h-11 rounded border border-gray-700 bg-hb-black px-3 py-3 text-base text-white">{enderecos.map(e => <option value={e.id} key={e.id}>{e.apelido}{e.padrao ? ' · Padrão' : ''}</option>)}</select><p className="text-sm leading-relaxed text-gray-400 break-words">{textoEndereco(enderecos.find(e => e.id === enderecoId) || {})}</p></>}
                 <Link href="/minha-conta?aba=dados" className="min-h-11 inline-flex items-center text-sm text-hb-gold underline underline-offset-4">{enderecos.length ? 'Gerenciar endereços' : 'Cadastrar endereço de entrega'}</Link>
               </div>}
-              {!freteGratis ? (
+              <p className="mb-4 text-xs leading-6 text-luxury-gold-light">{freteGratis ? MENSAGEM_FRETE_GRATIS : `Faltam R$ ${faltaParaFreteGratis(subtotal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} em produtos para ganhar frete grátis em todo o Brasil.`}</p>
+              {freteGratis && <p className="mb-4 text-xs leading-6 text-gray-400">Modalidade econômica escolhida pela loja. Confirme abaixo a transportadora e o prazo para o seu CEP.</p>}
                 <>
                   <form onSubmit={calcularFrete} className="flex gap-2 mb-5 md:mb-6">
                     <input
@@ -465,22 +473,21 @@ export default function PaginaCarrinho() {
                             />
                             <div>
                               <p className="text-[10px] md:text-xs font-bold text-white uppercase">{opcao.nome}</p>
+                              {opcao.transportadora && <p className="mt-1 text-xs text-gray-400">{opcao.transportadora}</p>}
                               <p className="text-[9px] md:text-[10px] text-gray-400 uppercase tracking-widest mt-1">
-                                Até {opcao.prazo} dias
+                                Até {opcao.prazo} dias úteis
                               </p>
                             </div>
                           </div>
                           <p className="text-xs md:text-sm font-black text-hb-gold shrink-0">
-                            R$ {Number(opcao.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            {freteGratis ? 'Grátis' : `R$ ${Number(opcao.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
                           </p>
                         </label>
                       ))}
                     </div>
                   )}
                 </>
-              ) : (
-                <p className="text-xs md:text-sm text-gray-400 italic">O frete é por nossa conta nesta compra! Sua joia será enviada com segurança.</p>
-              )}
+
             </div>
           </div>
 
@@ -657,7 +664,7 @@ export default function PaginaCarrinho() {
                   <div className="min-w-0 flex-1">
               <button 
                 onClick={finalizarCompra} 
-                disabled={carregando || statusSessao === 'loading' || (!!session && carregandoPerfil)}
+                disabled={carregando || carregandoFrete || statusSessao === 'loading' || (!!session && carregandoPerfil)}
                 className="luxury-button w-full"
               >
                 {carregando ? <Loader2 className="animate-spin" size={16} /> : 'Finalizar Compra'}
@@ -666,8 +673,8 @@ export default function PaginaCarrinho() {
                 </div>
               </div>
               
-              {freteFinal === 0 && !freteGratis && (
-                <p className="text-[8px] md:text-[9px] text-red-400 font-bold uppercase tracking-widest mt-3 text-center">Calcule o frete para continuar</p>
+              {!cotacaoAtual && (
+                <p className="text-[8px] md:text-[9px] text-red-400 font-bold uppercase tracking-widest mt-3 text-center">Confirme o CEP e calcule a entrega para continuar</p>
               )}
             </div>
           </div>

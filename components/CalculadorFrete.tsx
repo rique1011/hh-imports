@@ -3,6 +3,7 @@ import type { OpcaoFrete } from '@/lib/frete'
 
 import { useState } from 'react'
 import { Truck, Loader2 } from 'lucide-react'
+import { MENSAGEM_FRETE_GRATIS } from '@/lib/politica-frete'
 
 export default function CalculadorFrete({ produtoId }: { produtoId: string }) {
 
@@ -10,6 +11,7 @@ export default function CalculadorFrete({ produtoId }: { produtoId: string }) {
   const [opcoesFrete, setOpcoesFrete] = useState<OpcaoFrete[]>([])
   const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState('')
+  const [gratis, setGratis] = useState(false)
 
   const calcularFrete = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -32,6 +34,7 @@ export default function CalculadorFrete({ produtoId }: { produtoId: string }) {
         setErro(data.error || 'Não foi possível calcular o frete para este CEP.')
       } else {
         setOpcoesFrete(data.opcoes)
+        setGratis(data.freteGratis === true)
       }
     } catch {
       setErro('Erro de conexão ao calcular frete.')
@@ -55,6 +58,7 @@ export default function CalculadorFrete({ produtoId }: { produtoId: string }) {
           Calcular Frete e Prazo
         </h3>
       </div>
+      <p className="mb-4 text-xs leading-6 text-luxury-gold-light">{MENSAGEM_FRETE_GRATIS}</p>
 
       <form onSubmit={calcularFrete} className="flex flex-wrap sm:flex-nowrap gap-2">
         <input
@@ -83,12 +87,13 @@ export default function CalculadorFrete({ produtoId }: { produtoId: string }) {
             <div key={index} className="flex justify-between items-center py-3 border-b border-luxury-line last:border-0">
               <div>
                 <p className="text-xs md:text-sm font-bold text-luxury-ivory uppercase">{opcao.nome}</p>
+                {opcao.transportadora && <p className="mt-1 text-xs text-luxury-muted">{opcao.transportadora}</p>}
                 <p className="text-[10px] md:text-xs text-luxury-muted uppercase tracking-widest mt-1">
                   Até {opcao.prazo} dias úteis
                 </p>
               </div>
               <p className="text-sm md:text-base font-black text-hb-gold">
-                R$ {Number(opcao.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                {gratis ? 'Grátis' : `R$ ${Number(opcao.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
               </p>
             </div>
           ))}

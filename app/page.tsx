@@ -6,6 +6,9 @@ import ProductCard from '@/components/ProductCard'
 import ColecoesEditorais from '@/components/ColecoesEditorais'
 import { getCupomPublico, getVitrine } from '@/lib/catalogo'
 import hero from '@/public/images/hero-colar.webp'
+import BannerCampanha from '@/components/BannerCampanha'
+import { getAparenciaPublica } from '@/lib/aparencia-servidor'
+import { MENSAGEM_FRETE_GRATIS } from '@/lib/politica-frete'
 
 export const revalidate = 60
 
@@ -32,8 +35,10 @@ function VitrineSkeleton() {
   </div>
 }
 
-export default function Home() {
+export default async function Home() {
+  const aparencia = await getAparenciaPublica()
   return <main className="min-w-0 bg-luxury-black">
+    <BannerCampanha config={aparencia} />
     <section className="relative isolate overflow-hidden border-b border-luxury-line" aria-labelledby="hero-title">
       <div className="luxury-container relative grid min-h-[620px] items-center lg:min-h-[680px] lg:grid-cols-2 lg:gap-12 xl:gap-20">
         <div className="relative z-10 max-w-xl py-20 lg:py-24">
@@ -47,7 +52,7 @@ export default function Home() {
           <a href="#destaques" className="mt-14 inline-flex min-h-11 items-center gap-3 text-[10px] uppercase tracking-[0.18em] text-luxury-muted lg:mt-16"><ArrowDown size={14} strokeWidth={1.5} aria-hidden="true" /> Descubra a seleção</a>
         </div>
         <div className="absolute -right-4 inset-y-0 -left-4 -z-10 sm:-inset-x-6 lg:relative lg:inset-auto lg:z-0 lg:my-8 lg:aspect-[4/5] lg:max-h-[610px] lg:self-stretch">
-          <Image src={hero} alt="Colar dourado com pedra verde em um estudo de luz e sombra" fill preload quality={85} sizes="(max-width: 1023px) 100vw, (max-width: 1536px) 48vw, 610px" placeholder="blur" className="object-cover object-[60%_45%] lg:object-center" />
+          <Image src={hero} alt="Colar dourado com pedra verde em um estudo de luz e sombra" fill preload={!aparencia.bannerAtivo} quality={85} sizes="(max-width: 1023px) 100vw, (max-width: 1536px) 48vw, 610px" placeholder="blur" className="object-cover object-[60%_45%] lg:object-center" />
           <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/70 to-black/15 lg:hidden" />
           <div className="absolute inset-0 bg-gradient-to-t from-luxury-black/70 via-transparent to-transparent lg:from-black/40" />
           <p className="absolute bottom-7 right-6 hidden text-[9px] uppercase tracking-[0.2em] text-white/80 lg:block">H&H IMPORTS — Detalhes que ficam</p>
@@ -58,7 +63,7 @@ export default function Home() {
 
     <div className="luxury-container grid grid-cols-1 gap-0 divide-y divide-luxury-line py-4 sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:py-6">
       {[
-        { Icon: Truck, titulo: 'Do nosso cuidado até você', texto: 'Frete calculado para o seu endereço.' },
+        { Icon: Truck, titulo: 'O envio é nosso presente', texto: MENSAGEM_FRETE_GRATIS },
         { Icon: ShieldCheck, titulo: 'Compre com tranquilidade', texto: 'Pagamento processado pelo Mercado Pago.' },
         { Icon: Gem, titulo: 'Escolhas com personalidade', texto: 'Detalhes para acompanhar seus momentos.' },
       ].map(({ Icon, titulo, texto }) => <div key={titulo} className="flex items-center gap-4 px-3 py-4 sm:justify-center sm:px-5"><Icon size={22} strokeWidth={1.2} className="shrink-0 text-luxury-gold" aria-hidden="true" /><div><p className="text-[11px] font-medium leading-5 text-luxury-ivory">{titulo}</p><p className="mt-0.5 text-[11px] leading-5 text-luxury-muted">{texto}</p></div></div>)}

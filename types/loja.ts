@@ -17,6 +17,7 @@ export interface Produto {
   video_url?: string | null
   criado_em?: string
   visitas?: number | null
+  vitrines?: import('@/lib/selecoes').VitrineProduto[]
 }
 
 export interface ItemPedido extends ProdutoCarrinho {

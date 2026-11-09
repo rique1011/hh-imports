@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { CONTACT_EMAIL } from '@/lib/brand'
 import { ArrowUpRight, Mail, MapPin, Phone } from 'lucide-react'
+import MarcaLoja from '@/components/MarcaLoja'
+import { MENSAGEM_FRETE_GRATIS } from '@/lib/politica-frete'
 
 const loja = [
   { href: '/produtos', nome: 'Todas as peças' }, { href: '/colecoes', nome: 'Nossas coleções' },
@@ -12,12 +14,13 @@ const ajuda = [
 ]
 
 // HTML do servidor: nenhum pacote de JavaScript é necessário para o rodapé.
-export default function Footer() {
+export default function Footer({ logoUrl = '' }: { logoUrl?: string }) {
   return <footer className="render-later border-t border-luxury-line bg-luxury-surface text-luxury-muted">
     <div className="luxury-container grid gap-10 py-14 sm:grid-cols-2 sm:gap-x-12 lg:grid-cols-[1.3fr_0.7fr_0.9fr_1.2fr] lg:gap-10 lg:py-20">
       <div className="max-w-xs">
-        <Link href="/" aria-label="H&H IMPORTS — Início" className="inline-block font-serif text-2xl tracking-tight text-luxury-gold-light">H&H IMPORTS</Link>
+        <Link href="/" aria-label="H&H IMPORTS — Início" className="inline-block text-center"><MarcaLoja url={logoUrl} rodape /></Link>
         <p className="mt-5 text-sm leading-7">Joias, acessórios e detalhes que acompanham quem você é.</p>
+        <Link href="/fretes-e-entregas" className="mt-4 inline-block text-xs leading-6 text-luxury-gold-light">{MENSAGEM_FRETE_GRATIS}</Link>
         <Link href="/sobre" className="luxury-link mt-4">Conheça a nossa história <ArrowUpRight size={15} strokeWidth={1.5} /></Link>
       </div>
       <div><h2 className="mb-4 font-sans text-[10px] font-medium uppercase tracking-[0.18em] text-luxury-ivory">Explore</h2><nav aria-label="Coleções no rodapé" className="flex flex-col items-start">{loja.map(link => <Link key={link.href} href={link.href} className="inline-flex min-h-11 items-center text-xs leading-5 transition-colors hover:text-luxury-gold-light">{link.nome}</Link>)}</nav></div>

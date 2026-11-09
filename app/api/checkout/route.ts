@@ -1,4 +1,5 @@
 import { validarFretePedido } from '@/lib/frete'
+import { temFreteGratis } from '@/lib/politica-frete'
 import { snapshotEntrega } from '@/lib/entrega'
 import { validarCupom } from '@/lib/cupons'
 import { ErroHttp, validarOrigem, exigirUsuario, responderErro } from '@/lib/autorizacao'
@@ -66,7 +67,8 @@ export async function POST(request: Request) {
     }
     let frete = 0
     const cotacao = body.freteToken ? validarFretePedido(body.freteToken, entrega.cep, itens) : null
-    if (subtotal < 100) {
+    if (body.freteToken && cotacao === null) return NextResponse.json({ error: 'A cotação expirou ou não corresponde à sua sacola. Calcule novamente o frete.' }, { status: 400 })
+    if (!temFreteGratis(subtotal)) {
       if (cotacao === null) return NextResponse.json({ error: 'Calcule novamente o frete para o CEP do seu cadastro.' }, { status: 400 })
       frete = cotacao.centavos / 100
     }

@@ -4,6 +4,7 @@ import { revalidateTag } from 'next/cache'
 import { dataRecebimentoValida, diaNaLoja, dataEntregaDosItens } from '@/lib/prazo-devolucao'
 import { exigirAdmin, validarOrigem, responderErro, ErroHttp } from '@/lib/autorizacao'
 import { inferirCategoriaNome, obterCategoria } from '@/lib/categorias'
+import { vitrinesValidas } from '@/lib/selecoes'
 
 interface Consulta extends PromiseLike<{ data: unknown; error: { message: string } | null }> {
   eq(campo: string, valor: unknown): Consulta
@@ -16,7 +17,7 @@ interface Consulta extends PromiseLike<{ data: unknown; error: { message: string
 
 type Operacao = 'select' | 'insert' | 'update' | 'delete'
 const recursos = {
-  produtos: { leitura: 'id,nome,slug,preco,estoque,estoque_reservado,material,descricao,video_url,fotos,categoria_id,categoria_slug,criado_em,visitas', escrita: ['nome','slug','preco','estoque','material','descricao','video_url','fotos','categoria_id','categoria_slug'] },
+  produtos: { leitura: 'id,nome,slug,preco,estoque,estoque_reservado,material,descricao,video_url,fotos,categoria_id,categoria_slug,criado_em,visitas,vitrines', escrita: ['nome','slug','preco','estoque','material','descricao','video_url','fotos','categoria_id','categoria_slug','vitrines'] },
   pedidos: { leitura: 'id,created_at,cliente_email,cliente_nome,status,total,itens,codigo_rastreio,entrega', escrita: ['status','codigo_rastreio','data_entrega'] },
   usuarios: { leitura: 'id,nome,email,cpf_cnpj,whatsapp,endereco,perfil,role', escrita: [] },
   cupons: { leitura: 'id,codigo,desconto,valor_fixo,usuario_id,ativo,criado_em', escrita: ['codigo','desconto','valor_fixo','usuario_id','ativo'] },
@@ -48,6 +49,7 @@ export async function POST(request: Request) {
       if ('preco' in lista[0] && (!Number.isFinite(Number(lista[0].preco)) || Number(lista[0].preco) < 0)) throw new ErroHttp(400, 'Preço inválido.')
       if ('estoque' in lista[0] && (!Number.isSafeInteger(Number(lista[0].estoque)) || Number(lista[0].estoque) < 0)) throw new ErroHttp(400, 'Estoque inválido.')
       if (tabela === 'produtos') {
+        if ('vitrines' in lista[0] && !vitrinesValidas(lista[0].vitrines)) throw new ErroHttp(400, 'Selecione apenas Lançamentos, Masculino ou Presentes, sem repetições.')
         if ('categoria_slug' in lista[0]) {
           const categoria = obterCategoria(lista[0].categoria_slug)
           if (!categoria) throw new ErroHttp(400, 'Selecione uma categoria válida para a peça.')

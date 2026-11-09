@@ -9,7 +9,7 @@
 }
 
 @layer base {
-  html { color-scheme: dark; background: #0a0a0a; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; scroll-padding-top: calc(7rem + env(safe-area-inset-top, 0px)); scrollbar-color: #625139 #111; scrollbar-width: thin; }
+  html { color-scheme: dark; background: #0a0a0a; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; scroll-padding-top: calc(11rem + env(safe-area-inset-top, 0px)); scrollbar-color: #625139 #111; scrollbar-width: thin; }
   body { margin: 0; min-width: 0; background: #0a0a0a; color: #f3efe7; font-family: var(--font-inter), Arial, sans-serif; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; padding-inline: env(safe-area-inset-left, 0px) env(safe-area-inset-right, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
   h1, h2, h3, h4, h5, h6 { font-family: var(--font-playfair), Georgia, serif; text-wrap: balance; }
   button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }

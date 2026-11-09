@@ -14,6 +14,7 @@ import { Plus, Search, Edit, Trash2, Loader2, Image as ImageIcon, Box, X } from 
 import { supabaseAdmin as supabase } from '@/lib/admin-client'
 import { CATEGORIAS, categoriaDoProduto, obterCategoria } from '@/lib/categorias'
 import toast from 'react-hot-toast'
+import { VITRINES_PRODUTO, SELECOES, type VitrineProduto } from '@/lib/selecoes'
 
 export default function TelaEstoque() {
   const [produtos, setProdutos] = useState<Produto[]>([])
@@ -23,6 +24,7 @@ export default function TelaEstoque() {
   const [modalAberta, setModalAberta] = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [fotos, setFotos] = useState<FotoProdutoEdicao[]>([])
+  const [vitrines, setVitrines] = useState<VitrineProduto[]>([])
   const [progressoFotos, setProgressoFotos] = useState({ feitas: 0, total: 0 })
   
   const [produtoEditandoId, setProdutoEditandoId] = useState<string | null>(null)
@@ -60,12 +62,14 @@ export default function TelaEstoque() {
   const abrirModalNovo = () => {
     setProdutoEditandoId(null)
     setFotos([])
+    setVitrines([])
     setForm({ nome: '', preco: '', estoque: '0', material: 'Ouro 18k', descricao: '', video_url: '', categoria_slug: '' })
     setProgressoFotos({ feitas: 0, total: 0 })
     setModalAberta(true)
   }
 
   const abrirModalEditar = (produto: Produto) => {
+    setVitrines(produto.vitrines || [])
     setProdutoEditandoId(produto.id)
     setFotos((produto.fotos || []).map((url, index) => ({ id: String(index) + ':' + url, url })))
     setForm({
@@ -113,6 +117,7 @@ export default function TelaEstoque() {
         descricao: form.descricao,
         video_url: form.video_url || null,
         categoria_slug: form.categoria_slug,
+        vitrines,
         fotos: fotosArray
       }
 
@@ -249,6 +254,11 @@ export default function TelaEstoque() {
                 </select>
                 <p className="mt-2 text-xs text-gray-400">Define em qual coleção a peça aparece na loja.</p>
               </div>
+              <fieldset className="rounded border border-luxury-line p-4">
+                <legend className="px-2 text-sm text-luxury-gold-light">Exibir também em</legend>
+                <div className="flex flex-wrap gap-x-6 gap-y-2">{VITRINES_PRODUTO.map(slug => <label key={slug} className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" className="h-5 w-5 accent-hb-gold" checked={vitrines.includes(slug)} onChange={e => setVitrines(atuais => e.target.checked ? [...atuais, slug] : atuais.filter(s => s !== slug))} />{SELECOES.find(s => s.slug === slug)?.nome}</label>)}</div>
+                <p className="mt-2 text-xs leading-6 text-gray-400">Masculino e Presentes mostram as peças marcadas aqui. Lançamentos inclui também os produtos cadastrados nos últimos 30 dias.</p>
+              </fieldset>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Nome do Produto</label>

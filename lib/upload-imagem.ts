@@ -1,5 +1,5 @@
 'use client'
-export async function uploadImagem(file: File, tipo: 'produtos' | 'trocas', contexto?: {pedidoId:string;produtoId:string}) {
+export async function uploadImagem(file: File, tipo: 'produtos' | 'trocas' | 'aparencia', contexto?: {pedidoId:string;produtoId:string}) {
   const form = new FormData()
   form.set('arquivo', file)
   form.set('tipo', tipo)

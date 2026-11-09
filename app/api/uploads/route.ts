@@ -9,9 +9,9 @@ export async function POST(request: Request){try{
  validarOrigem(request);const user=await exigirUsuario(request)
  if(Number(request.headers.get('content-length'))>5*1024*1024+16384)throw new ErroHttp(413,'A imagem deve ter até 5 MB.')
  const form=await request.formData(),file=form.get('arquivo'),tipo=String(form.get('tipo'))
- if(!(file instanceof File)||!['produtos','trocas'].includes(tipo))throw new ErroHttp(400,'Imagem inválida.')
- if(tipo==='produtos'&&!user.admin)throw new ErroHttp(403,'Acesso restrito ao administrador.')
- if(tipo==='produtos'){
+ if(!(file instanceof File)||!['produtos','trocas','aparencia'].includes(tipo))throw new ErroHttp(400,'Imagem inválida.')
+ if(tipo!=='trocas'&&!user.admin)throw new ErroHttp(403,'Acesso restrito ao administrador.')
+ if(tipo!=='trocas'){
   await limitar(request,'upload-catalogo',120,600,String(user.id))
   await limitar(request,'upload-catalogo-dia',600,86400,String(user.id))
   if(file.size>MAX_BYTES_FOTO_PRODUTO)throw new ErroHttp(400,'As fotos do catálogo devem ter até 4 MB cada.')

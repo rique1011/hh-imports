@@ -49,6 +49,8 @@ exports.createDb = async function createDb(idType = 'uuid', usuarioIdType = 'uui
   await db.exec(fs.readFileSync(path.join(root,'supabase/migrations',seguranca),'utf8'))
   const revogacao=fs.readdirSync(path.join(root,'supabase/migrations')).find(name=>name.endsWith('_revogar_envios_estornados.sql'))
   await db.exec(fs.readFileSync(path.join(root,'supabase/migrations',revogacao),'utf8'))
+  const aparencia=fs.readdirSync(path.join(root,'supabase/migrations')).find(name=>name.endsWith('_loja_aparencia_vitrines.sql'))
+  await db.exec(fs.readFileSync(path.join(root,'supabase/migrations',aparencia),'utf8'))
   return db
 }
 
@@ -58,6 +60,7 @@ exports.adapter = function adapter(db) {
     select(columns = '*', options = {}) { this.columns = columns; this.head = !!options.head; return this }
     update(values) { this.values = values; return this }
     insert(values) { this.insertValues = values; return this }
+    abortSignal() { return this }
     limit(value) { this.maxRows = Number(value); return this }
     column(key) { if (key.includes('->>')) { const [col, field] = key.split('->>'); if (!/^\w+$/.test(col) || !/^\w+$/.test(field)) throw Error('Invalid fixture column'); return '"' + col + '"->>\'' + field + '\'' } return key.split('.').map(part => '"' + part + '"').join('.') }
     eq(key, value) { this.params.push(value); this.filters.push(this.column(key) + '=$' + this.params.length); return this }
@@ -81,7 +84,7 @@ exports.adapter = function adapter(db) {
           query = 'INSERT INTO "' + this.table + '" (' + columns + ') VALUES (' + markers.join(',') + ') RETURNING ' + this.columns
         } else if (this.values) {
           const updates = Object.entries(this.values).map(([key, value]) => {
-            params.push(typeof value === 'object' && value !== null && !['mfa_recuperacao','fotos'].includes(key) ? JSON.stringify(value) : value); return '"' + key + '"=$' + params.length
+            params.push(typeof value === 'object' && value !== null && !['mfa_recuperacao','fotos','vitrines'].includes(key) ? JSON.stringify(value) : value); return '"' + key + '"=$' + params.length
           })
           query = 'UPDATE "' + this.table + '" SET ' + updates.join(',') + where + ' RETURNING ' + this.columns
         } else {
