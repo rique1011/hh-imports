@@ -3,6 +3,7 @@ import { createHash, createHmac, randomBytes, randomInt, createCipheriv, createD
 import { isIP } from 'node:net'
 import * as OTPAuth from 'otpauth'
 import bcrypt from 'bcryptjs'
+import { minimoSenha } from '@/lib/politica-senha'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 // Mantém este módulo independente de autorizacao (também usado pelo login).
 export class FalhaSeguranca extends Error { constructor(public status: number, message: string) { super(message) } }
@@ -11,12 +12,12 @@ export function emailNormalizado(v: unknown) {
   if (typeof v !== 'string' || v.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())) throw new FalhaSeguranca(400, 'Informe um e-mail válido.')
   return v.trim().toLowerCase()
 }
-export function senhaForte(v: unknown): v is string {
-  return typeof v === 'string' && [...v].length >= 15 && Buffer.byteLength(v, 'utf8') <= 72
-    && !/^(.)\1+$/.test(v) && !['123456789012345','passwordpassword','senha12345678901','12345678901234567890'].includes(v.toLowerCase())
+export function senhaForte(v: unknown, administrador = false): v is string {
+  return typeof v === 'string' && [...v].length >= minimoSenha(administrador) && Buffer.byteLength(v, 'utf8') <= 72
+    && !/^([\s\S])\1+$/.test(v) && !['12345678','123456789','1234567890','123456789012345','12345678901234567890','87654321','password','passwordpassword','senha123','senha12345678901','qwerty123','abcdefgh'].includes(v.toLowerCase())
 }
-export function validarSenha(v: unknown): asserts v is string {
-  if (!senhaForte(v)) throw new FalhaSeguranca(400, 'Use uma frase-senha exclusiva com pelo menos 15 caracteres e até 72 bytes.')
+export function validarSenha(v: unknown, administrador = false): asserts v is string {
+  if (!senhaForte(v,administrador)) throw new FalhaSeguranca(400, `Use pelo menos ${minimoSenha(administrador)} caracteres, até 72 bytes, e evite senhas muito comuns ou repetidas.`)
 }
 export function codigoVerificacao(email: string, codigo: string) {
   const secret = process.env.NEXTAUTH_SECRET

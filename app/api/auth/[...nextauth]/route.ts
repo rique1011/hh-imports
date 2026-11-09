@@ -21,7 +21,7 @@ const handler=NextAuth({
    if(administrador && u.mfa_secret && !codigo) throw new AutenticadorNecessario()
    const mfa=administrador && !!u.mfa_secret && await consumirMfa(db,u,codigo)
    if(administrador && u.mfa_secret && !mfa) throw Error()
-   const senhaAtual=senhaForte(credentials?.password)
+   const senhaAtual=senhaForte(credentials?.password,administrador)
    if(senhaAtual && u.senha_politica_versao!==1){const {error}=await db.from('usuarios').update({senha_politica_versao:1}).eq('id',u.id); if(error) throw Error()}
    return {id:String(u.id),name:u.nome,email:u.email,role:administrador?'admin':'cliente',sessaoVersao:u.sessao_versao,mfa,senhaAtual}
   } catch(error) {

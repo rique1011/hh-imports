@@ -1,6 +1,7 @@
 'use client'
 
 import { getSession, signIn } from 'next-auth/react'
+import CampoSenha from '@/components/CampoSenha'
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -53,9 +54,9 @@ export default function PaginaLogin() {
           )}
 
           <div>
-            <label className="block text-[10px] md:text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">E-mail</label>
+            <label htmlFor="login-email" className="block text-[10px] md:text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">E-mail</label>
             <input
-              type="email"
+              id="login-email" type="email" autoComplete="username"
               value={email}
               onChange={(e) => {setEmail(e.target.value.toLowerCase());setSolicitarAutenticador(false);setCodigo('')}}
               className="w-full bg-hb-black text-white text-base md:text-sm border border-gray-700 p-3 rounded focus:outline-none focus:border-hb-gold transition"
@@ -65,13 +66,13 @@ export default function PaginaLogin() {
 
           <div>
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-2 gap-1 sm:gap-0">
-              <label className="block text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-widest">Senha</label>
+              <label htmlFor="login-senha" className="block text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-widest">Senha</label>
               <Link href="/esqueci-senha" className="text-[10px] md:text-xs font-bold text-hb-gold hover:text-hb-goldLight transition uppercase tracking-widest inline-block py-1 sm:py-0">
                 Esqueceu a senha?
               </Link>
             </div>
-            <input
-              type="password"
+            <CampoSenha
+              id="login-senha" autoComplete="current-password"
               value={senha}
               onChange={(e) => {setSenha(e.target.value);setSolicitarAutenticador(false);setCodigo('')}}
               className="w-full bg-hb-black text-white text-base md:text-sm border border-gray-700 p-3 rounded focus:outline-none focus:border-hb-gold transition"

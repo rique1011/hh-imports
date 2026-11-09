@@ -1,5 +1,7 @@
 'use client'
 
+import CampoSenha from '@/components/CampoSenha'
+import { MIN_SENHA_CLIENTE, MIN_SENHA_ADMIN } from '@/lib/politica-senha'
 import { useState, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Loader2, CheckCircle2 } from 'lucide-react'
@@ -7,17 +9,20 @@ import { Loader2, CheckCircle2 } from 'lucide-react'
 function ConteudoRedefinir() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  
+
   // Pega o token da URL
   const token = searchParams.get('token')
 
   const [novaSenha, setNovaSenha] = useState('')
+  const [minimo, setMinimo] = useState(MIN_SENHA_CLIENTE)
+  const [erro, setErro] = useState('')
   const [carregando, setCarregando] = useState(false)
   const [sucesso, setSucesso] = useState(false)
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
     setCarregando(true)
+    setErro('')
 
     try {
       const res = await fetch('/api/auth/redefinir', {
@@ -26,16 +31,18 @@ function ConteudoRedefinir() {
         body: JSON.stringify({ token, novaSenha })
       })
 
+      const data = await res.json().catch(() => null)
       if (res.ok) {
         setSucesso(true)
         // Redireciona para o login depois de 3 segundos
         setTimeout(() => router.push('/login'), 3000)
       } else {
-        alert("Link inválido ou expirado. Peça um novo link.")
+        if(data?.minimoSenha===MIN_SENHA_ADMIN) setMinimo(MIN_SENHA_ADMIN)
+        setErro(data?.error || 'Link inválido ou expirado. Peça um novo link.')
         setCarregando(false)
       }
     } catch {
-      alert("Erro ao conectar com o servidor.")
+      setErro('Erro ao conectar com o servidor. Tente novamente.')
       setCarregando(false)
     }
   }
@@ -54,25 +61,27 @@ function ConteudoRedefinir() {
     <div className="max-w-md w-full bg-white p-8 rounded-2xl border border-gray-100 shadow-sm animate-in fade-in zoom-in-95 duration-500 mx-auto">
       <h1 className="text-2xl font-light uppercase tracking-widest italic mb-2 text-gray-900">Nova Senha</h1>
       <p className="text-xs text-gray-500 mb-6">Digite sua nova senha abaixo para recuperar o acesso.</p>
-      
+
       <form onSubmit={handleUpdate} className="space-y-4">
         <div>
-          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
+          <label htmlFor="redefinir-nova-senha" className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
             Sua nova senha
           </label>
-          <input 
-            type="password" 
-            placeholder="••••••••" 
+          <CampoSenha
+            id="redefinir-nova-senha" nomeCampo="nova senha" autoComplete="new-password" aria-describedby="ajuda-redefinir-senha"
+            placeholder="••••••••"
             className="w-full border border-gray-200 p-3 rounded text-sm outline-none focus:border-black transition"
             value={novaSenha}
             onChange={(e) => setNovaSenha(e.target.value)}
             required
-            minLength={15}
+            minLength={minimo}
           />
+          <p id="ajuda-redefinir-senha" className="mt-2 text-xs text-gray-500">Mínimo de {minimo} caracteres.</p>
         </div>
-        
-        <button 
-          type="submit" 
+
+        {erro && <p role="alert" className="text-sm text-red-600">{erro}</p>}
+        <button
+          type="submit"
           disabled={carregando || !token}
           className="w-full bg-black text-white py-4 font-bold text-xs uppercase tracking-widest hover:bg-gray-800 transition flex items-center justify-center gap-2 mt-4 disabled:opacity-50"
         >

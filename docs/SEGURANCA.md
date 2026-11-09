@@ -4,7 +4,7 @@ Atualização de 06/11/2026. Executar a migração `20261106194511_seguranca_eco
 
 ## Autenticação
 
-- Senhas novas: frase exclusiva com pelo menos 15 caracteres e até 72 bytes; bcrypt custo 12. Contas antigas com senha curta entram em sessão restrita para atualização.
+- Senhas novas: mínimo de 8 caracteres para clientes e 15 para administradores, até 72 bytes, com recusa de senhas muito comuns; bcrypt custo 12. Contas antigas com senha curta entram em sessão restrita para atualização.
 - Cada requisição privada valida identificação, versão de sessão, e-mail confirmado e bloqueio no banco. Troca de senha, papel, e-mail, bloqueio ou MFA revoga sessões anteriores.
 - Clientes confirmam o e-mail no cadastro e entram com e-mail e senha, sem aplicativo autenticador ou aba de segurança administrativa. A troca comum de senha fica em Meus dados; senhas legadas fracas são atualizadas uma vez nesse formulário.
 - Administradores precisam de TOTP. O campo de código aparece somente depois da validação da senha de uma conta administradora. Após entrar: Minha conta → Segurança do administrador → configurar autenticador → guardar os dez códigos de recuperação → entrar novamente com código. O reset de senha preserva o segundo fator.

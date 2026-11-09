@@ -1,5 +1,7 @@
 'use client'
 
+import CampoSenha from '@/components/CampoSenha'
+import { MIN_SENHA_CLIENTE } from '@/lib/politica-senha'
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -11,13 +13,13 @@ export default function PaginaCadastro() {
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [carregando, setCarregando] = useState(false)
-  
+
   const [aceitouTermos, setAceitouTermos] = useState(false)
   const [erroTermos, setErroTermos] = useState(false)
 
   const handleCadastro = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!aceitouTermos) {
       setErroTermos(true)
       return
@@ -52,7 +54,7 @@ export default function PaginaCadastro() {
   return (
     <main className="min-h-screen flex items-center justify-center bg-gray-100 py-10 md:py-12 px-4 md:px-6">
       <div className="max-w-md w-full bg-white p-6 md:p-8 rounded-2xl border border-gray-200 shadow-md animate-in fade-in slide-in-from-bottom-4 duration-700">
-        
+
         <div className="text-center mb-6 md:mb-8">
           <h1 className="text-xl md:text-2xl font-light text-gray-900 uppercase tracking-widest italic mb-2">
             Criar Conta
@@ -64,12 +66,12 @@ export default function PaginaCadastro() {
 
         <form onSubmit={handleCadastro} className="space-y-4 md:space-y-5">
           <div>
-            <label className="block text-[10px] md:text-xs font-bold text-gray-700 uppercase tracking-widest mb-1 md:mb-2">
+            <label htmlFor="cadastro-nome" className="block text-[10px] md:text-xs font-bold text-gray-700 uppercase tracking-widest mb-1 md:mb-2">
               Nome Completo
             </label>
-            <input 
-              type="text" 
-              required 
+            <input
+              id="cadastro-nome" type="text"
+              required
               value={nome}
               onChange={(e) => setNome(e.target.value)}
               className="w-full bg-white text-gray-900 placeholder-gray-400 border border-gray-300 p-3 rounded text-base md:text-sm outline-none focus:border-black focus:ring-1 focus:ring-black transition shadow-sm"
@@ -78,12 +80,12 @@ export default function PaginaCadastro() {
           </div>
 
           <div>
-            <label className="block text-[10px] md:text-xs font-bold text-gray-700 uppercase tracking-widest mb-1 md:mb-2">
+            <label htmlFor="cadastro-email" className="block text-[10px] md:text-xs font-bold text-gray-700 uppercase tracking-widest mb-1 md:mb-2">
               E-mail
             </label>
-            <input 
-              type="email" 
-              required 
+            <input
+              id="cadastro-email" type="email" autoComplete="email"
+              required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full bg-white text-gray-900 placeholder-gray-400 border border-gray-300 p-3 rounded text-base md:text-sm outline-none focus:border-black focus:ring-1 focus:ring-black transition shadow-sm"
@@ -92,35 +94,36 @@ export default function PaginaCadastro() {
           </div>
 
           <div>
-            <label className="block text-[10px] md:text-xs font-bold text-gray-700 uppercase tracking-widest mb-1 md:mb-2">
+            <label htmlFor="cadastro-senha" className="block text-[10px] md:text-xs font-bold text-gray-700 uppercase tracking-widest mb-1 md:mb-2">
               Senha
             </label>
-            <input 
-              type="password" minLength={15} 
-              required 
+            <CampoSenha
+              id="cadastro-senha" autoComplete="new-password" minLength={MIN_SENHA_CLIENTE} aria-describedby="ajuda-cadastro-senha"
+              required
               value={senha}
               onChange={(e) => setSenha(e.target.value)}
               className="w-full bg-white text-gray-900 placeholder-gray-400 border border-gray-300 p-3 rounded text-base md:text-sm outline-none focus:border-black focus:ring-1 focus:ring-black transition shadow-sm"
               placeholder="••••••••"
             />
+            <p id="ajuda-cadastro-senha" className="mt-2 text-xs text-gray-500">Mínimo de {MIN_SENHA_CLIENTE} caracteres.</p>
           </div>
 
           <div className="pt-2">
             <label className={`flex items-start gap-3 p-3 rounded cursor-pointer border transition-all ${erroTermos ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200 hover:border-gray-300'}`}>
               <div className="flex items-center h-5 mt-0.5 md:mt-0">
-                <input 
-                  type="checkbox" 
+                <input
+                  type="checkbox"
                   checked={aceitouTermos}
                   onChange={(e) => {
                     setAceitouTermos(e.target.checked)
                     if (e.target.checked) setErroTermos(false)
                   }}
-                  className="w-4 h-4 text-black border-gray-300 rounded focus:ring-black accent-black cursor-pointer shrink-0" 
+                  className="w-4 h-4 text-black border-gray-300 rounded focus:ring-black accent-black cursor-pointer shrink-0"
                 />
               </div>
               <div className="flex-1 text-[11px] md:text-[10px] text-gray-700 leading-snug md:leading-tight">
                 Eu li e concordo com os{' '}
-                <Link href="/termos" className="font-bold text-black hover:underline">Termos de Uso</Link> 
+                <Link href="/termos" className="font-bold text-black hover:underline">Termos de Uso</Link>
                 {' '}e a{' '}
                 <Link href="/privacidade" className="font-bold text-black hover:underline">Política de Privacidade</Link>.
               </div>
@@ -132,8 +135,8 @@ export default function PaginaCadastro() {
             )}
           </div>
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={carregando || !aceitouTermos}
             className="w-full bg-black text-white py-3 md:py-4 font-bold text-[10px] md:text-xs uppercase tracking-widest hover:bg-gray-800 transition flex items-center justify-center gap-2 mt-2 md:mt-4 disabled:opacity-50 disabled:cursor-not-allowed rounded shadow-sm"
           >
