@@ -8,4 +8,4 @@ o nome interno HH Editorial para respeitar o nome reservado da licença.
 Nenhum caractere foi removido. Os pesos de 401 a 900 usam os originais.
 
 Os nomes de arquivo incluem SHA-256 do conteúdo para permitir cache imutável.
-Ao atualizar uma fonte, atualize também os URLs no layout e no CSS global.
+Ao atualizar uma fonte, atualize também os URLs no CSS global.
