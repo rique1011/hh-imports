@@ -66,3 +66,51 @@ test('cliente HTTP preserva status e campos seguros sem registrar resposta, cred
   await assert.rejects(api.requisitarMelhorEnvio('/cart'), /cadastro do envio/)
   assert.doesNotMatch(JSON.stringify(logs), /HTML privada/)
 })
+
+test('motivo do fornecedor em listas e objetos fica disponível apenas na mensagem administrativa', () => {
+  for (const resposta of [
+    { error: { message: ['Finalize a verificação da conta para continuar.'] } },
+    { message: ['Finalize a verificação da conta para continuar.'] },
+    { errors: { envio: ['Finalize a verificação da conta para continuar.'] } },
+    ['Finalize a verificação da conta para continuar.'],
+  ]) {
+    const erro = new api.ErroMelhorEnvio(422, '/cart', resposta)
+    assert.match(erro.mensagemAdministrativa, /Motivo informado pelo Melhor Envio: Finalize a verificação/)
+    assert.doesNotMatch(erro.message, /Finalize a verificação/)
+    assert.doesNotMatch(JSON.stringify(erro), /Finalize a verificação/)
+  }
+  const circular = {}; circular.data = circular
+  assert.doesNotThrow(() => new api.ErroMelhorEnvio(422, '/cart', circular))
+  assert.ok(new api.ErroMelhorEnvio(422, '/cart', { message: 'a '.repeat(2000) }).mensagemAdministrativa.length < 1000)
+})
+
+test('motivo administrativo oculta credenciais e valores pessoais do pedido sem perder a orientação do fornecedor', async t => {
+  const originalFetch = global.fetch, originalWarn = console.warn, logs = [], anterior = process.env.MELHOR_ENVIO_TOKEN
+  process.env.MELHOR_ENVIO_TOKEN = 'segredo-de-teste'
+  console.warn = (...args) => logs.push(args)
+  t.after(() => { global.fetch = originalFetch; console.warn = originalWarn; if (anterior === undefined) delete process.env.MELHOR_ENVIO_TOKEN; else process.env.MELHOR_ENVIO_TOKEN = anterior })
+  global.fetch = async () => Response.json({ error: { message: [
+    'Finalize o cadastro da conta. Cliente Particular; CPF 123.456.789-01; (47) 99999-9999; cliente@example.test; Rua Privada, 10; CEP 89209-452; Bearer segredo-de-teste.',
+  ] } }, { status: 422 })
+  await assert.rejects(api.requisitarMelhorEnvio('/cart', { to: {
+    name: 'Cliente Particular', document: '12345678901', phone: '47999999999', email: 'cliente@example.test', address: 'Rua Privada', number: '10', postal_code: '89209452',
+  } }), erro => {
+    assert.match(erro.mensagemAdministrativa, /Finalize o cadastro da conta/)
+    assert.match(erro.mensagemAdministrativa, /oculto/)
+    assert.doesNotMatch(erro.mensagemAdministrativa, /Cliente Particular|123\.456\.789-01|99999-9999|cliente@example|Rua Privada|89209-452|segredo-de-teste/)
+    assert.doesNotMatch(erro.message, /Finalize o cadastro/)
+    return true
+  })
+  assert.doesNotMatch(JSON.stringify(logs), /Finalize o cadastro|Particular|Privada|segredo-de-teste|99999|example.test/)
+})
+
+test('resposta pública e logs da API não expõem o motivo reservado ao administrador', async t => {
+  const logs = [], originalError = console.error
+  console.error = (...args) => logs.push(args)
+  t.after(() => { console.error = originalError })
+  const erro = new api.ErroMelhorEnvio(422, '/shipment/calculate', { message: 'Diagnóstico reservado da conta da loja' })
+  const response = loadTs('lib/autorizacao').responderErro(erro)
+  assert.equal(response.status, 500)
+  assert.doesNotMatch(JSON.stringify(await response.json()), /Diagnóstico reservado/)
+  assert.doesNotMatch(JSON.stringify(logs), /Diagnóstico reservado/)
+})

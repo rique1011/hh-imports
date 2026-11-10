@@ -30,6 +30,7 @@ async function setup(t, options = {}) {
     chamadas.push({ path, body })
     if (path === '/cart') {
       if (cartHook) await cartHook()
+      if (options.recusaCart) throw new api.ErroMelhorEnvio(422, path, options.recusaCart)
       if (falharCart) throw new api.ErroMelhorEnvio(0, path)
       return { id: meId, price: precoCart }
     }
@@ -162,6 +163,26 @@ test('API exige administrador/origem válida e valida ID antes de qualquer opera
   const route = loadTs('app/api/melhor-envio/gerar-etiqueta/route', { '@/lib/autorizacao': { ...auth, exigirAdmin: async () => ({db:{}}) } })
   assert.equal((await route.POST(new Request('https://loja.example.test/api/melhor-envio/gerar-etiqueta',{method:'POST',headers:{origin:'https://outro.example.test'},body:'{"pedidoId":1}'}))).status,403)
   assert.equal((await route.POST(new Request('https://loja.example.test/api/melhor-envio/gerar-etiqueta',{method:'POST',body:'{"pedidoId":"1 OR 1=1"}'}))).status,400)
+})
+
+test('recusa detalhada aparece no admin e no checkpoint sem tentar comprar uma etiqueta', async t => {
+  const s = await setup(t, { recusaCart: { error: { message: ['Finalize a verificação da conta para continuar.'] } } })
+  const auth = loadTs('lib/autorizacao')
+  const route = loadTs('app/api/melhor-envio/gerar-etiqueta/route', {
+    ...s.mocks, '@/lib/autorizacao': { ...auth, exigirAdmin: async () => ({ db: s.client }) },
+  })
+  const response = await route.POST(new Request('https://loja.example.test/api/melhor-envio/gerar-etiqueta', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...s.body, pedidoId: s.pedido.id }),
+  }))
+  assert.equal(response.status, 502)
+  const resultado = await response.json()
+  assert.match(resultado.error, /Motivo informado pelo Melhor Envio: Finalize a verificação/)
+  const envio = await s.lib.consultarEnvio(s.client, String(s.pedido.id))
+  assert.equal(envio.estado, 'nova')
+  assert.equal(envio.me_id, null)
+  assert.equal(envio.erro, resultado.error)
+  assert.equal(s.chamadas.some(c => c.path === '/shipment/checkout'), false)
 })
 
 test('preço maior que o revisado bloqueia checkout e mantém o ID para conciliação', async t => {

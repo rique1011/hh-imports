@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     return NextResponse.json(resultado, { status: resultado.concluido ? 200 : 202, headers })
   } catch (error) {
     if (error instanceof SyntaxError) return NextResponse.json({ error: 'JSON inválido.' }, { status: 400, headers })
-    if (error instanceof ErroMelhorEnvio) return NextResponse.json({ error: error.message }, { status: 502, headers })
+    if (error instanceof ErroMelhorEnvio) return NextResponse.json({ error: error.mensagemAdministrativa }, { status: 502, headers })
     return responderErro(error)
   }
 }

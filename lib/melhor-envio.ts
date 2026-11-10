@@ -20,13 +20,58 @@ function nomeCampo(campo: string): string | null {
     orders: 'etiquetas selecionadas' }
   return Object.hasOwn(nomes, campo) ? nomes[campo] : null
 }
+function mensagensFornecedor(resposta: unknown) {
+  const mensagens: string[] = []
+  let visitas = 0
+  function coletar(value: unknown, profundidade = 0, campos = false) {
+    if (++visitas > 80 || profundidade > 5 || mensagens.length >= 8) return
+    if (typeof value === 'string') { if (value.trim()) mensagens.push(value.slice(0, 2000)); return }
+    if (Array.isArray(value)) { value.slice(0, 8).forEach(item => coletar(item, profundidade + 1, campos)); return }
+    const objeto = registro(value)
+    if (!objeto) return
+    if (campos) Object.values(objeto).slice(0, 12).forEach(item => coletar(item, profundidade + 1, true))
+    else for (const chave of ['message', 'messages', 'error', 'errors', 'detail', 'details', 'error_description', 'data']) {
+      if (Object.hasOwn(objeto, chave)) coletar(objeto[chave], profundidade + 1, chave === 'errors')
+    }
+  }
+  coletar(resposta)
+  return [...new Set(mensagens)]
+}
+function protegerMotivo(mensagens: string[], valoresPrivados: string[]) {
+  let texto = mensagens.join(' ').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]*>/g, ' ').replace(/[\u0000-\u001f\u007f]/g, ' ')
+  for (const valor of [...new Set(valoresPrivados.filter(valor => valor.length >= 3))].sort((a, b) => b.length - a.length)) {
+    const literal = valor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    texto = texto.replace(new RegExp(literal, 'gi'), '[dado oculto]')
+  }
+  return texto.replace(/\bBearer\s+\S+/gi, 'Bearer [token oculto]')
+    .replace(/\bhttps?:\/\/\S+/gi, '[link oculto]')
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[e-mail oculto]')
+    .replace(/\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b|\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g, '[documento oculto]')
+    .replace(/(?:\+?55[ -]?)?(?:\(\d{2}\)|\b\d{2})[ -]?\d{4,5}[ -]?\d{4}\b/g, '[telefone oculto]')
+    .replace(/\b\d{5}-?\d{3}\b|\b\d{8,}\b/g, '[número oculto]')
+    .replace(/[A-Za-z0-9_.-]{32,}/g, '[identificador oculto]')
+    .replace(/\s+/g, ' ').trim().slice(0, 600)
+}
+function valoresParticipantes(body: unknown) {
+  const dados = registro(body), valores: string[] = []
+  for (const lado of ['from', 'to']) {
+    const pessoa = registro(dados?.[lado])
+    if (!pessoa) continue
+    for (const campo of ['name', 'email', 'phone', 'document', 'company_document', 'address', 'number', 'complement', 'district', 'city', 'postal_code', 'state_register']) {
+      const valor = pessoa[campo]
+      if (typeof valor === 'string' || typeof valor === 'number') valores.push(String(valor))
+    }
+  }
+  return valores
+}
 function detalhesErro(resposta: unknown) {
   const dados = registro(resposta), erros = registro(dados?.errors)
-  const mensagem = typeof dados?.message === 'string' ? dados.message : typeof dados?.error === 'string' ? dados.error : ''
-  const texto = mensagem.slice(0, 2000).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const mensagens = mensagensFornecedor(resposta)
+  const texto = mensagens.join(' ').slice(0, 2000).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
   const saldoInsuficiente = /\bsaldo insuficiente\b|\bnao (?:possui|tem) saldo suficiente\b|\binsufficient (?:wallet )?(?:balance|funds|credits?)\b/.test(texto)
   const campos = [...new Set(Object.keys(erros || {}).slice(0, 50).map(nomeCampo).filter((campo): campo is string => campo !== null))]
-  return { saldoInsuficiente, campos }
+  return { saldoInsuficiente, campos, mensagens }
 }
 function mensagemRecusa(operacao: string, detalhes: ReturnType<typeof detalhesErro>) {
   if (detalhes.saldoInsuficiente) return 'Saldo insuficiente na carteira do Melhor Envio. Adicione créditos e retome este envio.'
@@ -44,7 +89,8 @@ function mensagemRecusa(operacao: string, detalhes: ReturnType<typeof detalhesEr
 export class ErroMelhorEnvio extends Error {
   public campos: string[]
   public saldoInsuficiente: boolean
-  constructor(public status: number, public operacao: string, resposta?: unknown) {
+  #motivoFornecedor: string
+  constructor(public status: number, public operacao: string, resposta?: unknown, valoresPrivados: string[] = []) {
     const detalhes = detalhesErro(resposta)
     super(status === 401 || status === 403 ? 'Confira a validade e as permissões do MELHOR_ENVIO_TOKEN.'
       : status === 422 ? mensagemRecusa(operacao, detalhes)
@@ -52,6 +98,11 @@ export class ErroMelhorEnvio extends Error {
       : 'O Melhor Envio não confirmou a operação. Atualize o processamento para consultar o resultado.')
     this.campos = detalhes.campos
     this.saldoInsuficiente = detalhes.saldoInsuficiente
+    // O texto livre do fornecedor só é utilizado nos fluxos administrativos.
+    this.#motivoFornecedor = status === 422 ? protegerMotivo(detalhes.mensagens, valoresPrivados) : ''
+  }
+  get mensagemAdministrativa() {
+    return this.#motivoFornecedor ? `${this.message} Motivo informado pelo Melhor Envio: ${this.#motivoFornecedor}` : this.message
   }
 }
 export function ambienteMelhorEnvio() {
@@ -78,7 +129,8 @@ export async function requisitarMelhorEnvio(path: string, body?: unknown) {
   } catch { throw new ErroMelhorEnvio(0, path) }
   if (!response.ok) {
     const resposta = response.status === 422 ? await response.json().catch(() => null) : null
-    const erro = new ErroMelhorEnvio(response.status, path, resposta)
+    const erro = new ErroMelhorEnvio(response.status, path, resposta, [config.headers.Authorization,
+      config.headers.Authorization.replace(/^Bearer\s+/i, ''), ...valoresParticipantes(body)])
     // Não registra o corpo retornado, os valores dos campos ou o token.
     const operacoes = ['/cart', '/shipment/checkout', '/shipment/calculate', '/shipment/generate', '/shipment/print', '/shipment/tracking']
     console.warn('[melhor-envio] Operação recusada.', { status: erro.status,

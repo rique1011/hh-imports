@@ -141,7 +141,7 @@ export async function processarEnvioAutomatico(pedidoId?: string, passos = 2, so
   } catch (error) {
     const envio = await consultarEnvio(db, id).catch(() => null)
     if (envio && ['inserindo','insercao_incerta','bloqueada'].includes(envio.estado)) return await finalizar('atencao', resultadoEnvio(id, envio).mensagem)
-    const mensagem = error instanceof ErroHttp || error instanceof ErroMelhorEnvio ? error.message
+    const mensagem = error instanceof ErroMelhorEnvio ? error.mensagemAdministrativa : error instanceof ErroHttp ? error.message
       : 'Falha temporária ao consultar o envio. O processamento será retomado sem criar outra etiqueta.'
     const recusa = error instanceof ErroHttp && error.status !== 409
       || error instanceof ErroMelhorEnvio && error.status >= 400 && error.status < 500 && ![408,429].includes(error.status)

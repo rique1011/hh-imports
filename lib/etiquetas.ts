@@ -124,7 +124,8 @@ export async function gerarEtiqueta(db: Db, pedidoId: string, body: DadosGeracao
       try { cart = await melhorEnvio('/cart', envio.config.payload) }
       catch (error) {
         const recusado = error instanceof ErroMelhorEnvio && error.status >= 400 && error.status < 500 && error.status !== 408
-        await salvar({ estado: recusado ? 'nova' : 'insercao_incerta', erro: error instanceof Error ? error.message : 'Falha na inserção.' })
+        await salvar({ estado: recusado ? 'nova' : 'insercao_incerta', erro: error instanceof ErroMelhorEnvio
+          ? error.mensagemAdministrativa : error instanceof Error ? error.message : 'Falha na inserção.' })
         throw error
       }
       if (!/^[0-9a-f-]{36}$/i.test(cart.id || '')) {
@@ -163,7 +164,8 @@ export async function gerarEtiqueta(db: Db, pedidoId: string, body: DadosGeracao
       try { await melhorEnvio('/shipment/checkout', { orders: [id] }) }
       catch (error) {
         const recusado = error instanceof ErroMelhorEnvio && [401,403,422,429].includes(error.status)
-        await salvar({ estado: recusado ? 'carrinho' : 'compra_incerta', erro: error instanceof Error ? error.message : 'Compra em conferência.' })
+        await salvar({ estado: recusado ? 'carrinho' : 'compra_incerta', erro: error instanceof ErroMelhorEnvio
+          ? error.mensagemAdministrativa : error instanceof Error ? error.message : 'Compra em conferência.' })
         throw error
       }
       remoto = await melhorEnvio<OrdemRemota>('/orders/' + encodeURIComponent(id))
