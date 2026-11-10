@@ -1,4 +1,4 @@
-import Image from 'next/image'
+import Image from '@/components/ImagemOtimizada'
 import Link from 'next/link'
 import type { Produto } from '@/types/loja'
 import BuyButton from '@/components/BuyButton'

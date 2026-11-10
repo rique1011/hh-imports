@@ -1,12 +1,10 @@
 import { Suspense } from 'react'
-import Image from 'next/image'
+import ImagemEditorial from '@/components/ImagemEditorial'
 import Link from 'next/link'
 import { ArrowDown, ArrowRight, Gem, ShieldCheck, Truck } from 'lucide-react'
 import ProductCard from '@/components/ProductCard'
 import ColecoesEditorais from '@/components/ColecoesEditorais'
 import { getCupomPublico, getVitrine } from '@/lib/catalogo'
-import hero from '@/public/images/hero-colar.webp'
-import editorial from '@/public/images/editorial-dourado.webp'
 import BannerCampanha from '@/components/BannerCampanha'
 import { getAparenciaPublica } from '@/lib/aparencia-servidor'
 import { MENSAGEM_FRETE_GRATIS } from '@/lib/politica-frete'
@@ -53,7 +51,7 @@ export default async function Home() {
           <a href="#destaques" className="mt-14 inline-flex min-h-11 items-center gap-3 text-[10px] uppercase tracking-[0.18em] text-luxury-muted lg:mt-16"><ArrowDown size={14} strokeWidth={1.5} aria-hidden="true" /> Descubra a seleção</a>
         </div>
         <div className="absolute -right-4 inset-y-0 -left-4 -z-10 sm:-inset-x-6 lg:relative lg:inset-auto lg:z-0 lg:my-8 lg:aspect-[4/5] lg:max-h-[610px] lg:self-stretch">
-          <Image src={hero} alt="Colar dourado com pedra verde em um estudo de luz e sombra" fill loading="eager" fetchPriority="high" quality={75} sizes="(max-width: 1023px) 100vw, (max-width: 1279px) calc(50vw - 72px), (max-width: 1375px) calc(50vw - 88px), 600px" placeholder="blur" className="object-cover object-[60%_45%] lg:object-center" />
+          <ImagemEditorial foto="hero" alt="Colar dourado com pedra verde em um estudo de luz e sombra" loading="eager" fetchPriority="high" sizes="(max-width: 1023px) 100vw, (max-width: 1279px) calc(50vw - 72px), (max-width: 1375px) calc(50vw - 88px), 600px" className="object-cover object-[60%_45%] lg:object-center" />
           <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/70 to-black/15 lg:hidden" />
           <div className="absolute inset-0 bg-gradient-to-t from-luxury-black/70 via-transparent to-transparent lg:from-black/40" />
           <p className="absolute bottom-7 right-6 hidden text-[9px] uppercase tracking-[0.2em] text-white/80 lg:block">H&H IMPORTS — Detalhes que ficam</p>
@@ -88,7 +86,7 @@ export default async function Home() {
     </section>
 
     <section id="mais-vendidos" className="luxury-container grid items-center gap-10 py-16 sm:gap-16 sm:py-24 lg:grid-cols-2 lg:gap-24 lg:py-28">
-      <div className="relative aspect-[5/4] overflow-hidden border border-luxury-line sm:aspect-square lg:aspect-[5/4]"><Image src={editorial} alt="Brincos dourados sobre pedra, iluminados pela luz natural" fill sizes="(max-width: 639px) calc(100vw - 32px), (max-width: 1023px) calc(100vw - 48px), (max-width: 1279px) calc(50vw - 96px), (max-width: 1375px) calc(50vw - 112px), 576px" className="object-cover object-[50%_60%]" /></div>
+      <div className="relative aspect-[5/4] overflow-hidden border border-luxury-line sm:aspect-square lg:aspect-[5/4]"><ImagemEditorial foto="editorial" alt="Brincos dourados sobre pedra, iluminados pela luz natural" sizes="(max-width: 639px) calc(100vw - 32px), (max-width: 1023px) calc(100vw - 48px), (max-width: 1279px) calc(50vw - 96px), (max-width: 1375px) calc(50vw - 112px), 576px" className="object-cover object-[50%_60%]" /></div>
       <div><p className="eyebrow mb-5">Além do brilho</p><h2 className="luxury-title">Para usar hoje.<br /><span className="italic text-luxury-gold-light">Para lembrar sempre.</span></h2><p className="mb-6 mt-6 max-w-md text-sm leading-7 text-luxury-muted">Há peças que transformam um look. E outras que passam a fazer parte de quem somos. A H&H nasceu para estar nesses detalhes.</p><Link href="/sobre" className="luxury-link border-b border-luxury-gold/40">Conheça a H&H <ArrowRight size={16} strokeWidth={1.5} /></Link></div>
     </section>
   </main>

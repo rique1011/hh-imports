@@ -7,4 +7,4 @@ export function proxy(request:NextRequest){
  const h=new Headers(request.headers);h.set('x-nonce',nonce);h.set('Content-Security-Policy',csp)
  const response=NextResponse.next({request:{headers:h}});response.headers.set('Content-Security-Policy',csp);return response
 }
-export const config={matcher:['/((?!api|_next/static|_next/image|favicon.ico|icon.svg).*)']}
+export const config={matcher:['/((?!api|_next/static|_next/image|images/editorial/|fonts/|favicon.ico|icon.svg).*)']}

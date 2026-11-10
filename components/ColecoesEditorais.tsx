@@ -1,22 +1,19 @@
-import Image from 'next/image'
+import ImagemEditorial from '@/components/ImagemEditorial'
 import Link from 'next/link'
 import { ArrowUpRight } from 'lucide-react'
-import colares from '@/public/images/colecao-colares.webp'
-import pulseiras from '@/public/images/colecao-pulseiras.webp'
-import brincos from '@/public/images/colecao-brincos.webp'
 
 export const colecoes = [
-  { nome: 'Colares', slug: 'colares', descricao: 'Perto do coração.', imagem: colares },
-  { nome: 'Pulseiras', slug: 'pulseiras', descricao: 'Em cada gesto.', imagem: pulseiras },
-  { nome: 'Brincos', slug: 'brincos', descricao: 'Seu ponto de luz.', imagem: brincos },
-]
+  { nome: 'Colares', slug: 'colares', descricao: 'Perto do coração.', imagem: 'colares' },
+  { nome: 'Pulseiras', slug: 'pulseiras', descricao: 'Em cada gesto.', imagem: 'pulseiras' },
+  { nome: 'Brincos', slug: 'brincos', descricao: 'Seu ponto de luz.', imagem: 'brincos' },
+] as const
 
 export default function ColecoesEditorais({ principal = false }: { principal?: boolean }) {
   return <div className="grid grid-cols-1 items-start gap-5 sm:grid-cols-3 sm:gap-6 lg:gap-8">
     {colecoes.map((colecao, index) => <Link key={colecao.slug} href={`/categoria/${colecao.slug}`}
       className={`group relative isolate block overflow-hidden border border-luxury-line bg-luxury-surface ${index === 1 ? 'sm:mt-12' : ''}`}>
       <div className="relative aspect-[4/3] overflow-hidden sm:aspect-[3/4]">
-        <Image src={colecao.imagem} alt={`Coleção de ${colecao.nome.toLowerCase()} H&H IMPORTS`} fill
+        <ImagemEditorial foto={colecao.imagem} alt={`Coleção de ${colecao.nome.toLowerCase()} H&H IMPORTS`}
           loading={principal && index === 0 ? 'eager' : 'lazy'}
           sizes="(max-width: 639px) calc(100vw - 32px), (max-width: 1023px) calc((100vw - 96px) / 3), (max-width: 1375px) calc((100vw - 160px) / 3), 405px"
           className="object-cover transition-transform duration-700 ease-out motion-safe:group-hover:scale-105" />

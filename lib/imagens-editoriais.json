@@ -1,0 +1,274 @@
+{
+  "hero": {
+    "width": 1280,
+    "height": 1920,
+    "avif": [
+      {
+        "src": "/images/editorial/hero-5f78d7be225b-390.avif",
+        "width": 390
+      },
+      {
+        "src": "/images/editorial/hero-5f78d7be225b-480.avif",
+        "width": 480
+      },
+      {
+        "src": "/images/editorial/hero-5f78d7be225b-640.avif",
+        "width": 640
+      },
+      {
+        "src": "/images/editorial/hero-5f78d7be225b-750.avif",
+        "width": 750
+      },
+      {
+        "src": "/images/editorial/hero-5f78d7be225b-828.avif",
+        "width": 828
+      },
+      {
+        "src": "/images/editorial/hero-5f78d7be225b-1080.avif",
+        "width": 1080
+      },
+      {
+        "src": "/images/editorial/hero-5f78d7be225b-1200.avif",
+        "width": 1200
+      },
+      {
+        "src": "/images/editorial/hero-5f78d7be225b-1280.avif",
+        "width": 1280
+      }
+    ],
+    "webp": [
+      {
+        "src": "/images/editorial/hero-5f78d7be225b-390.webp",
+        "width": 390
+      },
+      {
+        "src": "/images/editorial/hero-5f78d7be225b-480.webp",
+        "width": 480
+      },
+      {
+        "src": "/images/editorial/hero-5f78d7be225b-640.webp",
+        "width": 640
+      },
+      {
+        "src": "/images/editorial/hero-5f78d7be225b-750.webp",
+        "width": 750
+      },
+      {
+        "src": "/images/editorial/hero-5f78d7be225b-828.webp",
+        "width": 828
+      },
+      {
+        "src": "/images/editorial/hero-5f78d7be225b-1080.webp",
+        "width": 1080
+      },
+      {
+        "src": "/images/editorial/hero-5f78d7be225b-1200.webp",
+        "width": 1200
+      },
+      {
+        "src": "/images/editorial/hero-5f78d7be225b-1280.webp",
+        "width": 1280
+      }
+    ]
+  },
+  "colares": {
+    "width": 800,
+    "height": 1200,
+    "avif": [
+      {
+        "src": "/images/editorial/colares-f2ba922df700-390.avif",
+        "width": 390
+      },
+      {
+        "src": "/images/editorial/colares-f2ba922df700-480.avif",
+        "width": 480
+      },
+      {
+        "src": "/images/editorial/colares-f2ba922df700-640.avif",
+        "width": 640
+      },
+      {
+        "src": "/images/editorial/colares-f2ba922df700-750.avif",
+        "width": 750
+      },
+      {
+        "src": "/images/editorial/colares-f2ba922df700-800.avif",
+        "width": 800
+      }
+    ],
+    "webp": [
+      {
+        "src": "/images/editorial/colares-f2ba922df700-390.webp",
+        "width": 390
+      },
+      {
+        "src": "/images/editorial/colares-f2ba922df700-480.webp",
+        "width": 480
+      },
+      {
+        "src": "/images/editorial/colares-f2ba922df700-640.webp",
+        "width": 640
+      },
+      {
+        "src": "/images/editorial/colares-f2ba922df700-750.webp",
+        "width": 750
+      },
+      {
+        "src": "/images/editorial/colares-f2ba922df700-800.webp",
+        "width": 800
+      }
+    ]
+  },
+  "pulseiras": {
+    "width": 800,
+    "height": 533,
+    "avif": [
+      {
+        "src": "/images/editorial/pulseiras-f6d0ee851c1b-390.avif",
+        "width": 390
+      },
+      {
+        "src": "/images/editorial/pulseiras-f6d0ee851c1b-480.avif",
+        "width": 480
+      },
+      {
+        "src": "/images/editorial/pulseiras-f6d0ee851c1b-640.avif",
+        "width": 640
+      },
+      {
+        "src": "/images/editorial/pulseiras-f6d0ee851c1b-750.avif",
+        "width": 750
+      },
+      {
+        "src": "/images/editorial/pulseiras-f6d0ee851c1b-800.avif",
+        "width": 800
+      }
+    ],
+    "webp": [
+      {
+        "src": "/images/editorial/pulseiras-f6d0ee851c1b-390.webp",
+        "width": 390
+      },
+      {
+        "src": "/images/editorial/pulseiras-f6d0ee851c1b-480.webp",
+        "width": 480
+      },
+      {
+        "src": "/images/editorial/pulseiras-f6d0ee851c1b-640.webp",
+        "width": 640
+      },
+      {
+        "src": "/images/editorial/pulseiras-f6d0ee851c1b-750.webp",
+        "width": 750
+      },
+      {
+        "src": "/images/editorial/pulseiras-f6d0ee851c1b-800.webp",
+        "width": 800
+      }
+    ]
+  },
+  "brincos": {
+    "width": 800,
+    "height": 1200,
+    "avif": [
+      {
+        "src": "/images/editorial/brincos-86f46ccc68d1-390.avif",
+        "width": 390
+      },
+      {
+        "src": "/images/editorial/brincos-86f46ccc68d1-480.avif",
+        "width": 480
+      },
+      {
+        "src": "/images/editorial/brincos-86f46ccc68d1-640.avif",
+        "width": 640
+      },
+      {
+        "src": "/images/editorial/brincos-86f46ccc68d1-750.avif",
+        "width": 750
+      },
+      {
+        "src": "/images/editorial/brincos-86f46ccc68d1-800.avif",
+        "width": 800
+      }
+    ],
+    "webp": [
+      {
+        "src": "/images/editorial/brincos-86f46ccc68d1-390.webp",
+        "width": 390
+      },
+      {
+        "src": "/images/editorial/brincos-86f46ccc68d1-480.webp",
+        "width": 480
+      },
+      {
+        "src": "/images/editorial/brincos-86f46ccc68d1-640.webp",
+        "width": 640
+      },
+      {
+        "src": "/images/editorial/brincos-86f46ccc68d1-750.webp",
+        "width": 750
+      },
+      {
+        "src": "/images/editorial/brincos-86f46ccc68d1-800.webp",
+        "width": 800
+      }
+    ]
+  },
+  "editorial": {
+    "width": 900,
+    "height": 1350,
+    "avif": [
+      {
+        "src": "/images/editorial/editorial-3a07c1f5c158-390.avif",
+        "width": 390
+      },
+      {
+        "src": "/images/editorial/editorial-3a07c1f5c158-480.avif",
+        "width": 480
+      },
+      {
+        "src": "/images/editorial/editorial-3a07c1f5c158-640.avif",
+        "width": 640
+      },
+      {
+        "src": "/images/editorial/editorial-3a07c1f5c158-750.avif",
+        "width": 750
+      },
+      {
+        "src": "/images/editorial/editorial-3a07c1f5c158-828.avif",
+        "width": 828
+      },
+      {
+        "src": "/images/editorial/editorial-3a07c1f5c158-900.avif",
+        "width": 900
+      }
+    ],
+    "webp": [
+      {
+        "src": "/images/editorial/editorial-3a07c1f5c158-390.webp",
+        "width": 390
+      },
+      {
+        "src": "/images/editorial/editorial-3a07c1f5c158-480.webp",
+        "width": 480
+      },
+      {
+        "src": "/images/editorial/editorial-3a07c1f5c158-640.webp",
+        "width": 640
+      },
+      {
+        "src": "/images/editorial/editorial-3a07c1f5c158-750.webp",
+        "width": 750
+      },
+      {
+        "src": "/images/editorial/editorial-3a07c1f5c158-828.webp",
+        "width": 828
+      },
+      {
+        "src": "/images/editorial/editorial-3a07c1f5c158-900.webp",
+        "width": 900
+      }
+    ]
+  }
+}

@@ -2,24 +2,28 @@ import { getImageProps } from 'next/image'
 import Link from 'next/link'
 import { ArrowUpRight } from 'lucide-react'
 import type { AparenciaLoja } from '@/lib/aparencia'
-import hero from '@/public/images/hero-colar.webp'
+import { imagemEditorial } from '@/lib/imagem-editorial'
 
-function imagemCampanha(src: string) {
+function imagemCampanha(src: string, alt: string, width: number, height: number) {
   // A campanha padrão e o hero compartilham o mesmo arquivo otimizado no celular.
-  return src === '/images/hero-colar.webp'
-    ? { src: hero, quality: 75 }
-    : { src, quality: 85 }
+  if (src === '/images/hero-colar.webp') {
+    const imagem = imagemEditorial('hero', { alt, sizes: '100vw' })
+    return { avif: imagem.avif, props: { ...imagem.props, width, height } }
+  }
+  return { avif: undefined, props: getImageProps({ src, alt, width, height, sizes: '100vw', quality: 85 }).props }
 }
 
 export default function BannerCampanha({ config, prioritario = true }: { config: AparenciaLoja; prioritario?: boolean }) {
   if (!config.bannerAtivo) return null
-  const desktop = getImageProps({ ...imagemCampanha(config.bannerDesktop), alt: config.bannerAlt, width: 1920, height: 480, sizes: '100vw' }).props
+  const desktop = imagemCampanha(config.bannerDesktop, config.bannerAlt, 1920, 480)
   const mobile = config.bannerMobile
-    ? getImageProps({ ...imagemCampanha(config.bannerMobile), alt: config.bannerAlt, width: 750, height: 800, sizes: '100vw' }).props : desktop
+    ? imagemCampanha(config.bannerMobile, config.bannerAlt, 750, 800) : desktop
   const imagem = <picture className={config.bannerModo === 'editorial' ? 'absolute inset-0' : 'block'}>
-    <source media="(min-width: 768px)" srcSet={desktop.srcSet} sizes="100vw" />
+    {desktop.avif && <source media="(min-width: 768px)" type="image/avif" srcSet={desktop.avif} sizes="100vw" />}
+    <source media="(min-width: 768px)" srcSet={desktop.props.srcSet} sizes="100vw" />
+    {mobile.avif && <source type="image/avif" srcSet={mobile.avif} sizes="100vw" />}
     {/* Art direction oficial do Next: o navegador baixa somente a versão adequada. */}
-    <img {...mobile} alt={config.bannerAlt} loading={prioritario ? 'eager' : 'lazy'} fetchPriority={prioritario ? 'high' : 'auto'}
+    <img {...mobile.props} alt={config.bannerAlt} loading={prioritario ? 'eager' : 'lazy'} fetchPriority={prioritario ? 'high' : 'auto'}
       className={config.bannerModo === 'editorial' ? 'h-full w-full object-cover object-[65%_50%]' : `block h-auto w-full object-contain ${config.bannerMobile ? 'aspect-[15/16] md:aspect-[4/1]' : 'aspect-[4/1]'}`} />
   </picture>
   if (config.bannerModo === 'imagem') return <section aria-label="Campanha H&H" className="border-b border-luxury-line bg-luxury-black">

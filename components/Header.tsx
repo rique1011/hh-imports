@@ -1,14 +1,13 @@
 'use client'
-import Link from 'next/link'
+import Link from '@/components/LinkNavegacao'
 import { Menu, Search, ShoppingBag, User, X, LogOut, Shield, ChevronDown } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { signOut, useSession } from 'next-auth/react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useCart } from '@/lib/store'
 import { useHidratado } from '@/lib/use-hidratado'
 import { travarRolagem } from '@/lib/scroll-lock'
 import { linkComRetorno } from '@/lib/navegacao'
-import MarcaLoja from '@/components/MarcaLoja'
 import { MENSAGEM_FRETE_GRATIS } from '@/lib/politica-frete'
 import { SELECOES } from '@/lib/selecoes'
 import { CATEGORIAS } from '@/lib/categorias'
@@ -16,7 +15,7 @@ import { CATEGORIAS } from '@/lib/categorias'
 const links = SELECOES.map(s => ({ href: '/selecao/' + s.slug, nome: s.nome }))
 const alvo = 'min-h-11 min-w-11 inline-flex items-center justify-center transition-colors hover:text-hb-goldLight focus-visible:outline-2 focus-visible:outline-hb-gold'
 
-export default function Header({ logoUrl = '' }: { logoUrl?: string }) {
+export default function Header({ marca }: { marca: ReactNode }) {
   const { data: session } = useSession()
   const router = useRouter()
   const pathname = usePathname()
@@ -65,7 +64,7 @@ export default function Header({ logoUrl = '' }: { logoUrl?: string }) {
     <div className="relative luxury-container flex h-[72px] items-center gap-1 lg:h-24 lg:gap-6">
       <button ref={abrirRef} className={`${alvo} lg:hidden shrink-0`} aria-label="Abrir menu" aria-controls="menu-mobile" aria-expanded={menu} onClick={() => setMenu(true)}><Menu size={24} /></button>
       <Link href="/colecoes" className="hidden min-h-11 flex-1 items-center text-[10px] uppercase tracking-[0.18em] text-luxury-muted hover:text-luxury-gold-light lg:flex">Joias para a sua história</Link>
-      <Link href="/" aria-label="H&H IMPORTS — Início" className="flex min-w-0 flex-1 justify-center text-center lg:flex-none lg:px-6"><MarcaLoja url={logoUrl} /></Link>
+      <Link href="/" aria-label="H&H IMPORTS — Início" className="flex min-w-0 flex-1 justify-center text-center lg:flex-none lg:px-6">{marca}</Link>
       <div className="shrink-0 lg:flex-1 flex items-center justify-end">
         <button className={alvo} aria-label="Pesquisar" aria-expanded={busca} onClick={() => setBusca(true)}><Search size={20} /></button>
         {session ? <div className="hidden lg:flex items-center gap-1">

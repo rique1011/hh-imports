@@ -1,6 +1,6 @@
 'use client'
 
-import Link from 'next/link'
+import Link from '@/components/LinkNavegacao'
 import { usePathname } from 'next/navigation'
 import { House, LayoutGrid, Search, ShoppingBag, UserRound } from 'lucide-react'
 import { useCart } from '@/lib/store'

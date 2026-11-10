@@ -1,6 +1,15 @@
 @import "tailwindcss";
 
 @config "../tailwind.config.ts";
+
+/* O peso regular mantém os mesmos desenhos da Playfair com um arquivo menor.
+   Os demais pesos continuam disponíveis, carregados só quando utilizados. */
+@font-face { font-family: 'HH Editorial'; src: url('/fonts/editorial-normal-400-32f4b932dca3.woff2') format('woff2'); font-style: normal; font-weight: 400; font-display: swap; }
+@font-face { font-family: 'HH Editorial'; src: url('/fonts/editorial-italic-400-e9dc9aa307ff.woff2') format('woff2'); font-style: italic; font-weight: 400; font-display: swap; }
+@font-face { font-family: 'HH Editorial'; src: url('/fonts/playfair-normal-variable-5d91eb5d522a.woff2') format('woff2'); font-style: normal; font-weight: 401 900; font-display: swap; }
+@font-face { font-family: 'HH Editorial'; src: url('/fonts/playfair-italic-variable-c68530044e7c.woff2') format('woff2'); font-style: italic; font-weight: 401 900; font-display: swap; }
+@font-face { font-family: 'HH Editorial Fallback'; src: local('Times New Roman'); ascent-override: 97.25%; descent-override: 22.56%; line-gap-override: 0%; size-adjust: 111.26%; }
+
 @theme inline {
   --font-sans: var(--font-inter), sans-serif;
   --font-serif: var(--font-playfair), serif;
@@ -9,7 +18,7 @@
 }
 
 @layer base {
-  html { color-scheme: dark; background: #0a0a0a; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; scroll-padding-top: calc(11rem + env(safe-area-inset-top, 0px)); scrollbar-color: #625139 #111; scrollbar-width: thin; }
+  html { --font-playfair: 'HH Editorial', 'HH Editorial Fallback'; color-scheme: dark; background: #0a0a0a; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; scroll-padding-top: calc(11rem + env(safe-area-inset-top, 0px)); scrollbar-color: #625139 #111; scrollbar-width: thin; }
   body { margin: 0; min-width: 0; background: #0a0a0a; color: #f3efe7; font-family: var(--font-inter), Arial, sans-serif; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; padding-inline: env(safe-area-inset-left, 0px) env(safe-area-inset-right, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
   h1, h2, h3, h4, h5, h6 { font-family: var(--font-playfair), Georgia, serif; text-wrap: balance; }
   button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }

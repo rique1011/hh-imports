@@ -1,12 +1,13 @@
 import { headers } from 'next/headers';
 import type { Metadata, Viewport } from "next";
-import { Inter, Playfair_Display } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer"; 
 import Providers from "@/components/Providers";
 import Feedback from "@/components/Feedback";
 import MobileBottomNav from "@/components/MobileBottomNav";
+import MarcaLoja from '@/components/MarcaLoja';
 import { getAparenciaPublica } from '@/lib/aparencia-servidor';
 
 // Fontes servidas pelo próprio Next, sem chamadas ao Google no navegador.
@@ -14,13 +15,6 @@ const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
   display: 'swap',
-});
-
-const playfair = Playfair_Display({
-  subsets: ['latin'],
-  variable: '--font-playfair',
-  display: 'swap',
-  style: ['normal', 'italic'],
 });
 
 export const metadata: Metadata = {
@@ -54,8 +48,12 @@ export default async function RootLayout({
   return (
     <html
       lang="pt-BR"
-      className={`${inter.variable} ${playfair.variable} antialiased`}
+      className={`${inter.variable} antialiased`}
     >
+      <head>
+        <link rel="preload" href="/fonts/editorial-normal-400-32f4b932dca3.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+        <link rel="preload" href="/fonts/editorial-italic-400-e9dc9aa307ff.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+      </head>
       <body className="bg-hb-black text-luxury-ivory font-sans flex flex-col min-h-dvh selection:bg-hb-gold selection:text-hb-black">
         
         <a className="skip-link" href="#conteudo">Pular para o conteúdo</a>
@@ -63,7 +61,7 @@ export default async function RootLayout({
 
         {process.env.VERCEL_ENV==='preview' && <p className="bg-amber-100 p-3 text-center text-sm text-black">Ambiente de demonstração. Compras indisponíveis.</p>}
         <Providers>
-          <Header logoUrl={aparencia.logoUrl} />
+          <Header marca={<MarcaLoja url={aparencia.logoUrl} />} />
           
           <div id="conteudo" tabIndex={-1} className="flex-grow min-w-0 focus:outline-none">
             {children}
