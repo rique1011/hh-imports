@@ -2,12 +2,20 @@ import { getImageProps } from 'next/image'
 import Link from 'next/link'
 import { ArrowUpRight } from 'lucide-react'
 import type { AparenciaLoja } from '@/lib/aparencia'
+import hero from '@/public/images/hero-colar.webp'
+
+function imagemCampanha(src: string) {
+  // A campanha padrão e o hero compartilham o mesmo arquivo otimizado no celular.
+  return src === '/images/hero-colar.webp'
+    ? { src: hero, quality: 75 }
+    : { src, quality: 85 }
+}
 
 export default function BannerCampanha({ config, prioritario = true }: { config: AparenciaLoja; prioritario?: boolean }) {
   if (!config.bannerAtivo) return null
-  const desktop = getImageProps({ src: config.bannerDesktop, alt: config.bannerAlt, width: 1920, height: 480, sizes: '100vw', quality: 85 }).props
+  const desktop = getImageProps({ ...imagemCampanha(config.bannerDesktop), alt: config.bannerAlt, width: 1920, height: 480, sizes: '100vw' }).props
   const mobile = config.bannerMobile
-    ? getImageProps({ src: config.bannerMobile, alt: config.bannerAlt, width: 750, height: 800, sizes: '100vw', quality: 85 }).props : desktop
+    ? getImageProps({ ...imagemCampanha(config.bannerMobile), alt: config.bannerAlt, width: 750, height: 800, sizes: '100vw' }).props : desktop
   const imagem = <picture className={config.bannerModo === 'editorial' ? 'absolute inset-0' : 'block'}>
     <source media="(min-width: 768px)" srcSet={desktop.srcSet} sizes="100vw" />
     {/* Art direction oficial do Next: o navegador baixa somente a versão adequada. */}
