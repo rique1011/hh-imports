@@ -70,17 +70,20 @@ export default function EnvioAutomaticoConfig({ onAbrirPedido }: { onAbrirPedido
           <label className="block min-w-0 space-y-2 text-sm">Limite por etiqueta (R$)
             <input required inputMode="decimal" value={limite} onChange={event => setLimite(event.target.value)} placeholder="Ex.: 35,00" disabled={ocupado} className={campo} />
           </label>
-          <label className="block min-w-0 space-y-2 text-sm">Documento dos envios
+          <label className="block min-w-0 space-y-2 text-sm">Documentação dos envios
             <select value={documento} onChange={event => { setDocumento(event.target.value as 'nfe' | 'declaracao'); setDeclaracao(false) }} disabled={ocupado} className={campo}>
-              <option value="nfe">NF-e — informar chave por pedido</option>
-              <option value="declaracao">Declaração de conteúdo (quando permitida)</option>
+              <option value="nfe">NF-e em todos os pedidos</option>
+              <option value="declaracao">DC-e para CPF quando permitida; NF-e para CNPJ</option>
             </select>
           </label>
         </div>
-        {documento === 'declaracao' ? <label className="flex items-start gap-3 text-sm text-yellow-200">
+        {documento === 'declaracao' ? <div className="space-y-3">
+          <p className="text-sm text-gray-400">Pedidos com CPF usam declaração somente quando dispensados de nota fiscal. Compras com CNPJ aguardam a chave da NF-e. Você também pode usar NF-e em pedidos com CPF pelo modo manual.</p>
+          <label className="flex items-start gap-3 text-sm text-yellow-200">
           <input type="checkbox" required checked={declaracao} onChange={event => setDeclaracao(event.target.checked)} disabled={ocupado} className="mt-1 size-5 shrink-0 accent-yellow-500" />
-          Confirmo que os envios automáticos estão dispensados de NF-e e podem usar declaração de conteúdo. Ter CPF, por si só, não confirma essa dispensa.
-        </label> : <p className="text-sm text-gray-400">Os pedidos aguardam a chave da NF-e no painel. Depois de informada, a compra e a geração continuam automaticamente.</p>}
+          Confirmo que as operações com CPF abrangidas por esta configuração estão dispensadas de nota fiscal e podem usar declaração de conteúdo. O CPF do remetente ou do cliente, por si só, não confirma essa dispensa.
+          </label>
+        </div> : <p className="text-sm text-gray-400">Os pedidos aguardam a chave da NF-e no painel. Depois de informada, a compra e a geração continuam automaticamente.</p>}
         <p className="text-sm text-gray-400">O serviço escolhido pelo cliente é mantido. No frete grátis sem serviço escolhido, a loja usa o menor preço disponível entre PAC e SEDEX. Valores acima do limite ficam para sua revisão.</p>
         <label className="block space-y-2 text-sm">ID da agência (opcional, quando a transportadora exigir)
           <input inputMode="numeric" value={agencia} onChange={event => setAgencia(event.target.value.replace(/\D/g, ''))} disabled={ocupado} className={campo} />

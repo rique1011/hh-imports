@@ -54,9 +54,9 @@ async function setup(t, options = {}) {
     'next/server': { ...require('next/server'), after: callback => callbacks.push(callback) },
   }
   const lib = loadTs('lib/envio-automatico', mocks)
-  async function criar({ pago = true, total = 100, cashback = 0, frete = null } = {}) {
+  async function criar({ pago = true, total = 100, cashback = 0, frete = null, documento = entrega.documento } = {}) {
     const { data: pedido, error } = await client.rpc('hh_criar_pedido_com_envio', { p_email: entrega.email, p_nome: entrega.nome,
-      p_total: total, p_itens: itens, p_cashback: cashback, p_entrega: entrega, p_frete: frete })
+      p_total: total, p_itens: itens, p_cashback: cashback, p_entrega: { ...entrega, documento }, p_frete: frete })
     assert.equal(error, null)
     if (pago && total > 0) {
       const aprovado = await client.rpc('hh_confirmar_pagamento', { p_pedido_id: String(pedido.id), p_pagamento_id: String(++numeroPagamento), p_total: total })
@@ -132,6 +132,41 @@ test('NF-e aguarda chave válida; após informar continua automaticamente', asyn
   assert.ok((await s.client.rpc('hh_retomar_envio_automatico', { p_pedido_id: id, p_nota_fiscal: '12' })).error)
   assert.equal((await s.client.rpc('hh_retomar_envio_automatico', { p_pedido_id: id, p_nota_fiscal: '1'.repeat(44) })).error, null); await s.processar(id)
   assert.equal(s.chamadas.find(c => c.path === '/cart').body.options.invoice.key, '1'.repeat(44))
+})
+
+test('preferência de declaração exige NF-e em compra com CNPJ antes de cotar ou gastar saldo', async t => {
+  const s = await setup(t), id = await s.criar({ documento: '12345678000199' })
+  await s.processar(id)
+  assert.equal((await s.job(id)).estado, 'aguardando_documento')
+  assert.match((await s.job(id)).mensagem, /CNPJ/)
+  assert.equal(s.chamadas.length, 0)
+  assert.equal((await s.lib.consultarEnvioAutomatico(s.client, id)).documentoFiscal, 'nfe')
+  assert.equal((await s.db.query('SELECT count(*)::int AS n FROM pedido_envios')).rows[0].n, 0)
+
+  assert.equal((await s.client.rpc('hh_retomar_envio_automatico', { p_pedido_id: id, p_nota_fiscal: '1'.repeat(44) })).error, null)
+  await s.processar(id)
+  const cart = s.chamadas.find(c => c.path === '/cart').body
+  assert.equal(cart.to.company_document, '12345678000199')
+  assert.equal(cart.options.non_commercial, false)
+  assert.equal(cart.options.invoice.key, '1'.repeat(44))
+  assert.equal('dce' in cart.options, false)
+  s.remoto.tracking = 'AA123456789BR'; await s.due(id); await s.processar(id)
+  assert.equal((await s.job(id)).estado, 'concluida')
+  assert.equal(s.chamadas.filter(c => c.path === '/shipment/checkout').length, 1)
+  assert.equal(s.emails.length, 1)
+})
+
+test('NF-e informada em pedido com CPF prevalece sobre a preferência por declaração', async t => {
+  const s = await setup(t), id = await s.criar()
+  assert.equal((await s.lib.consultarEnvioAutomatico(s.client, id)).documentoFiscal, 'declaracao')
+  assert.equal((await s.client.rpc('hh_retomar_envio_automatico', { p_pedido_id: id, p_nota_fiscal: '1'.repeat(44) })).error, null)
+  assert.equal((await s.lib.consultarEnvioAutomatico(s.client, id)).documentoFiscal, 'nfe')
+  await s.processar(id)
+  const cart = s.chamadas.find(c => c.path === '/cart').body
+  assert.equal(cart.to.document, entrega.documento)
+  assert.equal(cart.options.non_commercial, false)
+  assert.equal(cart.options.invoice.key, '1'.repeat(44))
+  assert.equal('dce' in cart.options, false)
 })
 
 test('saldo insuficiente pede atenção; após recarga retoma o mesmo ID', async t => {

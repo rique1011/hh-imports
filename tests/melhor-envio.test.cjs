@@ -212,6 +212,63 @@ test('declaração exige confirmação e não permite misturar NF-e com DC-e', a
   assert.equal(s.chamadas.length,0)
 })
 
+test('API bloqueia declaração para destinatário CNPJ mesmo com confirmação manual', async t => {
+  const s = await setup(t)
+  const destino = { ...entrega, documento: '12345678000199' }
+  await s.db.query('UPDATE pedidos SET entrega=$1 WHERE id=$2', [JSON.stringify(destino), s.pedido.id])
+  const auth = loadTs('lib/autorizacao')
+  const route = loadTs('app/api/melhor-envio/gerar-etiqueta/route', {
+    ...s.mocks, '@/lib/autorizacao': { ...auth, exigirAdmin: async () => ({ db: s.client }) },
+  })
+  const response = await route.POST(new Request('https://loja.example.test/api/melhor-envio/gerar-etiqueta', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...s.body, pedidoId: s.pedido.id, notaFiscal: '', documentoFiscal: 'declaracao', confirmarDeclaracao: true }),
+  }))
+  assert.equal(response.status, 422)
+  assert.match((await response.json()).error, /CNPJ.*NF-e/)
+  assert.equal(s.chamadas.length, 0)
+  assert.equal((await s.db.query('SELECT count(*)::int AS n FROM pedido_envios')).rows[0].n, 0)
+})
+
+test('carrinho antigo com declaração não é comprado se o destinatário passou a CNPJ', async t => {
+  const s = await setup(t)
+  s.saldo(false)
+  await assert.rejects(s.lib.gerarEtiqueta(s.client, String(s.pedido.id), {
+    ...s.body, notaFiscal: '', documentoFiscal: 'declaracao', confirmarDeclaracao: true,
+  }), /saldo/)
+  await s.db.query('UPDATE pedidos SET entrega=$1 WHERE id=$2', [JSON.stringify({ ...entrega, documento: '12345678000199' }), s.pedido.id])
+  s.saldo(true)
+  await assert.rejects(s.gerar(), /CNPJ.*declaração/)
+  assert.equal(s.chamadas.filter(c => c.path === '/cart').length, 1)
+  assert.equal(s.chamadas.filter(c => c.path === '/shipment/checkout').length, 1)
+  const envio = await s.lib.consultarEnvio(s.client, String(s.pedido.id))
+  assert.equal(envio.estado, 'carrinho')
+  assert.equal(envio.me_id, meId)
+})
+
+test('consulta sugere documento pelo destinatário e preferência da loja, independentemente do CPF do remetente', async t => {
+  const s = await setup(t), auth = loadTs('lib/autorizacao')
+  const anterior = process.env.MELHOR_ENVIO_REMETENTE
+  t.after(() => { process.env.MELHOR_ENVIO_REMETENTE = anterior })
+  process.env.MELHOR_ENVIO_REMETENTE = JSON.stringify({ ...entrega, documento: '12345678901' })
+  const route = loadTs('app/api/melhor-envio/gerar-etiqueta/route', {
+    ...s.mocks, '@/lib/autorizacao': { ...auth, exigirAdmin: async () => ({ db: s.client }) },
+  })
+  const request = () => new Request('https://loja.example.test/api/melhor-envio/gerar-etiqueta?pedidoId=' + s.pedido.id)
+  const nfe = await route.GET(request())
+  assert.equal(nfe.status, 200)
+  assert.equal((await nfe.json()).documentoFiscalSugerido, 'nfe')
+  await s.db.exec("UPDATE envio_automatico_config SET documento_fiscal='declaracao',declaracao_confirmada=true")
+  const cpf = await (await route.GET(request())).json()
+  assert.equal(cpf.documentoFiscalSugerido, 'declaracao')
+  assert.equal(cpf.exigeNfe, false)
+  await s.db.query('UPDATE pedidos SET entrega=$1 WHERE id=$2', [JSON.stringify({ ...entrega, documento: '12345678000199' }), s.pedido.id])
+  const cnpj = await (await route.GET(request())).json()
+  assert.equal(cnpj.documentoFiscalSugerido, 'nfe')
+  assert.equal(cnpj.exigeNfe, true)
+  assert.equal(s.chamadas.length, 0)
+})
+
 test('DC-e existente envia a chave correta e retira inscrição estadual sem mudar CNPJ', async t => {
   const s=await setup(t)
   const anterior=process.env.MELHOR_ENVIO_REMETENTE

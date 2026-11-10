@@ -5,7 +5,7 @@ import { Download, Loader2, Package, RefreshCw } from 'lucide-react'
 import type { OpcaoFrete } from '@/lib/frete'
 import type { EntregaPedido, ResultadoEtiqueta, EnvioAutomatico } from '@/types/envio'
 
-type Consulta = ResultadoEtiqueta & { entrega?: EntregaPedido; usaCadastroAtual?: boolean; tipoRemetente?: 'cpf' | 'cnpj' | null; automatico?: EnvioAutomatico | null }
+type Consulta = ResultadoEtiqueta & { entrega?: EntregaPedido; usaCadastroAtual?: boolean; documentoFiscalSugerido?: 'nfe' | 'declaracao'; exigeNfe?: boolean; automatico?: EnvioAutomatico | null }
 interface Props {
   pedidoId: string
   onAtualizado: (resultado: ResultadoEtiqueta) => void
@@ -47,7 +47,7 @@ export default function EtiquetaMelhorEnvio({ pedidoId, onAtualizado, onOcupado 
   useEffect(() => {
     const controller = new AbortController()
     buscarEtiqueta(pedidoId, controller.signal)
-      .then(data => { aplicar(data); if (data.tipoRemetente === 'cpf') setDocumentoFiscal('declaracao') })
+      .then(data => { aplicar(data); setDocumentoFiscal(data.exigeNfe ? 'nfe' : data.documentoFiscalSugerido || 'nfe') })
       .catch(error => { if (!controller.signal.aborted) setErro(error.message) })
     return () => controller.abort()
   }, [pedidoId, aplicar])
@@ -158,9 +158,10 @@ export default function EtiquetaMelhorEnvio({ pedidoId, onAtualizado, onOcupado 
       <label className="block text-sm space-y-2">Documento do envio
         <select value={documentoFiscal} onChange={event => { setDocumentoFiscal(event.target.value as 'nfe' | 'declaracao'); setConfirmarDeclaracao(false) }} disabled={ocupado} className={classeCampo}>
           <option value="nfe">Nota fiscal (NF-e)</option>
-          <option value="declaracao">Declaração de conteúdo (DC-e) — quando dispensado de NF-e</option>
+          <option value="declaracao" disabled={resultado?.exigeNfe}>Declaração de conteúdo (DC-e) — quando dispensado de NF-e</option>
         </select>
       </label>
+      {resultado?.exigeNfe && <p className="text-sm text-gray-400">Compra com CNPJ: este pedido utiliza NF-e. Emita a nota e informe a chave abaixo para gerar a etiqueta.</p>}
       {documentoFiscal === 'nfe' ? <label className="block text-sm space-y-2">Chave da NF-e deste pedido
         <input inputMode="numeric" value={notaFiscal} onChange={event => setNotaFiscal(event.target.value.replace(/\D/g, '').slice(0,44))} maxLength={44} disabled={ocupado} placeholder="44 dígitos da nota fiscal" className={classeCampo} />
       </label> : <div className="space-y-3">

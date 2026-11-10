@@ -3,6 +3,7 @@ import { sincronizarPagamentoPedido } from '@/lib/pagamentos'
 import { randomUUID } from 'node:crypto'
 import { ErroHttp } from '@/lib/autorizacao'
 import { snapshotEntrega, participanteMelhorEnvio, remetenteMelhorEnvio } from '@/lib/entrega'
+import { destinatarioCnpj } from '@/lib/documento-envio'
 import { validarFretePedido } from '@/lib/frete'
 import { ambienteMelhorEnvio, ErroMelhorEnvio, melhorEnvio } from '@/lib/melhor-envio'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
@@ -80,6 +81,7 @@ export function montarConfigEnvio(pedido: PedidoComEntrega, body: DadosGeracao):
   const chaveDce = String(body.chaveDce || '').replace(/\s/g, '')
   if (documentoFiscal === 'nfe' && !/^\d{44}$/.test(notaFiscal)) throw new ErroHttp(422, 'Informe a chave de 44 dígitos da NF-e deste pedido.')
   if (documentoFiscal === 'declaracao') {
+    if (destinatarioCnpj(pedido.entrega?.documento)) throw new ErroHttp(422, 'Compras com CNPJ exigem NF-e na loja. Informe a chave da nota fiscal deste pedido.')
     if (body.confirmarDeclaracao !== true) throw new ErroHttp(422, 'Confirme que este envio pode utilizar declaração de conteúdo em lugar de NF-e.')
     if (notaFiscal) throw new ErroHttp(422, 'Utilize NF-e ou declaração de conteúdo para o mesmo envio. Selecione o documento correto.')
     if (chaveDce && !/^\d{44}$/.test(chaveDce)) throw new ErroHttp(422, 'A chave de DC-e existente precisa ter 44 dígitos, ou deixe o campo vazio para emissão pelo Melhor Envio.')
@@ -149,6 +151,9 @@ export async function gerarEtiqueta(db: Db, pedidoId: string, body: DadosGeracao
       if (remoto.status !== 'pending') throw new ErroHttp(409, 'Estado remoto desconhecido. Confira no Melhor Envio antes de comprar.')
       // Consulta o provedor novamente imediatamente antes de gastar saldo.
       const atual=await carregarPedidoEnvio(db,pedidoId)
+      if (destinatarioCnpj(atual.entrega?.documento) && envio.config.documentoFiscal === 'declaracao') {
+        throw new ErroHttp(422, 'Compra com CNPJ: o carrinho foi criado com declaração. Confira esse envio no Melhor Envio antes de gerar uma etiqueta com NF-e.')
+      }
       if(Number(atual.total)>0){
         const verificado=await sincronizarPagamentoPedido(db,atual)
         if(verificado.pagamento?.status!=='approved' || verificado.pagamento?.requer_revisao || Number(verificado.pagamento?.valor_reembolsado)>0) throw new ErroHttp(409,'Pagamento não está liberado para postagem.')

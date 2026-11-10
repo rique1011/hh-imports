@@ -4,8 +4,8 @@ import { calcularFrete } from '@/lib/frete'
 import { carregarPedidoEnvio, consultarEnvio, gerarEtiqueta, resultadoEnvio, validarPedidoId } from '@/lib/etiquetas'
 import { ErroMelhorEnvio } from '@/lib/melhor-envio'
 import { processarNotificacoes } from '@/lib/notificacoes'
-import { tipoRemetente } from '@/lib/entrega'
-import { consultarEnvioAutomatico, exigirModoManual } from '@/lib/envio-automatico'
+import { destinatarioCnpj, documentoFiscalDoPedido } from '@/lib/documento-envio'
+import { consultarEnvioAutomatico, exigirModoManual, lerConfigEnvioAutomatico } from '@/lib/envio-automatico'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -16,11 +16,15 @@ export async function GET(request: Request) {
     const { db } = await exigirAdmin(request)
     const pedidoId = validarPedidoId(new URL(request.url).searchParams.get('pedidoId'))
     const pedido = await carregarPedidoEnvio(db, pedidoId)
-    const [envio, automatico] = await Promise.all([consultarEnvio(db, pedidoId), consultarEnvioAutomatico(db, pedidoId)])
+    const [envio, automatico, config] = await Promise.all([
+      consultarEnvio(db, pedidoId), consultarEnvioAutomatico(db, pedidoId), lerConfigEnvioAutomatico(db),
+    ])
     if (!envio && ['enviado','entregue'].includes(pedido.status)) return NextResponse.json({ ...resultadoEnvio(pedidoId, null),
       estado: 'bloqueada', podeRetomar: false, mensagem: 'Este pedido já foi enviado por outro fluxo. Confira o rastreio cadastrado.' }, { headers })
     return NextResponse.json({ ...resultadoEnvio(pedidoId, envio), entrega: pedido.entrega, usaCadastroAtual: !!pedido.entregaDoCadastro,
-      servicoContratado: pedido.frete_cotacao?.servico || null, tipoRemetente: tipoRemetente(), automatico }, { headers })
+      servicoContratado: pedido.frete_cotacao?.servico || null,
+      documentoFiscalSugerido: automatico?.documentoFiscal || documentoFiscalDoPedido(pedido.entrega?.documento, config.documento_fiscal),
+      exigeNfe: destinatarioCnpj(pedido.entrega?.documento), automatico }, { headers })
   } catch (error) { return responderErro(error) }
 }
 

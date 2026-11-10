@@ -286,7 +286,7 @@ export default function TelaPedidos() {
                         </div>
                         <div>
                           <p className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-1"><FileText size={10}/> Documento (CPF/CNPJ)</p>
-                          <p className="text-xs font-medium text-gray-400">{dadosCliente.cpf_cnpj || '-'}</p>
+                          <p className="text-xs font-medium text-gray-400">{pedidoSelecionado.entrega?.documento || dadosCliente.cpf_cnpj || '-'}</p>
                         </div>
                       </div>
                     </div>

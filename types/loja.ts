@@ -46,7 +46,7 @@ export interface Pedido {
   codigo_rastreio?: string | null
   data_entrega?: string | null
   linha_tempo?: EventoPedido[]
-  entrega?: Endereco | null
+  entrega?: (Endereco & { documento?: string }) | null
   pagamento?: PagamentoPedido
   pagamento_expira_em?: string | null
   pode_pagar?: boolean
