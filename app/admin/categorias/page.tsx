@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { Loader2, Plus, Pencil, EyeOff, Eye } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { CategoriaLoja } from '@/lib/categorias'
+import Link from 'next/link'
 
 const campo = 'min-h-11 w-full rounded border border-luxury-line bg-hb-black p-3 text-base text-white outline-none focus:border-hb-gold'
 export default function CategoriasAdmin() {
@@ -34,6 +35,7 @@ export default function CategoriasAdmin() {
   return <main className="min-w-0 text-luxury-ivory">
     <h1 className="font-serif text-3xl">Categorias da loja</h1>
     <p className="my-4 max-w-3xl text-sm leading-7 text-luxury-muted">Crie, renomeie e organize as categorias que aparecem no menu Joias. Ocultar retira a categoria do menu e da página de coleções, preservando as peças e os pedidos. Você pode reativá-la a qualquer momento.</p>
+    <Link href="/admin/menu" className="inline-flex min-h-11 items-center text-sm text-hb-gold underline">Editar menu superior e campanhas (Natal, Dia dos Pais…)</Link>
     <div className="mt-8 grid min-w-0 gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(280px,380px)]">
       <section aria-label="Categorias cadastradas" className="min-w-0 space-y-3">
         {carregando ? <Loader2 className="animate-spin" aria-label="Carregando categorias" /> : erro ? <div role="alert" className="rounded border border-red-900 p-5 text-sm text-red-300">{erro}<button type="button" onClick={carregar} className="mt-4 block min-h-11 underline">Tentar novamente</button></div> : categorias.map(c => <article key={c.id} className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-luxury-line bg-luxury-surface p-4">
@@ -50,7 +52,7 @@ export default function CategoriasAdmin() {
           <button type="submit" className="luxury-button luxury-button-solid w-full">{salvando ? <Loader2 size={17} className="animate-spin" /> : 'Salvar categoria'}</button>
           {edicao && <button type="button" onClick={() => editar(null)} className="luxury-button luxury-button-outline w-full">Cancelar edição</button>}
         </fieldset>
-        <p className="mt-5 text-xs leading-6 text-luxury-muted">Depois, escolha a categoria de cada peça em Estoque. Masculino, Presentes e Lançamentos continuam disponíveis em “Exibir também em”.</p>
+        <p className="mt-5 text-xs leading-6 text-luxury-muted">Depois, escolha a categoria de cada peça em Estoque. As campanhas criadas em Menu e campanhas ficam disponíveis em “Exibir também em”.</p>
       </form>
     </div>
   </main>

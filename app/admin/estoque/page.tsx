@@ -15,11 +15,12 @@ import { supabaseAdmin as supabase } from '@/lib/admin-client'
 import { categoriaDoProduto, obterCategoria, type CategoriaLoja } from '@/lib/categorias'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
-import { VITRINES_PRODUTO, SELECOES, type VitrineProduto } from '@/lib/selecoes'
+import type { ItemMenu, VitrineProduto } from '@/lib/selecoes'
 
 export default function TelaEstoque() {
   const [produtos, setProdutos] = useState<Produto[]>([])
   const [categorias, setCategorias] = useState<CategoriaLoja[]>([])
+  const [campanhas, setCampanhas] = useState<ItemMenu[]>([])
   const [carregando, setCarregando] = useState(true)
   const [busca, setBusca] = useState('')
 
@@ -47,10 +48,13 @@ export default function TelaEstoque() {
 
   async function carregarProdutos() {
     try {
-      const resposta = await fetch('/api/admin/categorias', { cache: 'no-store' })
-      const dados = await resposta.json()
-      if (!resposta.ok) throw new Error(dados.error || 'Não foi possível carregar as categorias.')
-      setCategorias(dados.categorias)
+      const [categorias, menu] = await Promise.all(['/api/admin/categorias', '/api/admin/menu'].map(async url => {
+        const resposta = await fetch(url, { cache: 'no-store' }), dados = await resposta.json()
+        if (!resposta.ok) throw new Error(dados.error || 'Não foi possível carregar as categorias e campanhas.')
+        return dados
+      }))
+      setCategorias(categorias.categorias)
+      setCampanhas(menu.itens.filter((item: ItemMenu) => item.tipo === 'selecao'))
       const { data, error } = await supabase
         .from('produtos')
         .select('*')
@@ -262,8 +266,8 @@ export default function TelaEstoque() {
               </div>
               <fieldset className="rounded border border-luxury-line p-4">
                 <legend className="px-2 text-sm text-luxury-gold-light">Exibir também em</legend>
-                <div className="flex flex-wrap gap-x-6 gap-y-2">{VITRINES_PRODUTO.map(slug => <label key={slug} className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" className="h-5 w-5 accent-hb-gold" checked={vitrines.includes(slug)} onChange={e => setVitrines(atuais => e.target.checked ? [...atuais, slug] : atuais.filter(s => s !== slug))} />{SELECOES.find(s => s.slug === slug)?.nome}</label>)}</div>
-                <p className="mt-2 text-xs leading-6 text-gray-400">Masculino e Presentes mostram as peças marcadas aqui. Lançamentos inclui também os produtos cadastrados nos últimos 30 dias.</p>
+                <div className="flex flex-wrap gap-x-6 gap-y-2">{campanhas.map(c => <label key={c.slug} className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" className="h-5 w-5 shrink-0 accent-hb-gold" checked={vitrines.includes(c.slug)} onChange={e => setVitrines(atuais => e.target.checked ? [...atuais, c.slug] : atuais.filter(s => s !== c.slug))} />{c.nome}{!c.ativo && ' (fora do menu)'}</label>)}</div>
+                <p className="mt-2 text-xs leading-6 text-gray-400">Marque as campanhas em que esta peça deve aparecer. Campanhas com a opção de novidades automáticas incluem também as peças cadastradas nos últimos 30 dias. <Link href="/admin/menu" className="text-hb-gold underline">Gerenciar menu e campanhas</Link></p>
               </fieldset>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>

@@ -52,7 +52,14 @@ export async function POST(request: Request) {
       if ('estoque' in lista[0] && (!Number.isSafeInteger(Number(lista[0].estoque)) || Number(lista[0].estoque) < 0)) throw new ErroHttp(400, 'Estoque inválido.')
       if (tabela === 'produtos') {
         if ('material' in lista[0] && (typeof lista[0].material !== 'string' || !lista[0].material.trim() || lista[0].material.length > 100)) throw new ErroHttp(400, 'Informe a composição real da peça, com até 100 caracteres.')
-        if ('vitrines' in lista[0] && !vitrinesValidas(lista[0].vitrines)) throw new ErroHttp(400, 'Selecione apenas Lançamentos, Masculino ou Presentes, sem repetições.')
+        if ('vitrines' in lista[0]) {
+          if (!vitrinesValidas(lista[0].vitrines)) throw new ErroHttp(400, 'Selecione campanhas válidas, sem repetições.')
+          if (lista[0].vitrines.length) {
+            const { data, error } = await user.db.from('loja_navegacao').select('slug').eq('tipo', 'selecao').in('slug', lista[0].vitrines)
+            if (error) throw error
+            if (data?.length !== lista[0].vitrines.length) throw new ErroHttp(400, 'Uma campanha não existe mais. Recarregue o estoque e confira a seleção.')
+          }
+        }
         if ('categoria_slug' in lista[0]) {
           let categoria = obterCategoria(lista[0].categoria_slug)
           if (!categoria && typeof lista[0].categoria_slug === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(lista[0].categoria_slug)) {
