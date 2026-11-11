@@ -126,9 +126,9 @@ function FormularioCadastro() {
               </div>
               <div className="flex-1 text-[11px] md:text-[10px] text-luxury-muted leading-snug md:leading-tight">
                 Eu li e concordo com os{' '}
-                <Link href="/termos" className="font-bold text-hb-goldLight hover:underline">Termos de Uso</Link>
+                <Link href={'/termos?origem=cadastro&retorno=' + encodeURIComponent(retorno)} className="font-bold text-hb-goldLight hover:underline">Termos de Uso</Link>
                 {' '}e a{' '}
-                <Link href="/privacidade" className="font-bold text-hb-goldLight hover:underline">Política de Privacidade</Link>.
+                <Link href={'/privacidade?origem=cadastro&retorno=' + encodeURIComponent(retorno)} className="font-bold text-hb-goldLight hover:underline">Política de Privacidade</Link>.
               </div>
             </label>
             {erroTermos && (

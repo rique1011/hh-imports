@@ -15,7 +15,7 @@ import { CATEGORIAS } from '@/lib/categorias'
 const links = SELECOES.map(s => ({ href: '/selecao/' + s.slug, nome: s.nome }))
 const alvo = 'min-h-11 min-w-11 inline-flex items-center justify-center transition-colors hover:text-hb-goldLight focus-visible:outline-2 focus-visible:outline-hb-gold'
 
-export default function Header({ marca }: { marca: ReactNode }) {
+export default function Header({ marca, categorias = CATEGORIAS }: { marca: ReactNode; categorias?: readonly { slug: string; nome: string }[] }) {
   const { data: session } = useSession()
   const router = useRouter()
   const pathname = usePathname()
@@ -89,9 +89,9 @@ export default function Header({ marca }: { marca: ReactNode }) {
           onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setJoias(false) }}
           onKeyDown={e => { if (e.key === 'Escape') { setJoias(false); joiasRef.current?.focus() } }}>
           <button ref={joiasRef} aria-expanded={joias} aria-controls="categorias-desktop" onClick={() => setJoias(!joias)} className={`${alvo} min-h-12 gap-2 uppercase tracking-[0.18em]`}>Joias <ChevronDown size={12} className={joias ? 'rotate-180' : ''} /></button>
-          <div id="categorias-desktop" hidden={!joias} className="absolute left-1/2 top-full w-60 -translate-x-1/2 border border-luxury-gold/30 bg-luxury-black p-4 shadow-2xl">
+          <div id="categorias-desktop" hidden={!joias} className="absolute left-1/2 top-full max-h-[65dvh] w-60 -translate-x-1/2 overflow-y-auto border border-luxury-gold/30 bg-luxury-black p-4 shadow-2xl">
             <Link href="/selecao/joias" onClick={() => setJoias(false)} className="flex min-h-11 items-center text-luxury-gold-light hover:underline">Ver todas as joias</Link>
-            {CATEGORIAS.filter(c => ['aneis','brincos','colares','pulseiras'].includes(c.slug)).map(c => <Link key={c.slug} href={'/categoria/' + c.slug} onClick={() => setJoias(false)} className="flex min-h-11 items-center text-luxury-muted hover:text-luxury-ivory">{c.nome}</Link>)}
+            {categorias.map(c => <Link key={c.slug} href={'/categoria/' + c.slug} onClick={() => setJoias(false)} className="flex min-h-11 items-center text-luxury-muted hover:text-luxury-ivory">{c.nome}</Link>)}
             <Link href="/produtos" onClick={() => setJoias(false)} className="flex min-h-11 items-center border-t border-luxury-line text-luxury-muted hover:text-luxury-ivory">Catálogo completo</Link>
           </div>
         </div> : <Link key={link.href} href={link.href} aria-current={pathname === link.href ? 'page' : undefined} className={`${alvo} min-h-12 ${pathname === link.href ? 'text-luxury-gold-light' : 'text-luxury-muted'}`}>{link.nome}</Link>)}
@@ -107,7 +107,7 @@ export default function Header({ marca }: { marca: ReactNode }) {
           <button aria-expanded={joiasMobile} aria-controls="categorias-mobile" className="flex min-h-12 w-full items-center justify-between uppercase" onClick={() => setJoiasMobile(!joiasMobile)}>Joias <ChevronDown size={16} className={joiasMobile ? 'rotate-180' : ''} /></button>
           <div id="categorias-mobile" hidden={!joiasMobile} className="border-l border-luxury-gold/40 pl-4 text-xs normal-case text-luxury-muted">
             <Link href="/selecao/joias" onClick={fechar} className="flex min-h-11 items-center text-luxury-gold-light">Ver todas as joias</Link>
-            {CATEGORIAS.filter(c => ['aneis','brincos','colares','pulseiras'].includes(c.slug)).map(c => <Link key={c.slug} href={'/categoria/' + c.slug} onClick={fechar} className="flex min-h-11 items-center">{c.nome}</Link>)}
+            {categorias.map(c => <Link key={c.slug} href={'/categoria/' + c.slug} onClick={fechar} className="flex min-h-11 items-center">{c.nome}</Link>)}
           </div>
         </div> : <Link key={link.href} href={link.href} onClick={fechar} className="min-h-12 flex items-center">{link.nome}</Link>)}
         <Link href="/produtos" onClick={fechar} className="min-h-11 flex items-center">Todas as peças</Link>

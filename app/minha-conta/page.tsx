@@ -1,4 +1,6 @@
 'use client'
+import AcompanhamentoDevolucoes from '@/components/AcompanhamentoDevolucoes'
+import type { ResolucaoTroca, TrocaCliente } from '@/lib/devolucoes'
 import Modal from '@/components/Modal'
 import dynamic from 'next/dynamic'
 import { nomePagamento, pedidoNaoConcluido, prazoPagamento, STATUS_PAGOS } from '@/lib/pagamento-pedido'
@@ -74,6 +76,11 @@ function ConteudoMinhaConta() {
   const [itemSelecionado, setItemSelecionado] = useState<ItemPedido | null>(null)
   const [pedidoIdSelecionado, setPedidoIdSelecionado] = useState<Identificador>('')
   const [motivo, setMotivo] = useState('arrependimento')
+  const [descricaoTroca, setDescricaoTroca] = useState('')
+  const [resolucaoTroca, setResolucaoTroca] = useState<ResolucaoTroca>('reembolso')
+  const [creditoAceito, setCreditoAceito] = useState(false)
+  const [solicitacoesTroca, setSolicitacoesTroca] = useState<TrocaCliente[]>([])
+  const [atualizacaoTrocas, setAtualizacaoTrocas] = useState(0)
   const [agoraDevolucao, setAgoraDevolucao] = useState(() => Date.now())
   const pedidoDaTroca = pedidos.find(p => String(p.id) === String(pedidoIdSelecionado))
   const prazoSelecionado = prazoDevolucao(itemSelecionado?.data_recebimento ?? pedidoDaTroca?.data_entrega, new Date(agoraDevolucao))
@@ -224,6 +231,7 @@ function ConteudoMinhaConta() {
 
   const abrirModalTroca = (pedidoId: Identificador, item: ItemPedido, motivoInicial = 'arrependimento') => {
     setPedidoIdSelecionado(pedidoId); setItemSelecionado(item); setMotivo(motivoInicial);
+    setDescricaoTroca(''); setResolucaoTroca(motivoInicial === 'tamanho' ? 'troca' : 'reembolso'); setCreditoAceito(false)
     setFotoArquivo(null); setMensagemSucesso(''); setErroTroca(''); setModalAberta(true);
   }
 
@@ -254,9 +262,10 @@ function ConteudoMinhaConta() {
           pedidoId: pedidoIdSelecionado,
           produtoId: itemSelecionado.id,
           motivo,
-          // 👇 A MÁGICA AQUI: Se não tem foto do defeito, manda a foto do produto!
+          descricao: descricaoTroca,
+          resolucao: resolucaoTroca,
+          creditoAceito,
           fotoUrl: urlFoto || itemSelecionado.foto,
-          precoProduto: itemSelecionado.preco || 0
         })
       })
 
@@ -264,6 +273,7 @@ function ConteudoMinhaConta() {
       if (!response.ok) throw new Error(data.error)
 
       setMensagemSucesso(data.mensagem)
+      setAtualizacaoTrocas(v => v + 1)
 
       // Adiciona o item à lista de itens com troca solicitada
       setItensComTrocaSolicitada(prev => [...prev, `${pedidoIdSelecionado}-${itemSelecionado.id}`])
@@ -537,6 +547,7 @@ function ConteudoMinhaConta() {
           {abaAtiva === 'trocas' && (
             <div className="animate-in fade-in duration-500">
               <h2 className="text-[11px] md:text-xs font-bold text-white mb-6 md:mb-8 uppercase tracking-[0.2em] border-b border-gray-800 pb-3 md:pb-4">Troca ou Devolução</h2>
+              <AcompanhamentoDevolucoes atualizacao={atualizacaoTrocas} onCarregar={setSolicitacoesTroca} />
               <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-4 md:p-6 mb-6 md:mb-8">
                 <p className="text-[10px] md:text-xs text-gray-400 leading-relaxed text-center md:text-left">
                   A devolução por arrependimento fica disponível até o fim do 7º dia após o recebimento. Depois desse prazo, a opção é desativada. O atendimento para defeitos e garantia continua disponível, conforme o caso.
@@ -567,7 +578,7 @@ function ConteudoMinhaConta() {
                           {pedido.itens?.map((item, idx) => {
                             const prazo = prazoDevolucao(item.data_recebimento ?? pedido.data_entrega, new Date(agoraDevolucao))
                             // Preserva solicitações já abertas.
-                            const jaSolicitouTroca = item.troca_solicitada || itensComTrocaSolicitada.includes(`${pedido.id}-${item.id}`)
+                            const jaSolicitouTroca = item.troca_solicitada || itensComTrocaSolicitada.includes(`${pedido.id}-${item.id}`) || solicitacoesTroca.some(t => t.pedido_id === String(pedido.id) && t.produto_id === String(item.id))
 
                             return (
                               <div key={`troca-item-${idx}`} className="flex flex-wrap items-center gap-3 md:gap-4 border-b border-gray-800 pb-4 last:border-0 last:pb-0">
@@ -639,6 +650,7 @@ function ConteudoMinhaConta() {
               <form onSubmit={enviarSolicitacaoTroca} className="space-y-5 md:space-y-6">
                 {erroTroca && <div className="p-3 bg-red-900/20 text-red-400 text-[9px] md:text-[10px] font-bold uppercase tracking-widest rounded flex items-center gap-2 border border-red-900/50 leading-relaxed"><AlertCircle size={14} className="shrink-0" /> {erroTroca}</div>}
                 <div>
+                  <p className="mb-3 text-sm text-hb-goldLight">Pedido #{pedidoIdSelecionado} · {itemSelecionado?.quantidade} unidade(s)</p>
                   <p className="text-[9px] md:text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Item</p>
                   <div className="flex items-center gap-3 p-3 bg-gray-900 rounded border border-gray-800">
                     <Image width={96} height={96} sizes="96px" alt={itemSelecionado?.nome || "Produto"} src={itemSelecionado?.foto || '/icon.svg'} className="w-10 h-10 object-cover rounded border border-gray-700 shrink-0" />
@@ -647,12 +659,15 @@ function ConteudoMinhaConta() {
                 </div>
                 <div>
                   <label htmlFor="motivo-devolucao" className="block text-[9px] md:text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Motivo</label>
-                  <select id="motivo-devolucao" value={motivo} onChange={(e) => setMotivo(e.target.value)} className="w-full bg-gray-900 border border-gray-800 text-white p-3 rounded text-sm md:text-sm outline-none focus:border-hb-gold">
+                  <select id="motivo-devolucao" value={motivo} onChange={(e) => { setMotivo(e.target.value); setResolucaoTroca(e.target.value === 'tamanho' ? 'troca' : 'reembolso'); setCreditoAceito(false) }} className="w-full bg-gray-900 border border-gray-800 text-white p-3 rounded text-base outline-none focus:border-hb-gold">
                     <option value="arrependimento" disabled={!prazoSelecionado.aberto}>Arrependimento (7 dias)</option>
                     <option value="defeito">Defeito de Fabricação</option>
                     <option value="tamanho" disabled={!prazoSelecionado.aberto}>Preferência de tamanho (7 dias)</option>
                   </select>
                 </div>
+                <label className="block text-sm text-gray-300">Descreva sua solicitação (opcional)<textarea maxLength={2000} rows={3} value={descricaoTroca} onChange={e => setDescricaoTroca(e.target.value)} className="mt-2 min-h-24 w-full rounded border border-gray-800 bg-gray-900 p-3 text-base text-white outline-none focus:border-hb-gold" /></label>
+                <label className="block text-sm text-gray-300">Preferência de solução<select aria-label="Preferência de solução" value={resolucaoTroca} onChange={e => { setResolucaoTroca(e.target.value as ResolucaoTroca); setCreditoAceito(false) }} className="mt-2 min-h-11 w-full rounded border border-gray-800 bg-gray-900 p-3 text-base text-white"><option value="reembolso">Reembolso pelo meio de pagamento original</option><option value="troca">Trocar a peça</option><option value="credito">Receber crédito para outra compra (opcional)</option></select></label>
+                {resolucaoTroca === 'credito' && <label className="flex items-start gap-3 rounded border border-hb-gold/40 p-4 text-xs leading-6 text-gray-300"><input type="checkbox" required checked={creditoAceito} onChange={e => setCreditoAceito(e.target.checked)} className="mt-1 h-5 w-5 shrink-0 accent-hb-gold" /><span>Escolho receber crédito na loja, em vez de reembolso em dinheiro. O saldo será liberado após a conferência da devolução. O cashback promocional da compra devolvida será ajustado. Sei que o crédito é opcional.</span></label>}
                 {!prazoSelecionado.aberto && <p role="status" className="text-xs leading-6 text-gray-400">{prazoSelecionado.situacao === 'encerrado' ? 'O prazo para arrependimento terminou. Você ainda pode relatar um defeito.' : 'Confirme a data de recebimento com o atendimento. Solicitações por defeito continuam disponíveis.'}</p>}
                 {motivo === 'defeito' && (
                   <div className="animate-in fade-in duration-300">

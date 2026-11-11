@@ -1,4 +1,6 @@
 import Link from 'next/link'
+import { Suspense } from 'react'
+import { LinksLegais } from '@/components/NavegacaoLegal'
 import { CONTACT_EMAIL } from '@/lib/brand'
 import { ArrowUpRight, Mail, MapPin, Phone } from 'lucide-react'
 import MarcaLoja from '@/components/MarcaLoja'
@@ -31,6 +33,6 @@ export default function Footer({ logoUrl = '' }: { logoUrl?: string }) {
         <p className="mt-3 flex items-start gap-3 text-xs leading-6"><MapPin size={16} strokeWidth={1.4} className="mt-1 shrink-0 text-luxury-gold" /><span>Joinville, Santa Catarina.<br />Para todo o Brasil.</span></p>
       </div>
     </div>
-    <div className="luxury-container flex flex-col justify-between gap-5 border-t border-luxury-line py-6 text-[10px] leading-6 sm:flex-row sm:items-center"><p>© {new Date().getFullYear()} H&H IMPORTS. Todos os direitos reservados.</p><nav aria-label="Informações legais" className="flex gap-6"><Link href="/privacidade" className="inline-flex min-h-11 items-center hover:text-luxury-ivory">Privacidade</Link><Link href="/termos" className="inline-flex min-h-11 items-center hover:text-luxury-ivory">Termos de uso</Link></nav></div>
+    <div className="luxury-container flex flex-col justify-between gap-5 border-t border-luxury-line py-6 text-[10px] leading-6 sm:flex-row sm:items-center"><p>© {new Date().getFullYear()} H&H IMPORTS. Todos os direitos reservados.</p><Suspense fallback={<nav aria-label="Informações legais" className="flex gap-6"><Link href="/privacidade">Privacidade</Link><Link href="/termos">Termos de uso</Link></nav>}><LinksLegais /></Suspense></div>
   </footer>
 }

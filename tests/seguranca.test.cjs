@@ -9,9 +9,9 @@ test('migração bloqueia dados e escritas públicas, mantendo somente catálogo
   await db.exec(`
     ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS recovery_token text;
     ALTER TABLE produtos ADD COLUMN categoria_id uuid, ADD COLUMN categoria_slug text, ADD COLUMN criado_em timestamptz;
-    CREATE TABLE categorias(id uuid primary key, nome text);
+    CREATE TABLE IF NOT EXISTS categorias(id uuid primary key, nome text);
     CREATE TABLE IF NOT EXISTS avaliacoes(id bigint primary key, produto_id uuid, created_at timestamptz);
-    CREATE TABLE trocas(id uuid primary key,pedido_id text,produto_id uuid,usuario_id uuid);
+    CREATE TABLE IF NOT EXISTS trocas(id uuid primary key,pedido_id text,produto_id uuid,usuario_id uuid);
     CREATE TABLE carrinhos_abandonados(id uuid primary key,cliente_email text);
     CREATE SCHEMA storage; CREATE TABLE storage.objects(id uuid,bucket_id text);
     ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
@@ -35,7 +35,7 @@ test('migração bloqueia dados e escritas públicas, mantendo somente catálogo
       await assert.rejects(lerComo('DELETE FROM ' + tabela), /permission denied/)
     }
     assert.equal((await lerComo('SELECT nome FROM produtos')).rows[0].nome, 'Visível')
-    assert.deepEqual((await lerComo('SELECT * FROM categorias')).rows, [])
+    assert.deepEqual((await lerComo('SELECT slug FROM categorias ORDER BY slug')).rows.map(c => c.slug), ['aneis','brincos','colares','outros','pulseiras','relogios'])
     assert.deepEqual((await lerComo('SELECT * FROM avaliacoes')).rows, [])
     for (const tabela of ['produtos','categorias','avaliacoes']) {
       await assert.rejects(lerComo('INSERT INTO ' + tabela + ' DEFAULT VALUES'), /permission denied/)

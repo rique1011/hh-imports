@@ -1,22 +1,11 @@
 import { exigirAdmin, validarOrigem, responderErro } from '@/lib/autorizacao'
 import { NextResponse } from 'next/server'
-import { enviarEmailStatus } from '@/lib/mail'
 
+// O fluxo atual resolve o destinatário no banco e só envia códigos persistidos.
 export async function POST(request: Request) {
   try {
     validarOrigem(request)
     await exigirAdmin(request)
-    const { email, nome, codigoRastreio } = await request.json()
-
-    if (!email || !codigoRastreio) {
-      return NextResponse.json({ error: 'Faltam dados para o e-mail.' }, { status: 400 })
-    }
-
-    const resultado = await enviarEmailStatus(email, nome, 'troca_aprovada', codigoRastreio)
-    if (!resultado.sucesso) {
-      return NextResponse.json({ error: 'Falha ao enviar e-mail. Tente novamente.' }, { status: 503 })
-    }
-
-    return NextResponse.json({ sucesso: true })
-  } catch (error) { return responderErro(error) }
+    return NextResponse.json({ error: 'Use a ação Reenviar última atualização na Central de Trocas.' }, { status: 410 })
+  } catch (e) { return responderErro(e) }
 }

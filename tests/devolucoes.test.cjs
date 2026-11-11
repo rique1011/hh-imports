@@ -23,14 +23,14 @@ test('API protege o prazo e o admin registra recebimento sem alterar os itens co
   t.after(() => db.close())
   await db.exec(`
     create table pedidos(id bigint generated always as identity primary key, cliente_email text,cliente_nome text,
-      status text,total numeric,itens jsonb,created_at timestamptz default now(),codigo_rastreio text,entrega jsonb,pagamento jsonb default '{}',pagamento_expira_em timestamptz,cashback_debitado numeric default 0);
+      status text,total numeric,itens jsonb,created_at timestamptz default now(),codigo_rastreio text,entrega jsonb,pagamento jsonb default '{}',pagamento_expira_em timestamptz,cashback_debitado numeric default 0,resumo_compra jsonb);
     create table devolucao_uploads(caminho text,usuario_id text,pedido_id text,produto_id text);
     create table trocas(id uuid primary key default gen_random_uuid(), pedido_id text, produto_id uuid,
-      usuario_id bigint, motivo text, foto_url text, status text, unique(pedido_id,produto_id));
+      usuario_id bigint, motivo text, foto_url text, status text,produto_snapshot jsonb,descricao text,resolucao text,credito_aceito_em timestamptz, unique(pedido_id,produto_id));
   `)
   const auth = loadTs('lib/autorizacao')
   const user = { id: 17, email: 'fixture@example.test', db: adapter(db) }
-  const mocks = { '@/lib/autorizacao': { ...auth, exigirUsuario: async () => user, exigirAdmin: async () => user } }
+  const mocks = { '@/lib/autorizacao': { ...auth, exigirUsuario: async () => user, exigirAdmin: async () => user }, '@/lib/seguranca': {...loadTs('lib/seguranca'),limitar:async()=>{}}, 'next/server': {...require('next/server'),after:()=>{}} }
   const route = loadTs('app/api/trocas/route', mocks)
   const admin = loadTs('app/api/admin/dados/route', mocks)
   process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://fixture.supabase.co'

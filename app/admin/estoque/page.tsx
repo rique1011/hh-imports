@@ -12,12 +12,14 @@ import { uploadImagem } from '@/lib/upload-imagem'
 import { useState, useEffect } from 'react'
 import { Plus, Search, Edit, Trash2, Loader2, Image as ImageIcon, Box, X } from 'lucide-react'
 import { supabaseAdmin as supabase } from '@/lib/admin-client'
-import { CATEGORIAS, categoriaDoProduto, obterCategoria } from '@/lib/categorias'
+import { categoriaDoProduto, obterCategoria, type CategoriaLoja } from '@/lib/categorias'
+import Link from 'next/link'
 import toast from 'react-hot-toast'
 import { VITRINES_PRODUTO, SELECOES, type VitrineProduto } from '@/lib/selecoes'
 
 export default function TelaEstoque() {
   const [produtos, setProdutos] = useState<Produto[]>([])
+  const [categorias, setCategorias] = useState<CategoriaLoja[]>([])
   const [carregando, setCarregando] = useState(true)
   const [busca, setBusca] = useState('')
 
@@ -33,7 +35,7 @@ export default function TelaEstoque() {
     nome: '',
     preco: '',
     estoque: '0',
-    material: 'Ouro 18k',
+    material: 'Folheado a ouro',
     descricao: '',
     video_url: '',
     categoria_slug: ''
@@ -45,6 +47,10 @@ export default function TelaEstoque() {
 
   async function carregarProdutos() {
     try {
+      const resposta = await fetch('/api/admin/categorias', { cache: 'no-store' })
+      const dados = await resposta.json()
+      if (!resposta.ok) throw new Error(dados.error || 'Não foi possível carregar as categorias.')
+      setCategorias(dados.categorias)
       const { data, error } = await supabase
         .from('produtos')
         .select('*')
@@ -53,7 +59,7 @@ export default function TelaEstoque() {
       if (error) throw error
       setProdutos(data || [])
     } catch (error) {
-      console.error("Erro ao carregar estoque:", error)
+      toast.error(mensagemErro(error, 'Não foi possível carregar o estoque.'))
     } finally {
       setCarregando(false)
     }
@@ -63,7 +69,7 @@ export default function TelaEstoque() {
     setProdutoEditandoId(null)
     setFotos([])
     setVitrines([])
-    setForm({ nome: '', preco: '', estoque: '0', material: 'Ouro 18k', descricao: '', video_url: '', categoria_slug: '' })
+    setForm({ nome: '', preco: '', estoque: '0', material: 'Folheado a ouro', descricao: '', video_url: '', categoria_slug: '' })
     setProgressoFotos({ feitas: 0, total: 0 })
     setModalAberta(true)
   }
@@ -76,10 +82,10 @@ export default function TelaEstoque() {
       nome: produto.nome || '',
       preco: produto.preco?.toString() || '',
       estoque: String(produto.estoque ?? 0),
-      material: produto.material || 'Ouro 18k',
+      material: produto.material || '',
       descricao: produto.descricao || '',
       video_url: produto.video_url || '',
-      categoria_slug: categoriaDoProduto(produto) || ''
+      categoria_slug: categoriaDoProduto(produto, categorias) || ''
     })
     setProgressoFotos({ feitas: 0, total: 0 })
     setModalAberta(true)
@@ -211,7 +217,7 @@ export default function TelaEstoque() {
                         <div>
                           <p className="text-xs font-bold text-gray-200 uppercase">{produto.nome}</p>
                           <p className="text-[10px] text-gray-500">Slug: /{produto.slug}</p>
-                          <p className="mt-1 text-[10px] text-hb-goldLight">Categoria: {obterCategoria(categoriaDoProduto(produto))?.nome || 'Não definida'}</p>
+                          <p className="mt-1 text-[10px] text-hb-goldLight">Categoria: {obterCategoria(categoriaDoProduto(produto, categorias), categorias)?.nome || 'Não definida'}</p>
                         </div>
                       </div>
                     </td>
@@ -250,9 +256,9 @@ export default function TelaEstoque() {
                 <select id="categoria-produto" required value={form.categoria_slug} onChange={e => setForm({ ...form, categoria_slug: e.target.value })}
                   className="min-h-11 w-full bg-hb-black border border-gray-700 p-3 rounded text-base text-white outline-none focus:border-hb-gold">
                   <option value="">Selecione a coleção</option>
-                  {CATEGORIAS.map(c => <option key={c.slug} value={c.slug}>{c.nome}</option>)}
+                  {categorias.map(c => <option key={c.slug} value={c.slug}>{c.nome}{!c.ativo && ' (oculta)'}</option>)}
                 </select>
-                <p className="mt-2 text-xs text-gray-400">Define em qual coleção a peça aparece na loja.</p>
+                <p className="mt-2 text-xs text-gray-400">Define em qual categoria a peça aparece. <Link href="/admin/categorias" className="text-hb-gold underline">Gerenciar categorias</Link></p>
               </div>
               <fieldset className="rounded border border-luxury-line p-4">
                 <legend className="px-2 text-sm text-luxury-gold-light">Exibir também em</legend>
@@ -272,14 +278,10 @@ export default function TelaEstoque() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Material / Composição</label>
-                  <select value={form.material} onChange={e => setForm({...form, material: e.target.value})} className="w-full bg-hb-black border border-gray-700 p-3 rounded text-sm text-white outline-none focus:border-hb-gold">
-                    <option value="Ouro 18k">Ouro 18k</option>
-                    <option value="Prata 925">Prata 925</option>
-                    <option value="Banhado a Ouro">Banhado a Ouro</option>
-                    <option value="Aço Inoxidável">Aço Inoxidável</option>
-                    <option value="Couro Premium">Couro Premium</option>
-                  </select>
+                  <label htmlFor="material-produto" className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Material / Composição</label>
+                  <input id="material-produto" required maxLength={100} list="materiais-produto" value={form.material} onChange={e => setForm({...form, material: e.target.value})} className="w-full bg-hb-black border border-gray-700 p-3 rounded text-base text-white outline-none focus:border-hb-gold" />
+                  <datalist id="materiais-produto">{['Folheado a ouro','Folheado a prata','Prata 925','Bijuteria','Aço inoxidável'].map(m => <option key={m} value={m} />)}</datalist>
+                  <p className="mt-2 text-xs leading-6 text-gray-400">Informe a composição real do fornecedor. Folheado não deve ser cadastrado como ouro maciço.</p>
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">URL do Vídeo (Opcional)</label>

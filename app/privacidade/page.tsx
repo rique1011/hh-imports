@@ -1,16 +1,14 @@
-'use client'
-
 import Link from 'next/link'
+import { Suspense } from 'react'
+import { VoltarPaginaLegal } from '@/components/NavegacaoLegal'
 import { CONTACT_EMAIL } from '@/lib/brand'
-import { ArrowLeft, ShieldCheck } from 'lucide-react'
+import { ShieldCheck } from 'lucide-react'
 
 export default function PaginaPrivacidade() {
   return (
     <main className="min-h-screen bg-hb-black py-12 md:py-20 px-4 md:px-6">
       <div className="max-w-3xl mx-auto">
-        <Link href="/cadastro" className="inline-flex items-center gap-2 text-[9px] md:text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500 hover:text-hb-gold transition mb-8 md:mb-12">
-          <ArrowLeft size={14} className="md:w-4 md:h-4" /> Voltar ao Cadastro
-        </Link>
+        <Suspense fallback={<Link href="/" className="mb-8 inline-flex min-h-11 items-center text-xs text-hb-gold">Voltar para a loja</Link>}><VoltarPaginaLegal /></Suspense>
 
         <div className="flex items-center gap-3 md:gap-4 mb-8 md:mb-12 pb-6 md:pb-8 border-b border-hb-gray">
           <div className="bg-hb-gray border border-gray-800 p-2 md:p-3 rounded-full shrink-0">
@@ -22,7 +20,7 @@ export default function PaginaPrivacidade() {
         <div className="space-y-6 md:space-y-8 text-gray-400 leading-relaxed font-light text-sm md:text-base">
           <section>
             <h2 className="text-[11px] md:text-sm font-bold text-hb-gold uppercase tracking-widest mb-3 md:mb-4">1. Coleta de Dados (LGPD)</h2>
-            <p>Em conformidade com a Lei Geral de Proteção de Dados (LGPD), coletamos apenas as informações necessárias para processar seu pedido: nome, CPF, endereço de entrega e e-mail.</p>
+            <p>Coletamos os dados necessários ao cadastro, compra e atendimento: nome, e-mail, CPF ou CNPJ, telefone e endereços cadastrados. Em solicitações de troca ou devolução, também guardamos o motivo, a descrição, as fotos enviadas e as atualizações do atendimento.</p>
           </section>
 
           <section>
@@ -37,7 +35,7 @@ export default function PaginaPrivacidade() {
 
           <section>
             <h2 className="text-[11px] md:text-sm font-bold text-hb-gold uppercase tracking-widest mb-3 md:mb-4">4. Cookies</h2>
-            <p>Utilizamos cookies para melhorar sua experiência de navegação e lembrar os itens que você adicionou à sua sacola de luxo.</p>
+            <p>Utilizamos cookies para manter sua sessão autenticada e armazenamento local do navegador para lembrar os itens da sacola e da lista de desejos.</p>
           </section>
 
           <section>

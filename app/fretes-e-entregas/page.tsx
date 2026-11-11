@@ -43,8 +43,8 @@ export default function FretesEntregas() {
         </div>
 
         <div>
-          <h2 className="text-xl font-light uppercase tracking-widest text-white mb-4 border-l-2 border-hb-gold pl-4">3. Embalagem de Luxo</h2>
-          <p>Garantimos que a experiência do unboxing seja inesquecível. Todas as nossas peças são enviadas em caixas de joias personalizadas de alto padrão, perfeitamente seguras e preparadas para presentear.</p>
+          <h2 className="text-xl font-light uppercase tracking-widest text-white mb-4 border-l-2 border-hb-gold pl-4">3. Embalagem do pedido</h2>
+          <p>A embalagem padrão é simples e preparada para proteger as peças no transporte. Uma apresentação especial para presente é opcional e tem custo adicional de R$ 15, exibido na sacola antes do pagamento. Ela só acompanha o pedido quando essa opção é selecionada e paga.</p>
         </div>
       </section>
     </main>

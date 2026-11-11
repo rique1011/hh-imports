@@ -7,8 +7,7 @@ import { SELECOES } from '@/lib/selecoes'
 
 export const produtosDaSelecao = unstable_cache(async (slug: string): Promise<Produto[]> => {
   if (!SELECOES.some(s => s.slug === slug)) return []
-  const { data: categorias, error: erroCategorias } = slug === 'joias'
-    ? await supabase.from('categorias').select('id,nome').abortSignal(AbortSignal.timeout(5000)) : { data: [], error: null }
+  const { data: categorias, error: erroCategorias } = await supabase.from('categorias').select('id,nome,slug').abortSignal(AbortSignal.timeout(5000))
   if (erroCategorias) throw new Error('Não foi possível carregar as categorias.')
   const produtos: Produto[] = []
   const recente = new Date(Date.now() - 30 * 86400_000).toISOString()
@@ -20,7 +19,8 @@ export const produtosDaSelecao = unstable_cache(async (slug: string): Promise<Pr
       .range(inicio, inicio + 499).abortSignal(AbortSignal.timeout(5000))
     if (error) throw new Error('Não foi possível carregar esta seleção.')
     const pagina = (data || []) as Produto[]
-    produtos.push(...pagina.filter(p => slug !== 'joias' || ['aneis','brincos','colares','pulseiras'].includes(categoriaDoProduto(p, categorias || []) || '')))
+    produtos.push(...pagina.filter(p => slug !== 'joias' || !['relogios','outros'].includes(categoriaDoProduto(p, categorias || []) || 'outros'))
+      .map(p => ({ ...p, categoria_slug: categoriaDoProduto(p, categorias || []) })))
     if (pagina.length < 500) return produtos
   }
-}, ['hh-selecoes-v1'], { revalidate: 60, tags: ['vitrine-publica'] })
+}, ['hh-selecoes-v2'], { revalidate: 60, tags: ['vitrine-publica'] })

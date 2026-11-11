@@ -23,7 +23,7 @@ const recursos = {
   pedidos: { leitura: 'id,created_at,cliente_email,cliente_nome,status,total,itens,codigo_rastreio,entrega,pagamento,pagamento_expira_em,cashback_debitado', escrita: ['status','codigo_rastreio','data_entrega'] },
   usuarios: { leitura: 'id,nome,email,cpf_cnpj,whatsapp,endereco,perfil,role', escrita: [] },
   cupons: { leitura: 'id,codigo,desconto,valor_fixo,usuario_id,ativo,criado_em', escrita: ['codigo','desconto','valor_fixo','usuario_id','ativo'] },
-  trocas: { leitura: 'id,pedido_id,produto_id,usuario_id,motivo,foto_url,status,criado_em,usuarios(nome,email)', escrita: ['status'] },
+  trocas: { leitura: 'id,pedido_id,produto_id,usuario_id,motivo,foto_url,status,criado_em,usuarios(nome,email)', escrita: [] },
 } as const
 
 export async function POST(request: Request) {
@@ -51,9 +51,15 @@ export async function POST(request: Request) {
       if ('preco' in lista[0] && (!Number.isFinite(Number(lista[0].preco)) || Number(lista[0].preco) < 0)) throw new ErroHttp(400, 'Preço inválido.')
       if ('estoque' in lista[0] && (!Number.isSafeInteger(Number(lista[0].estoque)) || Number(lista[0].estoque) < 0)) throw new ErroHttp(400, 'Estoque inválido.')
       if (tabela === 'produtos') {
+        if ('material' in lista[0] && (typeof lista[0].material !== 'string' || !lista[0].material.trim() || lista[0].material.length > 100)) throw new ErroHttp(400, 'Informe a composição real da peça, com até 100 caracteres.')
         if ('vitrines' in lista[0] && !vitrinesValidas(lista[0].vitrines)) throw new ErroHttp(400, 'Selecione apenas Lançamentos, Masculino ou Presentes, sem repetições.')
         if ('categoria_slug' in lista[0]) {
-          const categoria = obterCategoria(lista[0].categoria_slug)
+          let categoria = obterCategoria(lista[0].categoria_slug)
+          if (!categoria && typeof lista[0].categoria_slug === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(lista[0].categoria_slug)) {
+            const { data, error } = await user.db.from('categorias').select('id,nome,slug').eq('slug', lista[0].categoria_slug).maybeSingle()
+            if (error) throw error
+            if (data) categoria = obterCategoria(data.slug, [data])
+          }
           if (!categoria) throw new ErroHttp(400, 'Selecione uma categoria válida para a peça.')
           lista[0].categoria_slug = categoria.slug
           lista[0].categoria_id = null

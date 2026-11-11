@@ -16,17 +16,17 @@ export default function PaginaSobre() {
       {/* Conteúdo */}
       <section className="max-w-4xl mx-auto px-4 md:px-6 py-12 md:py-20 text-center">
         <h2 className="text-xl md:text-2xl font-light uppercase tracking-widest text-white mb-6 md:mb-8">
-          Mais do que joias, um legado.
+          De Joinville para fazer parte do seu dia.
         </h2>
         <div className="space-y-5 md:space-y-6 text-gray-400 leading-relaxed font-light text-sm md:text-base text-left md:text-center">
           <p>
-            A <strong className="text-hb-gold font-normal">H&H IMPORTS</strong> nasceu da paixão por peças exclusivas e do desejo de trazer para o Brasil o que há de mais sofisticado no mercado mundial de joias.
+            Somos a <strong className="text-hb-gold font-normal">H&H IMPORTS</strong>, uma loja de Joinville, Santa Catarina. Há mais de dois anos, selecionamos peças para quem busca estilo, qualidade e bom custo-benefício.
           </p>
           <p>
-            Cada colar, pulseira e brinco que selecionamos passa por um rigoroso controle de qualidade. Trabalhamos apenas com materiais premium, garantindo não apenas o brilho imediato, mas a durabilidade que uma verdadeira joia de luxo exige.
+            Nossas peças são escolhidas a dedo e compradas de fornecedores em São Paulo. A seleção inclui joias folheadas, prata 925 e bijuterias, com produtos importados principalmente da China. A composição informada em cada anúncio ajuda você a escolher a peça que procura.
           </p>
           <p>
-            Acreditamos que o luxo não está apenas no produto, mas na experiência. Desde o momento em que você acessa nossa vitrine até o instante em que abre nossa caixa exclusiva em sua casa, nosso objetivo é fazer você se sentir único.
+            Valorizamos uma compra clara, um atendimento próximo e o cuidado no envio. O pedido vai em uma embalagem simples de proteção. Se quiser presentear, você pode contratar a embalagem para presente, como opção paga na sacola.
           </p>
         </div>
 

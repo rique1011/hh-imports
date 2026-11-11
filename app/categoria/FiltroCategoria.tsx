@@ -1,122 +1,57 @@
 'use client'
-import ProductCard from '@/components/ProductCard'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
+import { SlidersHorizontal, X } from 'lucide-react'
+import ProductCard from '@/components/ProductCard'
+import { categoriaDoProduto, type CategoriaSalva } from '@/lib/categorias'
+import { FILTROS_INICIAIS, filtrarCatalogo, grupoMaterial, type FiltrosCatalogo } from '@/lib/filtros-catalogo'
+import { MENSAGEM_FRETE_GRATIS } from '@/lib/politica-frete'
 import type { Produto } from '@/types/loja'
 
-import { useState, useMemo } from 'react'
-import { SlidersHorizontal, X } from 'lucide-react'
+const campo = 'min-h-11 w-full rounded border border-luxury-line bg-hb-black px-3 py-2 text-base text-luxury-ivory outline-none focus:border-hb-gold'
+export default function FiltroCategoria({ produtosOriginais, tituloCategoria, descricao, categorias = [] }: {
+  produtosOriginais: Produto[]; tituloCategoria: string; descricao?: string; categorias?: readonly CategoriaSalva[]
+}) {
+  const [filtros, setFiltros] = useState<FiltrosCatalogo>(FILTROS_INICIAIS)
+  const [aberto, setAberto] = useState(false)
+  const alterar = <K extends keyof FiltrosCatalogo>(chave: K, valor: FiltrosCatalogo[K]) => setFiltros(atual => ({ ...atual, [chave]: valor }))
+  const materiais = useMemo(() => Array.from(new Set(produtosOriginais.map(p => grupoMaterial(p.material)))).sort(), [produtosOriginais])
+  const tipos = useMemo(() => categorias.filter(c => produtosOriginais.some(p => categoriaDoProduto(p, categorias) === c.slug)), [produtosOriginais, categorias])
+  const produtos = useMemo(() => filtrarCatalogo(produtosOriginais, filtros, categorias), [produtosOriginais, filtros, categorias])
+  const ativos = Object.entries(filtros).filter(([k, v]) => k !== 'ordem' && Boolean(v)).length
+  const limpar = () => setFiltros(FILTROS_INICIAIS)
 
-// Recebe os produtos já carregados pelo servidor
-export default function FiltroCategoria({ produtosOriginais, tituloCategoria }: { produtosOriginais: Produto[], tituloCategoria: string }) {
-  const [filtroMaterial, setFiltroMaterial] = useState('')
-  const [filtroPreco, setFiltroPreco] = useState<number | null>(null)
-  const precoMaximo = Math.max(50, Math.ceil(produtosOriginais.reduce((maior, p) => Math.max(maior, Number(p.preco) || 0), 0) / 50) * 50)
-  const limitePreco = filtroPreco ?? precoMaximo
-
-  // Identifica os materiais existentes
-  const materiaisDisponiveis = useMemo(() => {
-    const lista = produtosOriginais.map(p => p.material).filter((material): material is string => Boolean(material))
-    return Array.from(new Set(lista))
-  }, [produtosOriginais])
-
-  // Aplica os filtros
-  const produtosFiltrados = useMemo(() => {
-    return produtosOriginais.filter(p => {
-      const bateMaterial = filtroMaterial === '' || p.material === filtroMaterial
-      const batePreco = filtroPreco === null || Number(p.preco) <= filtroPreco
-      return bateMaterial && batePreco
-    })
-  }, [produtosOriginais, filtroMaterial, filtroPreco])
-
-  return (
-    <main className="min-h-dvh bg-hb-black text-gray-200">
-      {/* Header */}
-      <div className="bg-luxury-surface py-12 md:py-20 border-b border-luxury-line">
-        <div className="luxury-container text-center">
-          <h1 className="luxury-title text-luxury-ivory [overflow-wrap:anywhere]">
-            {tituloCategoria}
-          </h1>
-          <div className="w-12 h-[1px] bg-hb-gold mx-auto mt-4"></div>
-        </div>
+  return <main className="min-h-dvh min-w-0 bg-hb-black text-luxury-ivory">
+    <header className="border-b border-luxury-line bg-luxury-surface py-10 sm:py-16">
+      <div className="luxury-container">
+        <nav aria-label="Localização" className="mb-6 flex gap-3 text-xs text-luxury-muted"><Link href="/">Início</Link><span aria-hidden="true">/</span><span>{tituloCategoria}</span></nav>
+        <h1 className="luxury-title [overflow-wrap:anywhere]">{tituloCategoria}</h1>
+        {descricao && <p className="mt-5 max-w-2xl text-sm leading-7 text-luxury-muted">{descricao}</p>}
+        <Link href="/fretes-e-entregas" className="mt-4 inline-block text-xs leading-6 text-luxury-gold-light">{MENSAGEM_FRETE_GRATIS}</Link>
       </div>
-
-      <div className="luxury-container py-8 md:py-14 flex flex-col md:flex-row gap-8 md:gap-12">
-        
-        {/* BARRA LATERAL DE FILTROS */}
-        <aside className="w-full md:w-52 flex-shrink-0 min-w-0 space-y-5 md:space-y-8">
-          <div className="flex items-center gap-2 border-b border-luxury-line pb-3">
-            <SlidersHorizontal size={16} />
-            <span className="text-xs font-black uppercase tracking-widest">Filtros</span>
-          </div>
-
-          {/* Filtro de Material */}
-          {materiaisDisponiveis.length > 0 && (
-            <div>
-              <h3 className="text-[10px] font-black text-luxury-muted uppercase mb-3 tracking-widest">Material</h3>
-              <div className="flex flex-wrap md:flex-col gap-2">
-                {materiaisDisponiveis.map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setFiltroMaterial(filtroMaterial === m ? '' : m)}
-                    aria-pressed={filtroMaterial === m}
-                    className={`min-h-11 text-left text-xs px-3 py-2 border transition-colors flex items-center gap-2 ${
-                      filtroMaterial === m ? 'text-hb-gold border-hb-gold bg-hb-gold/10 font-bold' : 'text-gray-300 border-luxury-line hover:border-hb-gold'
-                    }`}
-                  >
-                    {filtroMaterial === m && <div className="w-1 h-1 bg-hb-gold rounded-full" />}
-                    {m}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Filtro de Preço */}
-          <div>
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-[10px] font-black text-luxury-muted uppercase tracking-widest">Preço Máx.</h3>
-              <span className="text-xs font-bold">R$ {limitePreco.toLocaleString('pt-BR')}</span>
-            </div>
-            <input 
-              type="range" aria-label="Preço máximo" aria-valuetext={`Até R$ ${limitePreco}`} min="0" max={precoMaximo} step="50"
-              value={limitePreco}
-              onChange={(e) => setFiltroPreco(Number(e.target.value))}
-              className="price-range"
-            />
-          </div>
-
-          {/* Limpar Filtros */}
-          {(filtroMaterial || filtroPreco !== null) && (
-            <button 
-              onClick={() => { setFiltroMaterial(''); setFiltroPreco(null); }}
-              className="flex items-center gap-1 min-h-11 text-xs font-bold text-luxury-gold-light uppercase hover:text-luxury-ivory transition"
-            >
-              <X size={14} /> Limpar Filtros
-            </button>
-          )}
-        </aside>
-
-        {/* LISTAGEM DE PRODUTOS */}
-        <div className="flex-1 min-w-0">
-          {produtosFiltrados.length === 0 ? (
-            <div className="text-center text-gray-500 py-20 border border-dashed rounded-xl">
-              <p className="text-sm font-light mb-4">{produtosOriginais.length ? 'Nenhum item encontrado com estes filtros.' : 'Ainda não há peças cadastradas nesta coleção.'}</p>
-              {produtosOriginais.length ? <button
-                onClick={() => { setFiltroMaterial(''); setFiltroPreco(null); }}
-                className="min-h-11 text-xs font-bold uppercase border-b border-hb-gold text-hb-gold pb-1"
-              >
-                Resetar Filtros
-              </button> : <Link href="/produtos" className="luxury-link">Explorar todas as peças</Link>}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-x-4 sm:gap-x-6 gap-y-10">
-              {produtosFiltrados.map((produto) => (
-                <ProductCard key={produto.id} produto={produto} sizes="(max-width: 639px) calc(50vw - 24px), (max-width: 767px) calc(50vw - 36px), (max-width: 1023px) calc(50vw - 160px), (max-width: 1375px) calc(33vw - 136px), 310px" />
-              ))}
-            </div>
-          )}
+    </header>
+    <div className="luxury-container flex min-w-0 flex-col gap-7 py-8 md:flex-row md:gap-10 md:py-12">
+      <aside aria-label="Filtros do catálogo" className="min-w-0 shrink-0 md:w-56">
+        <button type="button" aria-expanded={aberto} aria-controls="painel-filtros" onClick={() => setAberto(!aberto)} className="flex min-h-12 w-full items-center justify-between gap-3 rounded border border-luxury-gold/40 px-4 text-sm text-luxury-gold-light md:hidden"><span className="flex items-center gap-2"><SlidersHorizontal size={17} />Filtrar peças{ativos > 0 && ` (${ativos})`}</span><span>{aberto ? 'Fechar' : 'Abrir'}</span></button>
+        <h2 className="mb-6 hidden items-center gap-2 text-sm text-luxury-gold-light md:flex"><SlidersHorizontal size={17} />Filtros</h2>
+        <div id="painel-filtros" className={`${aberto ? 'block' : 'hidden'} space-y-5 border-b border-luxury-line py-5 md:block md:border-0 md:py-0`}>
+          <label className="block text-xs leading-6 text-luxury-muted">Buscar nesta seleção<input type="search" maxLength={100} value={filtros.busca} onChange={e => alterar('busca', e.target.value)} placeholder="Nome da peça" className={campo} /></label>
+          {tipos.length > 1 && <label className="block text-xs leading-6 text-luxury-muted">Categoria<select aria-label="Categoria" value={filtros.categoria} onChange={e => alterar('categoria', e.target.value)} className={campo}><option value="">Todas as categorias</option>{tipos.map(c => <option key={c.slug} value={c.slug}>{c.nome}</option>)}</select></label>}
+          <label className="block text-xs leading-6 text-luxury-muted">Material<select aria-label="Material" value={filtros.material} onChange={e => alterar('material', e.target.value)} className={campo}><option value="">Todos os materiais</option>{materiais.map(m => <option key={m} value={m}>{m}</option>)}</select></label>
+          <fieldset><legend className="mb-2 text-xs text-luxury-muted">Faixa de preço (R$)</legend><div className="grid grid-cols-2 gap-3"><label className="text-xs leading-6 text-luxury-muted">De<input type="number" inputMode="decimal" min="0" step="0.01" value={filtros.precoMin} onChange={e => alterar('precoMin', e.target.value)} placeholder="0,00" className={campo} /></label><label className="text-xs leading-6 text-luxury-muted">Até<input type="number" inputMode="decimal" min="0" step="0.01" value={filtros.precoMax} onChange={e => alterar('precoMax', e.target.value)} placeholder="Sem limite" className={campo} /></label></div></fieldset>
+          <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm"><input type="checkbox" checked={filtros.disponivel} onChange={e => alterar('disponivel', e.target.checked)} className="h-5 w-5 accent-hb-gold" />Somente disponíveis</label>
+          {ativos > 0 && <button type="button" onClick={limpar} className="flex min-h-11 items-center gap-2 text-xs text-luxury-gold-light"><X size={16} />Limpar filtros</button>}
         </div>
-      </div>
-    </main>
-  )
+      </aside>
+      <section aria-label="Peças da seleção" className="min-w-0 flex-1">
+        <div className="mb-7 flex flex-wrap items-center justify-between gap-4">
+          <p role="status" className="text-xs text-luxury-muted">{produtos.length} de {produtosOriginais.length} peças{ativos > 0 && ' · filtros aplicados'}</p>
+          <label className="flex min-w-0 items-center gap-2 text-xs text-luxury-muted">Ordenar<select aria-label="Ordenar" value={filtros.ordem} onChange={e => alterar('ordem', e.target.value)} className={`${campo} w-auto max-w-52 text-sm`}><option value="recentes">Mais recentes</option><option value="menor-preco">Menor preço</option><option value="maior-preco">Maior preço</option><option value="nome">Nome de A a Z</option></select></label>
+        </div>
+        {ativos > 0 && !aberto && <button type="button" onClick={limpar} className="mb-6 flex min-h-11 items-center gap-2 text-xs text-luxury-gold-light md:hidden"><X size={15} />Limpar filtros aplicados</button>}
+        {produtos.length ? <div className="grid grid-cols-2 gap-x-4 gap-y-10 sm:gap-x-6 lg:grid-cols-3">{produtos.map((p, i) => <ProductCard key={p.id} produto={p} eager={i < 2} sizes="(max-width: 639px) calc(50vw - 24px), (max-width: 767px) calc(50vw - 36px), (max-width: 1023px) calc(50vw - 160px), (max-width: 1375px) calc(33vw - 136px), 310px" />)}</div>
+          : <div className="border border-dashed border-luxury-line px-5 py-16 text-center"><p className="mb-4 text-sm text-luxury-muted">{produtosOriginais.length ? 'Nenhuma peça encontrada com estes filtros.' : 'Ainda não há peças cadastradas nesta seleção.'}</p>{produtosOriginais.length ? <button type="button" onClick={limpar} className="luxury-button luxury-button-outline">Limpar filtros</button> : <Link href="/produtos" className="luxury-link">Explorar todas as peças</Link>}</div>}
+      </section>
+    </div>
+  </main>
 }

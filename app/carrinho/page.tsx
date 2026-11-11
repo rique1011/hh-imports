@@ -1,4 +1,5 @@
 'use client'
+import QuantidadeCarrinho from '@/components/QuantidadeCarrinho'
 import Modal from '@/components/Modal'
 import type { EnderecoSalvo } from '@/types/loja'
 import { enderecoPadrao, textoEndereco } from '@/lib/enderecos'
@@ -398,11 +399,7 @@ export default function PaginaCarrinho() {
                       </div>
                       
                       <div className="flex flex-wrap justify-between items-center gap-3 w-full">
-                        <div className="flex items-center border border-gray-700 rounded overflow-hidden min-h-11">
-                          <button aria-label={`Diminuir quantidade de ${item.nome}`} onClick={() => atualizarQuantidade(item.id, Math.max(1, item.quantidade - 1))} className="min-w-11 min-h-11 px-2 py-1 h-full bg-hb-black text-gray-400 hover:text-white transition text-xs flex items-center justify-center">-</button>
-                          <span className="px-3 py-1 text-xs font-bold text-white flex items-center justify-center h-full border-x border-gray-700">{item.quantidade}</span>
-                          <button aria-label={`Aumentar quantidade de ${item.nome}`} onClick={() => atualizarQuantidade(item.id, item.quantidade + 1)} className="min-w-11 min-h-11 px-2 py-1 h-full bg-hb-black text-gray-400 hover:text-white transition text-xs flex items-center justify-center">+</button>
-                        </div>
+                        <QuantidadeCarrinho nome={item.nome} quantidade={item.quantidade} maximo={Math.max(1, 100 - itens.reduce((s, i) => s + (i.id === item.id ? 0 : i.quantidade), 0))} onChange={valor => atualizarQuantidade(item.id, valor)} />
                         <p className="text-xs md:text-sm font-bold text-hb-gold ml-auto">
                           R$ {(item.preco * item.quantidade).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </p>
@@ -601,8 +598,8 @@ export default function PaginaCarrinho() {
                   <Gift size={14} className={embalagemPresente ? 'text-hb-black' : 'text-gray-500 md:w-4 md:h-4'} />
                 </div>
                 <div>
-                  <h3 className="text-[10px] md:text-xs font-bold text-white uppercase tracking-widest">Presente</h3>
-                  <p className="text-[8px] md:text-[10px] text-gray-400 mt-1 uppercase">Caixa Veludo + Laço</p>
+                  <h3 className="text-xs font-bold text-white">Embalagem para presente</h3>
+                  <p className="mt-1 text-xs leading-5 text-gray-400">Opcional. Sem esta opção, o pedido vai em embalagem simples de proteção.</p>
                 </div>
               </div>
               <div className="flex flex-col items-end gap-2 shrink-0">

@@ -7,15 +7,16 @@ const COLUNAS = 'id,nome,slug,preco,fotos,material,estoque,estoque_reservado,cat
 const TAMANHO_PAGINA = 500
 
 export async function produtosDaCategoria(slug: string): Promise<Produto[]> {
-  const categoria = obterCategoria(slug)
-  if (!categoria) return []
-  const { data: salvas, error: erroCategorias } = await supabase.from('categorias').select('id,nome').abortSignal(AbortSignal.timeout(5000))
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) return []
+  const { data: salvas, error: erroCategorias } = await supabase.from('categorias').select('id,nome,slug,ativo').abortSignal(AbortSignal.timeout(5000))
   if (erroCategorias) throw new Error('Não foi possível carregar as coleções.')
   const categorias: CategoriaSalva[] = salvas || []
+  const categoria = obterCategoria(slug, categorias)
+  if (!categoria || categorias.some(c => c.slug === categoria.slug && c.ativo === false)) return []
   const termos = [...new Set([categoria.slug, ...categoria.termos])]
-  // Os termos vêm apenas da configuração fixa; o slug da URL não entra no filtro SQL.
-  const filtros = termos.flatMap(t => [`categoria_slug.ilike.*${t}*`, `nome.ilike.*${t}*`])
-  const ids = categorias.filter(c => obterCategoria(c.nome)?.slug === categoria.slug).map(c => c.id)
+  // Somente tokens simples entram na expressão PostgREST; o resultado é conferido pela classificação.
+  const filtros = termos.filter(t => /^[\p{L}\p{N} -]+$/u.test(t)).flatMap(t => [`categoria_slug.ilike.*${t}*`, `nome.ilike.*${t}*`])
+  const ids = categorias.filter(c => (c.slug || obterCategoria(c.nome)?.slug) === categoria.slug).map(c => c.id)
     .filter(id => /^[\da-f-]{36}$/i.test(id) || /^\d{1,20}$/.test(id))
   if (ids.length) filtros.push(`categoria_id.in.(${ids.join(',')})`)
   const produtos: Produto[] = []

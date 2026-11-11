@@ -64,6 +64,16 @@ export default function PaginaTrocas() {
             </div>
           </div>
 
+          <section className="rounded-2xl border border-luxury-line bg-hb-gray p-6 md:p-8">
+            <h2 className="mb-3 font-serif text-xl text-hb-goldLight">Postagem e acompanhamento da devolução</h2>
+            <p className="text-sm leading-7 text-gray-300">Ao solicitar pela sua conta, o sistema vincula o número do pedido, a peça, a quantidade e o valor da compra. Descreva o motivo e, em caso de defeito, envie uma foto. Após a análise, disponibilizaremos o código de postagem reversa e as instruções por e-mail e em Minha Conta. O frete de devolução por arrependimento ou defeito é pago pela loja. Aguarde a autorização antes de postar.</p>
+          </section>
+          <section className="rounded-2xl border border-luxury-line bg-hb-gray p-6 md:p-8">
+            <h2 className="mb-3 font-serif text-xl text-hb-goldLight">Reembolso, troca ou crédito opcional</h2>
+            <p className="text-sm leading-7 text-gray-300">No arrependimento dentro do prazo legal, você tem direito à restituição dos valores pagos, inclusive o frete de entrega aplicável. O estorno segue o meio de pagamento original. Crédito para outra compra só será utilizado se você escolher e concordar expressamente; ele não é obrigatório e não substitui o seu direito ao reembolso. Em caso de troca ou defeito, registraremos a solução combinada no atendimento, respeitando os direitos legais.</p>
+            <p className="mt-4 text-sm leading-7 text-gray-300">Depois do recebimento da peça na loja, o sistema registra a conferência e a solução. Se você optou por crédito, o valor correspondente à compra devolvida é liberado no saldo da conta após a análise. Cashback promocional gerado pela parte devolvida é ajustado para evitar crédito em duplicidade.</p>
+          </section>
+
           {/* Regra 4 */}
           <div className="bg-hb-gray p-6 md:p-8 rounded-2xl border border-gray-800 shadow-sm flex flex-col md:flex-row gap-4 md:gap-6 items-start transition-colors hover:border-hb-gold/50">
             <div className="flex-shrink-0 w-10 h-10 md:w-12 md:h-12 bg-hb-black border border-gray-700 rounded-full flex items-center justify-center">

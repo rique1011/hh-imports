@@ -12,7 +12,7 @@ export default function PaginaCuidados() {
             Guia de Cuidados
           </h1>
           <p className="text-xs md:text-sm text-gray-400 max-w-2xl mx-auto leading-relaxed">
-            Nossas joias exigem cuidados especiais para manterem seu brilho impecável. Siga estas orientações para preservar sua peça.
+            Joias folheadas, prata 925 e bijuterias precisam de cuidados diferentes. Confira a composição na página da peça e siga também as orientações específicas do fabricante.
           </p>
         </div>
 
@@ -24,10 +24,10 @@ export default function PaginaCuidados() {
               <Droplets className="text-hb-gold w-4 h-4 md:w-5 md:h-5" />
             </div>
             <h3 className="text-xs md:text-sm font-bold text-white uppercase tracking-widest mb-2 md:mb-3">
-              Não Molhar
+              Evite água e atrito
             </h3>
             <p className="text-xs md:text-sm text-gray-400 leading-relaxed">
-              Retire sua joia antes de tomar banho, entrar no mar ou piscina. A água e sabonetes aceleram a oxidação e podem danificar o banho da peça permanentemente.
+              Retire as peças antes do banho, do mar, da piscina, de dormir ou de praticar exercícios. Cloro, sal, suor e atrito podem afetar o acabamento, especialmente em folheados e bijuterias. Não considere uma peça resistente à água sem essa informação no anúncio.
             </p>
           </div>
 
@@ -39,7 +39,7 @@ export default function PaginaCuidados() {
               Evite Perfumes
             </h3>
             <p className="text-xs md:text-sm text-gray-400 leading-relaxed">
-              Cosméticos e perfumes contêm álcool que corrói o banho da joia. Aplique seus produtos, espere a pele secar completamente e só então coloque sua peça.
+              Evite contato direto com perfumes, cremes e produtos de limpeza. Aplique os cosméticos, espere a pele secar e só então coloque a peça.
             </p>
           </div>
 
@@ -63,11 +63,16 @@ export default function PaginaCuidados() {
               Produtos Químicos
             </h3>
             <p className="text-xs md:text-sm text-gray-400 leading-relaxed">
-              Nunca utilize produtos de limpeza, álcool ou abrasivos. Para devolver o brilho, utilize apenas uma flanela mágica seca e limpa, esfregando suavemente.
+              Para folheados e bijuterias, prefira um pano macio, seco e sem abrasivos, com movimentos leves. Não use pasta de dente, álcool, receitas caseiras ou polidores de prata nesses acabamentos. Se houver pedras, pérolas ou partes coladas, não deixe a peça de molho.
             </p>
           </div>
 
         </div>
+
+        <section className="mb-10 rounded-xl border border-luxury-line bg-hb-gray p-6 md:p-8">
+          <h2 className="mb-3 font-serif text-xl text-hb-goldLight">Cuidados com a prata 925</h2>
+          <p className="text-sm leading-7 text-gray-300">A prata 925 pode escurecer naturalmente por oxidação. Isso não significa, por si só, que a peça seja falsa. Use um pano adequado à prata e siga a orientação do fabricante; peças com banho, pedras ou acabamento especial podem exigir outro cuidado. Em caso de dúvida sobre manchas ou limpeza, fale conosco antes de aplicar qualquer produto.</p>
+        </section>
 
         {/* Caixa de Atenção */}
         <div className="bg-gradient-to-r from-hb-gray to-hb-black border border-hb-gold/30 text-white p-6 md:p-10 rounded-2xl shadow-lg relative overflow-hidden">
@@ -80,7 +85,7 @@ export default function PaginaCuidados() {
                 Sobre a Nossa Garantia
               </h2>
               <p className="text-xs md:text-sm text-gray-300 leading-relaxed">
-                Nossa garantia cobre exclusivamente defeitos de fabricação. Danos causados por mau uso (contato com água, produtos químicos, quedas) caracterizam desgaste inadequado e <strong className="text-white">não estão cobertos</strong>.
+                A garantia legal para defeitos aparentes em produtos duráveis é de 90 dias a partir do recebimento. Para vícios ocultos, a contagem começa quando o problema fica evidente. Desgaste natural e danos por uso inadequado precisam de análise individual; estas orientações não afastam os direitos do consumidor. Se notar um problema, registre a solicitação em Minha Conta ou fale com o atendimento.
               </p>
             </div>
           </div>

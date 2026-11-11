@@ -1,15 +1,13 @@
-'use client'
-
 import Link from 'next/link'
-import { ArrowLeft, ScrollText } from 'lucide-react'
+import { Suspense } from 'react'
+import { ScrollText } from 'lucide-react'
+import { VoltarPaginaLegal } from '@/components/NavegacaoLegal'
 
 export default function PaginaTermos() {
   return (
     <main className="min-h-screen bg-hb-black py-12 md:py-20 px-4 md:px-6">
       <div className="max-w-3xl mx-auto">
-        <Link href="/cadastro" className="inline-flex items-center gap-2 text-[9px] md:text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500 hover:text-hb-gold transition mb-8 md:mb-12">
-          <ArrowLeft size={14} className="md:w-4 md:h-4" /> Voltar ao Cadastro
-        </Link>
+        <Suspense fallback={<Link href="/" className="mb-8 inline-flex min-h-11 items-center text-xs text-hb-gold">Voltar para a loja</Link>}><VoltarPaginaLegal /></Suspense>
 
         <div className="flex items-center gap-3 md:gap-4 mb-8 md:mb-12 pb-6 md:pb-8 border-b border-hb-gray">
           <div className="bg-hb-gray border border-gray-800 p-2 md:p-3 rounded-full shrink-0">
@@ -36,7 +34,7 @@ export default function PaginaTermos() {
 
           <section>
             <h2 className="text-[11px] md:text-sm font-bold text-hb-gold uppercase tracking-widest mb-3 md:mb-4">4. Trocas e Devoluções</h2>
-            <p>O cliente tem o direito de arrependimento em até 7 dias corridos após o recebimento. Para joias e itens importados, o produto deve ser devolvido em sua embalagem original, sem sinais de uso e com todos os lacres intactos.</p>
+            <p>Nas compras online, o cliente pode exercer o direito de arrependimento no prazo legal de 7 dias após o recebimento, inclusive em promoções e outlet. Preserve a peça, os acessórios e a embalagem para facilitar a devolução. Crédito na loja é uma opção expressa do cliente, sem substituir obrigatoriamente o reembolso. Consulte os procedimentos e a garantia legal na <Link href="/trocas" className="text-hb-gold underline">Política de Trocas e Devoluções</Link>.</p>
           </section>
 
           <section>

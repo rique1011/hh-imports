@@ -1,6 +1,7 @@
 import ImagemEditorial from '@/components/ImagemEditorial'
 import Link from 'next/link'
 import { ArrowUpRight } from 'lucide-react'
+import { getCategoriasPublicas } from '@/lib/categorias-servidor'
 
 export const colecoes = [
   { nome: 'Colares', slug: 'colares', descricao: 'Perto do coração.', imagem: 'colares' },
@@ -8,9 +9,11 @@ export const colecoes = [
   { nome: 'Brincos', slug: 'brincos', descricao: 'Seu ponto de luz.', imagem: 'brincos' },
 ] as const
 
-export default function ColecoesEditorais({ principal = false }: { principal?: boolean }) {
+export default async function ColecoesEditorais({ principal = false }: { principal?: boolean }) {
+  const categorias = await getCategoriasPublicas()
+  const visiveis = colecoes.filter(c => categorias.some(s => s.slug === c.slug)).map(c => ({ ...c, nome: categorias.find(s => s.slug === c.slug)!.nome }))
   return <div className="grid grid-cols-1 items-start gap-5 sm:grid-cols-3 sm:gap-6 lg:gap-8">
-    {colecoes.map((colecao, index) => <Link key={colecao.slug} href={`/categoria/${colecao.slug}`}
+    {visiveis.map((colecao, index) => <Link key={colecao.slug} href={`/categoria/${colecao.slug}`}
       className={`group relative isolate block overflow-hidden border border-luxury-line bg-luxury-surface ${index === 1 ? 'sm:mt-12' : ''}`}>
       <div className="relative aspect-[4/3] overflow-hidden sm:aspect-[3/4]">
         <ImagemEditorial foto={colecao.imagem} alt={`Coleção de ${colecao.nome.toLowerCase()} H&H IMPORTS`}

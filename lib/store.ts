@@ -42,9 +42,10 @@ export const useCart = create<CartState>()(
       }),
 
       removerDoCarrinho: (id) => set((state) => ({ itens: state.itens.filter((i) => i.id !== id) })),
-      atualizarQuantidade: (id, quantidade) => set((state) => ({
-        itens: state.itens.map((i) => i.id === id ? { ...i, quantidade } : i)
-      })),
+      atualizarQuantidade: (id, quantidade) => {
+        if (!Number.isSafeInteger(quantidade) || quantidade < 1 || quantidade > 100) return;
+        set((state) => ({ itens: state.itens.map((i) => i.id === id ? { ...i, quantidade } : i) }));
+      },
       limparCarrinho: () => set({ itens: [], freteValor: 0, cupom: null }),
       toggleWishlist: (produto) => set((state) => {
         const existe = state.wishlist.find((i) => i.id === produto.id);

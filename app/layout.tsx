@@ -9,6 +9,7 @@ import Feedback from "@/components/Feedback";
 import MobileBottomNav from "@/components/MobileBottomNav";
 import MarcaLoja from '@/components/MarcaLoja';
 import { getAparenciaPublica } from '@/lib/aparencia-servidor';
+import { getCategoriasPublicas } from '@/lib/categorias-servidor';
 
 // Fontes servidas pelo próprio Next, sem chamadas ao Google no navegador.
 const inter = Inter({ 
@@ -18,11 +19,11 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "H&H IMPORTS | Joias Premium",
-  description: "Joias premium, relógios e importados na H&H IMPORTS. Conheça nossas coleções.",
+  title: "H&H IMPORTS | Joias folheadas, prata 925 e bijuterias",
+  description: "Conheça as joias folheadas, peças em prata 925 e bijuterias da H&H IMPORTS, de Joinville/SC para todo o Brasil.",
   applicationName: "H&H IMPORTS",
   openGraph: {
-    title: "H&H IMPORTS | Joias Premium",
+    title: "H&H IMPORTS | Joias folheadas, prata 925 e bijuterias",
     description: "Conheça as coleções de joias e importados da H&H IMPORTS.",
     siteName: "H&H IMPORTS",
     locale: "pt_BR",
@@ -44,7 +45,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   await headers(); // Render dinâmico: cada HTML recebe um nonce novo no Proxy.
-  const aparencia = await getAparenciaPublica();
+  const [aparencia, categorias] = await Promise.all([getAparenciaPublica(), getCategoriasPublicas()]);
   return (
     <html
       lang="pt-BR"
@@ -61,7 +62,7 @@ export default async function RootLayout({
 
         {process.env.VERCEL_ENV==='preview' && <p className="bg-amber-100 p-3 text-center text-sm text-black">Ambiente de demonstração. Compras indisponíveis.</p>}
         <Providers>
-          <Header marca={<MarcaLoja url={aparencia.logoUrl} />} />
+          <Header marca={<MarcaLoja url={aparencia.logoUrl} />} categorias={categorias.map(({ slug, nome }) => ({ slug, nome }))} />
           
           <div id="conteudo" tabIndex={-1} className="flex-grow min-w-0 focus:outline-none">
             {children}

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { processarNotificacoes } from '@/lib/notificacoes'
 import { retomarEtiquetasPendentes } from '@/lib/etiquetas'
+import { processarNotificacoesTrocas } from '@/lib/troca-notificacoes'
+import { retomarReversasPendentes } from '@/lib/reversa'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -14,6 +16,8 @@ export async function GET(request: Request) {
     try { etiquetas = await retomarEtiquetasPendentes(2) }
     catch { console.error('[cron] Etiquetas aguardam nova conferência; fila de e-mails continua.') }
     const total = { processadas: 0, enviadas: 0, falhas: 0 }
+    try { await retomarReversasPendentes(); await processarNotificacoesTrocas(10) }
+    catch { console.error('[cron] Devoluções persistidas aguardam nova tentativa.') }
     for (let lote = 0; lote < 5; lote++) {
       const resultado = await processarNotificacoes(undefined, 20)
       total.processadas += resultado.processadas
