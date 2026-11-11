@@ -15,8 +15,6 @@ const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
   display: 'swap',
-  // O CSS carrega as fontes sem disputar o preload da foto principal no 4G.
-  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -52,6 +50,10 @@ export default async function RootLayout({
       lang="pt-BR"
       className={`${inter.variable} antialiased`}
     >
+      <head>
+        <link rel="preload" href="/fonts/editorial-normal-400-32f4b932dca3.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+        <link rel="preload" href="/fonts/editorial-italic-400-e9dc9aa307ff.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+      </head>
       <body className="bg-hb-black text-luxury-ivory font-sans flex flex-col min-h-dvh selection:bg-hb-gold selection:text-hb-black">
         
         <a className="skip-link" href="#conteudo">Pular para o conteúdo</a>
