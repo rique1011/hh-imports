@@ -11,19 +11,20 @@ const etapas: { id: EtapaPedido; titulo: string; icone: typeof CheckCircle2 }[] 
 ]
 
 export default function LinhaTempoPedido({ pedido }: { pedido: Pedido }) {
-  const progresso = progressoPedido(pedido.status)
+  const etapasPedido = pedido.retirada ? [...etapas.slice(0,3),{id:'disponivel_retirada' as const,titulo:'Pronto para retirar',icone:MapPin},{...etapas[4],titulo:'Retirado'}] : etapas
+  const progresso = pedido.retirada?.estado === 'disponivel' ? 4 : progressoPedido(pedido.status)
   return <section aria-label={`Status do pedido #${pedido.id}`}>
     <h4 className="mb-2 text-[11px] font-light uppercase tracking-widest text-white md:text-sm">Status do pedido</h4>
     <p className="mb-6 text-[10px] leading-5 text-gray-400">Horários de atualização do pedido, no fuso de Brasília.</p>
     <ol aria-label={`Linha do tempo do pedido #${pedido.id}`} className="grid gap-0 sm:grid-cols-5">
-      {etapas.map(({ id, titulo, icone: Icone }, indice) => {
+      {etapasPedido.map(({ id, titulo, icone: Icone }, indice) => {
         const evento = pedido.linha_tempo?.find(evento => evento.etapa === id)
         const horario = horarioEvento(evento)
         const concluido = indice < progresso || !!evento
-        const proximoConcluido = indice + 1 < progresso || !!pedido.linha_tempo?.some(evento => evento.etapa === etapas[indice + 1]?.id)
+        const proximoConcluido = indice + 1 < progresso || !!pedido.linha_tempo?.some(evento => evento.etapa === etapasPedido[indice + 1]?.id)
         return <li key={id} aria-current={indice === progresso - 1 ? 'step' : undefined}
           className="relative grid min-w-0 grid-cols-[2rem_1fr] gap-x-3 pb-6 last:pb-0 sm:flex sm:flex-col sm:items-center sm:gap-0 sm:px-1 sm:pb-0 sm:text-center">
-          {indice < etapas.length - 1 && <span aria-hidden="true" className={`absolute bottom-0 left-4 top-8 w-px sm:bottom-auto sm:left-1/2 sm:top-4 sm:h-px sm:w-full ${proximoConcluido ? 'bg-hb-gold/60' : 'bg-gray-800'}`} />}
+          {indice < etapasPedido.length - 1 && <span aria-hidden="true" className={`absolute bottom-0 left-4 top-8 w-px sm:bottom-auto sm:left-1/2 sm:top-4 sm:h-px sm:w-full ${proximoConcluido ? 'bg-hb-gold/60' : 'bg-gray-800'}`} />}
           <span className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-hb-black ${concluido ? 'border-hb-gold text-hb-gold' : 'border-gray-700 text-gray-500'}`}>
             <Icone size={14} aria-hidden="true" />
           </span>

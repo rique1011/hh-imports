@@ -53,7 +53,7 @@ exports.createDb = async function createDb(idType = 'uuid', usuarioIdType = 'uui
   await db.exec(fs.readFileSync(path.join(root,'supabase/migrations',aparencia),'utf8'))
   await db.exec('CREATE TABLE categorias(id uuid primary key default gen_random_uuid(),nome text not null,slug text unique not null);' +
     'CREATE TABLE trocas(id uuid primary key default gen_random_uuid(),pedido_id text not null,produto_id uuid,usuario_id ' + usuarioIdType + ',motivo text not null,foto_url text,status text default \'analise_pendente\',criado_em timestamptz default now(),unique(pedido_id,produto_id));')
-  for (const final of ['_categorias_editaveis.sql','_devolucoes_fluxo_seguro.sql','_menu_campanhas_editavel.sql']) {
+  for (const final of ['_categorias_editaveis.sql','_devolucoes_fluxo_seguro.sql','_menu_campanhas_editavel.sql','_retirada_presencial.sql']) {
     const file=fs.readdirSync(path.join(root,'supabase/migrations')).find(f=>f.endsWith(final))
     await db.exec(fs.readFileSync(path.join(root,'supabase/migrations',file),'utf8'))
   }
@@ -61,6 +61,7 @@ exports.createDb = async function createDb(idType = 'uuid', usuarioIdType = 'uui
 }
 
 exports.adapter = function adapter(db) {
+  const retornosSet = new Map()
   class Query {
     constructor(table) { this.table = table; this.filters = []; this.params = []; this.columns = '*'; this.head = false }
     select(columns = '*', options = {}) { this.columns = columns; this.head = !!options.head; return this }
@@ -123,7 +124,7 @@ exports.adapter = function adapter(db) {
   }
   return {
     from: table => new Query(table),
-    async rpc(name, args) {
+    async rpc(name, args = {}) {
       try {
         const entries = Object.entries(args)
         const query = 'SELECT * FROM public."' + name + '"(' +
@@ -131,7 +132,11 @@ exports.adapter = function adapter(db) {
         const result = await db.query(query, entries.map(([, value]) =>
           typeof value === 'object' && value !== null ? JSON.stringify(value) : value))
         const json = result.rows[0]?.[name]
-        return { data: Object.prototype.hasOwnProperty.call(result.rows[0] || {}, name) ? json : result.rows, error: null }
+        if (Object.prototype.hasOwnProperty.call(result.rows[0] || {}, name)) {
+          if (!retornosSet.has(name)) retornosSet.set(name, (await db.query("select proretset from pg_proc where proname=$1 and pronamespace='public'::regnamespace", [name])).rows[0]?.proretset)
+          return { data: retornosSet.get(name) ? result.rows.map(row => row[name]) : json, error: null }
+        }
+        return { data: result.rows, error: null }
       } catch (error) { return { data: null, error: { message: error.message, code: error.code } } }
     },
   }

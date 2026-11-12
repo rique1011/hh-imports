@@ -31,6 +31,7 @@ export async function carregarPedidoEnvio(db: Db, pedidoId: string) {
   if (error) throw new Error('Falha ao consultar o pedido.')
   if (!data) throw new ErroHttp(404, 'Pedido não encontrado.')
   const pedido = data as PedidoComEntrega
+  if ((data.entrega as { modalidade?: string } | null)?.modalidade === 'retirada') throw new ErroHttp(409, 'Pedido de retirada presencial não usa etiqueta nem frete de transportadora.')
   if (!['pago','confirmado','processando','enviado','entregue'].includes(pedido.status)) throw new ErroHttp(409, 'A etiqueta exige pagamento confirmado.')
   if(pedido.pagamento?.requer_revisao || ['refunded','charged_back','in_mediation'].includes(pedido.pagamento?.status || '') || Number(pedido.pagamento?.valor_reembolsado)>0) throw new ErroHttp(409,'Pagamento em revisão financeira. Não gere nem poste uma etiqueta.')
   if (!Array.isArray(pedido.itens) || !pedido.itens.length) throw new ErroHttp(422, 'Pedido sem itens válidos.')

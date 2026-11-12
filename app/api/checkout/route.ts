@@ -15,6 +15,7 @@ import { enderecoPadrao } from '@/lib/enderecos'
 import { processarNotificacoes } from '@/lib/notificacoes'
 import { processarEnvioAutomatico } from '@/lib/envio-automatico'
 import { documentoValido, telefoneValido, enderecoCompleto } from '@/lib/cadastro-compra'
+import { getConfigRetirada } from '@/lib/retirada-servidor'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -31,7 +32,11 @@ export async function POST(request: Request) {
     const user = await exigirUsuario(request)
     if (!user) return NextResponse.json({ error: 'Faca login para comprar.' }, { status: 401 })
     await limitar(request,'checkout',5,600,String(user.id))
-    const body = await lerJson(request) as {itens:{id:string;quantidade:number}[];enderecoId?:string;freteToken?:string;embalagemPresente?:boolean;codigoCupom?:string;cashbackUsado?:number}
+    const body = await lerJson(request) as {itens:{id:string;quantidade:number}[];enderecoId?:string;freteToken?:string;embalagemPresente?:boolean;codigoCupom?:string;cashbackUsado?:number;modalidade?:string;aceiteRetirada?:boolean;retiradaVersao?:number}
+    if (body.modalidade !== undefined && !['entrega','retirada'].includes(body.modalidade)) throw new ErroHttp(400,'Selecione uma modalidade de entrega válida.')
+    const retirada = body.modalidade === 'retirada' ? await getConfigRetirada() : null
+    if (retirada && (!retirada.ativa || body.aceiteRetirada !== true)) throw new ErroHttp(400,'Confira e aceite as condições da retirada presencial, ou escolha entrega.')
+    if (retirada && body.retiradaVersao !== retirada.versao) throw new ErroHttp(409,'A retirada foi atualizada. Recarregue a sacola e confira as condições antes de continuar.')
     const chave = request.headers.get('Idempotency-Key')
     if (!chave || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(chave)) throw new ErroHttp(400,'Atualize sua sacola e tente novamente.')
     if (!Array.isArray(body.itens) || body.itens.length === 0 || body.itens.length > 100) {
@@ -58,17 +63,18 @@ export async function POST(request: Request) {
     const { data: cadastro, error: cadastroError } = await db.from('usuarios')
       .select('id,nome,email,cpf_cnpj,whatsapp,endereco').eq('email', user.email).single()
     if (cadastroError || !cadastro) throw new Error('Falha ao consultar o endereço de entrega.')
-    const enderecos = await listarEnderecos(db, cadastro.id)
+    const enderecos = retirada ? [] : await listarEnderecos(db, cadastro.id)
     const escolhido = body.enderecoId ? enderecos.find(e => e.id === body.enderecoId) : enderecoPadrao(enderecos)
-    if (body.enderecoId && !escolhido) throw new ErroHttp(404, 'Endereço não encontrado.')
-    const entrega = snapshotEntrega({ ...cadastro, endereco: escolhido ? JSON.stringify(escolhido) : cadastro.endereco })
-    if (!documentoValido(entrega.documento) || !telefoneValido(entrega.telefone) || !enderecoCompleto(entrega)) {
+    if (!retirada && body.enderecoId && !escolhido) throw new ErroHttp(404, 'Endereço não encontrado.')
+    const entrega = retirada ? { ...snapshotEntrega({ ...cadastro, endereco: JSON.stringify(retirada.endereco) }), modalidade: 'retirada' as const, retirada }
+      : snapshotEntrega({ ...cadastro, endereco: escolhido ? JSON.stringify(escolhido) : cadastro.endereco })
+    if (!documentoValido(entrega.documento) || !telefoneValido(entrega.telefone) || (!retirada && !enderecoCompleto(entrega))) {
       return NextResponse.json({ error: 'Confira CPF/CNPJ, WhatsApp com DDD e endereço de entrega completo no seu cadastro.', cadastroIncompleto: true }, { status: 400 })
     }
     let frete = 0
-    const cotacao = body.freteToken ? validarFretePedido(body.freteToken, entrega.cep, itens) : null
-    if (body.freteToken && cotacao === null) return NextResponse.json({ error: 'A cotação expirou ou não corresponde à sua sacola. Calcule novamente o frete.' }, { status: 400 })
-    if (!temFreteGratis(subtotal)) {
+    const cotacao = !retirada && body.freteToken ? validarFretePedido(body.freteToken, entrega.cep, itens) : null
+    if (!retirada && body.freteToken && cotacao === null) return NextResponse.json({ error: 'A cotação expirou ou não corresponde à sua sacola. Calcule novamente o frete.' }, { status: 400 })
+    if (!retirada && !temFreteGratis(subtotal)) {
       if (cotacao === null) return NextResponse.json({ error: 'Calcule novamente o frete para o CEP do seu cadastro.' }, { status: 400 })
       frete = cotacao.centavos / 100
     }
@@ -91,13 +97,14 @@ export async function POST(request: Request) {
     })
     if (pedidoError && /Estoque insuficiente|Produto indisponivel/.test(pedidoError.message)) return NextResponse.json({ error: 'Estoque insuficiente. Atualize sua sacola.' }, { status: 409 })
     if (pedidoError && /tres pedidos|Chave reutilizada/.test(pedidoError.message)) throw new ErroHttp(409,pedidoError.message)
+    if (pedidoError && /Configuracao da retirada/.test(pedidoError.message)) throw new ErroHttp(409,'A retirada foi atualizada. Recarregue a sacola antes de continuar.')
     if (pedidoError || !pedido) throw new Error('Falha ao criar pedido: ' + (pedidoError?.message || 'Sem resultado.'))
 
     // O trigger ja registrou cliente e admin; falha SMTP nao desfaz a compra.
     after(async () => {
       const trabalhos: Promise<unknown>[] = [processarNotificacoes(String(pedido.id), 6)]
       // Apenas cashback que quitou o pedido: compras pendentes aguardam webhook.
-      if (total === 0) trabalhos.push(processarEnvioAutomatico(String(pedido.id)))
+      if (total === 0 && !retirada) trabalhos.push(processarEnvioAutomatico(String(pedido.id)))
       const resultados = await Promise.allSettled(trabalhos)
       resultados.forEach((resultado, indice) => {
         if (resultado.status === 'rejected') console.error('[checkout] Trabalho persistido aguarda retry.', { pedidoId: pedido.id, fila: indice === 0 ? 'email' : 'envio' })

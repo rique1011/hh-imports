@@ -2,6 +2,9 @@ import 'server-only'
 import nodemailer from 'nodemailer'
 import { BRAND_NAME, CONTACT_EMAIL } from '@/lib/brand'
 import { getSiteUrl } from '@/lib/site-url'
+import { textoEndereco } from '@/lib/enderecos'
+import { dataRetirada } from '@/lib/retirada'
+import type { RetiradaPedido } from '@/types/retirada'
 
 export interface PedidoEmail {
   id: string | number
@@ -11,6 +14,8 @@ export interface PedidoEmail {
   status?: string
   codigo_rastreio?: string | null
   itens?: { nome: string; quantidade: number; preco?: number }[]
+  modalidade?: string
+  retirada?: RetiradaPedido
 }
 
 export type ResultadoEmail =
@@ -109,7 +114,7 @@ export async function enviarEmailStatus(
     case 'pago':
     case 'confirmado':
       subject = 'Pagamento aprovado' + (pedido ? ' — Pedido #' + pedido.id : '')
-      content = saudacao + '<p>Seu pagamento foi confirmado. Vamos separar e preparar seu produto para envio.</p>' + resumo
+      content = saudacao + (pedido?.modalidade === 'retirada' ? '<p>Seu pagamento foi confirmado. Vamos separar suas peças para retirada presencial. Aguarde o aviso de disponibilidade antes de se deslocar.</p>' : '<p>Seu pagamento foi confirmado. Vamos separar e preparar seu produto para envio.</p>') + resumo
       break
     case 'postado':
     case 'enviado':
@@ -137,6 +142,29 @@ export async function enviarEmailStatus(
       return { sucesso: false, error: 'Status de e-mail invalido.' }
   }
   return enviar(email, subject, content)
+}
+
+export async function enviarEmailRetirada(pedido: PedidoEmail, evento: string, admin = false): Promise<ResultadoEmail> {
+  const r = pedido.retirada
+  if (!r) return { sucesso: false, error: 'Dados da retirada indisponíveis.' }
+  let titulo = '', texto = ''
+  if (evento === 'retirada_disponivel') {
+    titulo = 'Seu pedido está pronto para retirada'
+    texto = '<p>Suas peças estão disponíveis. O prazo é de ' + escapeHtml(r.prazo_dias) + ' dias corridos a partir deste aviso. A data final fica em Meus pedidos.</p><p><strong>' + escapeHtml(r.local) + '</strong><br>' + escapeHtml(textoEndereco(r.endereco)) + '</p><p>' + escapeHtml(r.instrucoes) + '</p><p>Código de retirada: <strong>' + escapeHtml(r.codigo) + '</strong>. Apresente-o somente ao receber as peças.</p>'
+  } else if (evento === 'retirada_lembrete') {
+    titulo = 'Lembrete: retire seu pedido'
+    texto = '<p>Seu pedido aguarda retirada até ' + escapeHtml(dataRetirada(r.prazo_final)) + '. Entre em contato para agendar. Se não houver retirada no prazo, iniciaremos o cancelamento com reembolso integral do valor pago, sem multa. O prazo do crédito depende do meio de pagamento.</p>'
+  } else if (evento === 'retirada_cancelamento') {
+    titulo = 'Cancelamento da retirada solicitado'
+    texto = '<p>A retirada foi cancelada e o reembolso está em processamento. A devolução será feita pelo meio de pagamento original. Os créditos usados retornam ao saldo da loja após a confirmação do cancelamento.</p>'
+  } else if (evento === 'retirada_reembolsada') {
+    titulo = 'Reembolso da retirada confirmado'
+    texto = '<p>O reembolso integral do valor pago foi confirmado. O prazo para aparecer em sua conta ou fatura depende do meio de pagamento. Os créditos usados foram devolvidos ao saldo da loja.</p>'
+  } else {
+    titulo = 'Atenção: reembolso de retirada pendente'
+    texto = '<p>Confira o pedido e a carteira do Mercado Pago no painel. O reembolso não foi marcado como concluído.</p>'
+  }
+  return enviarEmailLoja(admin ? CONTACT_EMAIL : pedido.cliente_email, titulo + ' — #' + pedido.id, texto + resumoPedido(pedido) + '<p><a href="' + escapeHtml(getSiteUrl('/minha-conta?aba=pedidos')) + '">Acompanhar pedido</a></p>')
 }
 
 export async function notificarAdminNovoPedido(pedido: PedidoEmail) {

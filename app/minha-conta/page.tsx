@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic'
 import { nomePagamento, pedidoNaoConcluido, prazoPagamento, STATUS_PAGOS } from '@/lib/pagamento-pedido'
 const EnderecosConta = dynamic(() => import('@/components/EnderecosConta'))
 import LinhaTempoPedido from '@/components/LinhaTempoPedido'
+import RetiradaPedidoInfo from '@/components/RetiradaPedido'
 
 import Image from 'next/image'
 
@@ -36,6 +37,7 @@ function ConteudoMinhaConta() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const mostrarErros = searchParams.get('alerta') === 'campos_vazios'
+  const cadastroParaRetirada = searchParams.get('retirada') === '1'
   const retorno = destinoInterno(searchParams.get('retorno'), mostrarErros ? '/carrinho' : '/')
   const caminhoConta = '/minha-conta' + (searchParams.toString() ? '?' + searchParams.toString() : '')
 
@@ -90,7 +92,7 @@ function ConteudoMinhaConta() {
   const [erroTroca, setErroTroca] = useState('')
 
   const [errosCadastro, setErrosCadastro] = useState(false)
-  const camposPendentes = camposCompraPendentes(form, enderecos)
+  const camposPendentes = camposCompraPendentes(form, enderecos).filter(c=>!cadastroParaRetirada||c!=='endereco')
   const destacarErros = mostrarErros || errosCadastro
 
   // Novo estado para controlar itens que já tiveram troca solicitada na sessão atual
@@ -154,7 +156,7 @@ function ConteudoMinhaConta() {
 
   const salvarDados = async (listaEnderecos = enderecos) => {
     if (salvando) return
-    const faltantes = camposCompraPendentes(form, listaEnderecos)
+    const faltantes = camposCompraPendentes(form, listaEnderecos).filter(c=>!cadastroParaRetirada||c!=='endereco')
     const invalidos = faltantes.filter(campo => campo === 'cpf_cnpj' ? !!form.cpf_cnpj : campo === 'whatsapp' ? !!form.whatsapp : false)
     const pendentes = mostrarErros ? faltantes : invalidos
     if (pendentes.length) {
@@ -210,9 +212,13 @@ function ConteudoMinhaConta() {
   }, [status, abaAtiva, pedidos, recarregarPedidos])
   const visiveis = pedidos.filter(p => (searchParams.get('pedido') === String(p.id)) || filtroPedidos === 'todos' || (pedidoNaoConcluido(p, agoraDevolucao) ? filtroPedidos === 'incompletos' : filtroPedidos === 'compras'))
 
-  const getStatusFormatado = (status: string) => {
+  const getStatusFormatado = (status: string, retirada?: Pedido['retirada']) => {
     const s = status?.toLowerCase()
     if (s === 'pagamento_em_analise') return { titulo: 'PAGAMENTO EM CONFERÊNCIA', cor: 'text-hb-gold' }
+    if (retirada?.estado === 'disponivel') return { titulo: 'PRONTO PARA RETIRAR', cor: 'text-hb-gold' }
+    if (retirada?.estado === 'retirado') return { titulo: 'PEDIDO RETIRADO', cor: 'text-hb-gold' }
+    if (retirada?.estado === 'reembolso_pendente') return { titulo: 'REEMBOLSO EM PROCESSAMENTO', cor: 'text-yellow-500' }
+    if (retirada?.estado === 'cancelado') return { titulo: 'CANCELADO · REEMBOLSO CONFIRMADO', cor: 'text-gray-300' }
     if (s === 'pendente') return { titulo: 'AGUARDANDO PAGAMENTO', cor: 'text-yellow-500' }
     if (s === 'pago' || s === 'confirmado') return { titulo: 'PAGAMENTO APROVADO', cor: 'text-green-400' }
     if (s === 'processando') return { titulo: 'PREPARANDO PEDIDO', cor: 'text-green-400' }
@@ -428,7 +434,7 @@ function ConteudoMinhaConta() {
               ) : (
                 <div className="space-y-6 md:space-y-8">
                   {visiveis.map((pedido) => {
-                    const statusInfo = getStatusFormatado(pedido.status)
+                    const statusInfo = getStatusFormatado(pedido.status, pedido.retirada)
                     const expandido = String(pedidoExpandido) === String(pedido.id)
                     const endereco = pedido.entrega || {}
                     const podePagar = pedido.status.toLowerCase() === 'pendente' && Date.parse(prazoPagamento(pedido)) > agoraDevolucao && pedido.pode_pagar !== false
@@ -507,7 +513,7 @@ function ConteudoMinhaConta() {
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 md:gap-8 border-b border-gray-800 pb-6 md:pb-8 mb-6 md:mb-8">
                               <div>
-                                <h4 className="text-[11px] md:text-sm font-light text-white uppercase tracking-widest mb-3 md:mb-4 flex items-center gap-2"><MapPin size={14} className="text-gray-500 md:w-4 md:h-4" /> Endereço</h4>
+                                <h4 className="text-[11px] md:text-sm font-light text-white uppercase tracking-widest mb-3 md:mb-4 flex items-center gap-2"><MapPin size={14} className="text-gray-500 md:w-4 md:h-4" /> {pedido.retirada ? 'Local da retirada' : 'Endereço'}</h4>
                                 <p className="text-[10px] md:text-xs text-white font-bold mb-1">{endereco.logradouro || 'Endereço não registrado neste pedido'}</p>
                                 <p className="text-[10px] md:text-xs text-gray-400 leading-relaxed">
                                   {endereco.numero && `Número: ${endereco.numero}`} <br/>
@@ -531,6 +537,7 @@ function ConteudoMinhaConta() {
                               </div>
                             </div>
 
+                            <RetiradaPedidoInfo pedido={pedido} onAtualizado={recarregarPedidos}/>
                             <LinhaTempoPedido pedido={pedido} />
 
                           </div>

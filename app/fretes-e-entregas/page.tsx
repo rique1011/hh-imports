@@ -1,7 +1,10 @@
 import { Truck, ShieldCheck, Clock } from 'lucide-react'
 import { MENSAGEM_FRETE_GRATIS } from '@/lib/politica-frete'
+import { getConfigRetirada } from '@/lib/retirada-servidor'
+import { textoEndereco } from '@/lib/enderecos'
 
-export default function FretesEntregas() {
+export default async function FretesEntregas() {
+  const retirada = await getConfigRetirada().catch(()=>null)
   return (
     <main className="min-h-screen bg-hb-black">
       <section className="bg-hb-gray py-24 text-center px-6 border-b border-hb-black">
@@ -32,6 +35,7 @@ export default function FretesEntregas() {
           <p className="mt-3">Informe nome completo, CPF ou CNPJ, telefone e endereço completo com CEP, número e complemento, se houver. Esses dados serão usados na etiqueta de envio.</p>
         </div>
 
+        {retirada?.ativa&&<div className="rounded-xl border border-hb-gold/40 bg-hb-gray p-6"><h2 className="mb-4 font-serif text-2xl text-hb-goldLight">Retirada presencial sem frete</h2><p className="text-white">{retirada.local} — {textoEndereco(retirada.endereco)}</p><p className="mt-3 whitespace-pre-line">{retirada.instrucoes}</p><p className="mt-3">Escolha a retirada no checkout e aguarde o aviso de disponibilidade. O prazo é de {retirada.prazo_dias} dias corridos após o envio desse aviso, conforme as condições aceitas na compra. Apresente seu documento e o código de retirada ao receber as peças.</p><p className="mt-3">Enviaremos um lembrete antes do vencimento. Sem retirada, iniciaremos o cancelamento e o reembolso integral pelo meio de pagamento original, sem multa. O prazo para receber depende do provedor. Créditos usados voltam ao saldo. O processamento automático é diário e, se houver falha, o pedido permanece em acompanhamento pelo atendimento.</p><p className="mt-3">Esse prazo é uma política da loja e preserva os direitos legais de arrependimento e garantia. Para a compra concluída online, a retirada presencial registra o recebimento real da peça.</p></div>}
         <div>
           <h2 className="text-xl font-light uppercase tracking-widest text-white mb-4 border-l-2 border-hb-gold pl-4">1. Prazos de Envio</h2>
           <p>Após a confirmação do pagamento, seu pedido passará por uma rigorosa conferência de qualidade. O despacho ocorre em até 2 dias úteis. O prazo de transporte começa após a postagem ou coleta e varia conforme a modalidade e o seu CEP. A geração da etiqueta prepara o envio; acompanhe a movimentação da transportadora em Meus Pedidos.</p>

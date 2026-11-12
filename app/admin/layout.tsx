@@ -1,11 +1,12 @@
 import Link from 'next/link'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { LayoutDashboard, Package, ShoppingBag, ArrowLeftRight, DollarSign, Ticket, Palette, Tags, Menu } from 'lucide-react'
+import { LayoutDashboard, Package, ShoppingBag, ArrowLeftRight, DollarSign, Ticket, Palette, Tags, Menu, Store } from 'lucide-react'
 import { exigirAdmin, ErroHttp } from '@/lib/autorizacao'
 const links = [
   { href: '/admin', titulo: 'Dashboard', Icon: LayoutDashboard },
   { href: '/admin/pedidos', titulo: 'Pedidos', Icon: ShoppingBag },
+  { href: '/admin/retirada', titulo: 'Retirada presencial', Icon: Store },
   { href: '/admin/estoque', titulo: 'Estoque', Icon: Package },
   { href: '/admin/menu', titulo: 'Menu e campanhas', Icon: Menu },
   { href: '/admin/categorias', titulo: 'Categorias', Icon: Tags },

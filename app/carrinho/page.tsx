@@ -20,6 +20,7 @@ import toast from 'react-hot-toast'
 import { camposCompraPendentes, ROTULOS_CADASTRO, type CampoCompra } from '@/lib/cadastro-compra'
 import { linkComRetorno } from '@/lib/navegacao'
 import { temFreteGratis, faltaParaFreteGratis, MENSAGEM_FRETE_GRATIS } from '@/lib/politica-frete'
+import type { ConfigRetirada } from '@/types/retirada'
 
 export default function PaginaCarrinho() {
   const router = useRouter()
@@ -49,6 +50,10 @@ export default function PaginaCarrinho() {
   const cotacaoAtual = baseCotacao === contextoFrete && !!freteToken && opcoesFrete.some(o => o.token === freteToken)
   const [carregandoFrete, setCarregandoFrete] = useState(false)
   const [erroFrete, setErroFrete] = useState('')
+  const [configRetirada, setConfigRetirada] = useState<ConfigRetirada | null>(null)
+  const [modalidade, setModalidade] = useState<'entrega'|'retirada'>('entrega')
+  const [aceiteRetirada, setAceiteRetirada] = useState(false)
+  const retirar = modalidade === 'retirada' && configRetirada?.ativa === true
   
   const [embalagemPresente, setEmbalagemPresente] = useState(false)
 
@@ -67,7 +72,7 @@ export default function PaginaCarrinho() {
   // 2. CÁLCULOS GERAIS
   const subtotal = itens.reduce((acc, item) => acc + (item.preco * item.quantidade), 0)
   const freteGratis = temFreteGratis(subtotal)
-  const freteFinal = freteGratis || !cotacaoAtual ? 0 : freteSelecionado
+  const freteFinal = retirar || freteGratis || !cotacaoAtual ? 0 : freteSelecionado
   const valorDesconto = cupom ? (subtotal * (cupom.desconto / 100)) : 0
   const valorEmbalagem = embalagemPresente ? 15.00 : 0
   
@@ -80,6 +85,11 @@ export default function PaginaCarrinho() {
   const codigoRetencao = cupom ? `OFERTA${novoDescontoRetencao}` : 'NAOVAEMBORA'
 
   // 3. EFEITOS (USE_EFFECTS)
+  useEffect(()=>{
+    const controller=new AbortController()
+    fetch('/api/retirada',{cache:'no-store',signal:controller.signal}).then(r=>r.ok?r.json():null).then(c=>{if(c?.ativa)setConfigRetirada(c)}).catch(()=>{})
+    return ()=>controller.abort()
+  },[])
   useEffect(() => {
     // Lê o armazenamento após a hidratação, preservando o HTML inicial do servidor.
     const frame = requestAnimationFrame(() => {
@@ -89,6 +99,7 @@ export default function PaginaCarrinho() {
         if (salvo && salvo.expira > Date.now()) {
           setEmbalagemPresente(salvo.embalagemPresente === true)
           setUsarCashback(salvo.usarCashback === true)
+          if (salvo.modalidade === 'retirada') setModalidade('retirada')
           return
         }
       } catch { /* A sacola continua funcionando se o armazenamento não estiver disponível. */ }
@@ -239,6 +250,7 @@ export default function PaginaCarrinho() {
 
   const calcularFrete = useCallback(async (e?: React.FormEvent) => {
     e?.preventDefault()
+    if (retirar) return
     if (cep.replace(/\D/g, '').length !== 8) return
     consultaFrete.current?.abort()
     const controller = new AbortController(); consultaFrete.current = controller
@@ -275,13 +287,13 @@ export default function PaginaCarrinho() {
     } finally {
       if (consultaFrete.current === controller) setCarregandoFrete(false)
     }
-  }, [cep, itens, contextoFrete])
+  }, [cep, itens, contextoFrete, retirar])
 
   useEffect(() => {
-    if (!freteGratis || !itens.length || cep.replace(/\D/g, '').length !== 8 || cotacaoAtual) return
+    if (retirar || !freteGratis || !itens.length || cep.replace(/\D/g, '').length !== 8 || cotacaoAtual) return
     const timer = setTimeout(() => { void calcularFrete() }, 300)
     return () => clearTimeout(timer)
-  }, [freteGratis, itens.length, cep, cotacaoAtual, calcularFrete])
+  }, [freteGratis, itens.length, cep, cotacaoAtual, calcularFrete, retirar])
 
   const validarCupom = async () => {
     const codigo = inputCupom.toUpperCase().trim()
@@ -312,24 +324,26 @@ export default function PaginaCarrinho() {
 
   const finalizarCompra = async () => {
     const guardarPreferencias = () => {
-      try { sessionStorage.setItem('hh-sacola-retorno', JSON.stringify({ embalagemPresente, usarCashback, expira: Date.now() + 2 * 3600_000 })) } catch {}
+      try { sessionStorage.setItem('hh-sacola-retorno', JSON.stringify({ embalagemPresente, usarCashback, modalidade, expira: Date.now() + 2 * 3600_000 })) } catch {}
     }
     if (!session) { guardarPreferencias(); router.push(linkComRetorno('/login', '/carrinho')); return }
     if (carregandoPerfil) return
     if (erroPerfil) { toast.error(erroPerfil, { id: 'compra' }); return }
 
-    if (pendenciasCadastro.length) {
+    const pendencias = retirar ? pendenciasCadastro.filter(c=>c!=='endereco') : pendenciasCadastro
+    if (pendencias.length) {
       guardarPreferencias()
-      toast('Antes de continuar, complete: ' + pendenciasCadastro.map(campo => ROTULOS_CADASTRO[campo]).join(', ') + '.', { id: 'compra', duration: 6500 })
-      router.push(linkComRetorno('/minha-conta?aba=dados&alerta=campos_vazios', '/carrinho'))
+      toast('Antes de continuar, complete: ' + pendencias.map(campo => ROTULOS_CADASTRO[campo]).join(', ') + '.', { id: 'compra', duration: 6500 })
+      router.push(linkComRetorno('/minha-conta?aba=dados&alerta=campos_vazios'+(retirar?'&retirada=1':''), '/carrinho'))
       return
     }
 
-    if (!cotacaoAtual || carregandoFrete) { toast.error("Calcule o frete para confirmar a transportadora e o prazo da entrega.", { id: 'compra' }); return }
+    if (retirar && !aceiteRetirada) { toast.error('Leia e aceite as condições de retirada antes de continuar.',{id:'compra'});return }
+    if (!retirar && (!cotacaoAtual || carregandoFrete)) { toast.error("Calcule o frete para confirmar a transportadora e o prazo da entrega.", { id: 'compra' }); return }
 
     setCarregando(true)
     try {
-      const compraHash=JSON.stringify({itens:itens.map(i=>({id:i.id,quantidade:i.quantidade})),enderecoId,servico:opcoesFrete.find(o=>o.token===freteToken)?.servico,codigoCupom:cupom?.codigo,embalagemPresente,cashbackUsado:valorCashbackAplicado})
+      const compraHash=JSON.stringify({itens:itens.map(i=>({id:i.id,quantidade:i.quantidade})),modalidade,retiradaVersao:retirar?configRetirada?.versao:undefined,enderecoId:retirar?undefined:enderecoId,servico:retirar?undefined:opcoesFrete.find(o=>o.token===freteToken)?.servico,codigoCupom:cupom?.codigo,embalagemPresente,cashbackUsado:valorCashbackAplicado})
       const anterior=JSON.parse(sessionStorage.getItem('hh-checkout-idempotencia')||'null')
       const chave=anterior?.hash===compraHash ? anterior.chave : crypto.randomUUID()
       sessionStorage.setItem('hh-checkout-idempotencia',JSON.stringify({hash:compraHash,chave}))
@@ -338,9 +352,10 @@ export default function PaginaCarrinho() {
         headers: { 'Content-Type': 'application/json', 'Idempotency-Key':chave },
         body: JSON.stringify({ 
           itens,
-          enderecoId,
+          enderecoId:retirar?undefined:enderecoId,
+          modalidade:retirar?'retirada':'entrega',aceiteRetirada,retiradaVersao:retirar?configRetirada?.versao:undefined,
           frete: freteFinal,
-          freteToken: cotacaoAtual ? freteToken : '',
+          freteToken: !retirar && cotacaoAtual ? freteToken : '',
           codigoCupom: cupom?.codigo || null,
           embalagemPresente,
           cashbackUsado: valorCashbackAplicado
@@ -414,13 +429,15 @@ export default function PaginaCarrinho() {
                 <p className="text-[10px] font-bold text-hb-gold uppercase tracking-widest flex items-center gap-2">
                   <Truck size={16} /> Opções de Entrega
                 </p>
-                {freteGratis && (
+                {freteGratis && !retirar && (
                   <span className="flex items-center gap-1 text-[8px] md:text-[10px] font-bold text-green-400 bg-green-900/30 border border-green-800 px-2 py-1 rounded">
                     <CheckCircle2 size={12} /> FRETE GRÁTIS
                   </span>
                 )}
               </div>
 
+              {configRetirada?.ativa&&<fieldset className="mb-6 grid gap-3 sm:grid-cols-2"><legend className="sr-only">Como deseja receber</legend>{(['entrega','retirada'] as const).map(m=><label key={m} className={`flex min-h-12 cursor-pointer items-center gap-3 rounded border p-3 text-sm ${modalidade===m?'border-hb-gold text-hb-goldLight':'border-gray-700 text-gray-300'}`}><input type="radio" name="modalidade" value={m} checked={modalidade===m} onChange={()=>{consultaFrete.current?.abort();setCarregandoFrete(false);setModalidade(m);setAceiteRetirada(false)}} className="h-4 w-4 shrink-0 accent-hb-gold"/>{m==='retirada'?'Retirar pessoalmente · Grátis':'Receber no endereço'}</label>)}</fieldset>}
+              {retirar&&configRetirada?<div className="space-y-4 text-sm leading-6"><p className="font-serif text-xl text-hb-goldLight">{configRetirada.local}</p><p className="text-gray-300">{textoEndereco(configRetirada.endereco)}</p><p className="whitespace-pre-line text-gray-300">{configRetirada.instrucoes}</p><p className="text-gray-300">Frete zero. Aguarde o aviso de disponibilidade antes de se deslocar. Você terá {configRetirada.prazo_dias} dias corridos após esse aviso para retirar. Enviaremos um lembrete antes do vencimento. Sem retirada, iniciaremos o cancelamento e o reembolso integral pelo meio de pagamento original, sem multa. Créditos usados voltam ao saldo da loja. O prazo do reembolso depende do provedor.</p><p className="text-xs text-gray-400">O prazo para retirada é uma política da loja. Seus direitos legais de arrependimento e garantia são preservados.</p><label className="flex min-h-11 items-start gap-3 text-hb-goldLight"><input type="checkbox" checked={aceiteRetirada} onChange={e=>setAceiteRetirada(e.target.checked)} className="mt-1 h-5 w-5 shrink-0 accent-hb-gold"/>Li e aceito as condições da retirada presencial.</label></div>:<>
               {session && <div className="mb-6 space-y-3">
                 {enderecos.length > 0 && <><label htmlFor="endereco-entrega" className="block text-sm text-gray-300">Entregar em</label><select id="endereco-entrega" value={enderecoId} onChange={e => mudarEndereco(e.target.value)} className="w-full min-h-11 rounded border border-gray-700 bg-hb-black px-3 py-3 text-base text-white">{enderecos.map(e => <option value={e.id} key={e.id}>{e.apelido}{e.padrao ? ' · Padrão' : ''}</option>)}</select><p className="text-sm leading-relaxed text-gray-400 break-words">{textoEndereco(enderecos.find(e => e.id === enderecoId) || {})}</p></>}
                 <Link href="/minha-conta?aba=dados" className="min-h-11 inline-flex items-center text-sm text-hb-gold underline underline-offset-4">{enderecos.length ? 'Gerenciar endereços' : 'Cadastrar endereço de entrega'}</Link>
@@ -484,7 +501,7 @@ export default function PaginaCarrinho() {
                     </div>
                   )}
                 </>
-
+              </>}
             </div>
           </div>
 
@@ -622,9 +639,9 @@ export default function PaginaCarrinho() {
                 <div className="flex justify-between"><span>Subtotal</span><span className="text-white">R$ {subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span></div>
                 
                 <div className="flex justify-between">
-                  <span>Frete</span>
-                  <span className={freteGratis ? "text-green-400 font-bold" : "text-white"}>
-                    {freteGratis ? 'GRÁTIS' : (freteSelecionado > 0 ? `R$ ${freteSelecionado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '--')}
+                  <span>{retirar?'Retirada presencial':'Frete'}</span>
+                  <span className={retirar || freteGratis ? "text-green-400 font-bold" : "text-white"}>
+                    {retirar || freteGratis ? 'GRÁTIS' : (cotacaoAtual && freteSelecionado > 0 ? `R$ ${freteSelecionado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '--')}
                   </span>
                 </div>
 
@@ -670,7 +687,7 @@ export default function PaginaCarrinho() {
                 </div>
               </div>
               
-              {!cotacaoAtual && (
+              {!retirar && !cotacaoAtual && (
                 <p className="text-[8px] md:text-[9px] text-red-400 font-bold uppercase tracking-widest mt-3 text-center">Confirme o CEP e calcule a entrega para continuar</p>
               )}
             </div>

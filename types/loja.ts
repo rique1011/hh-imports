@@ -23,12 +23,12 @@ export interface Produto {
 export interface ItemPedido extends ProdutoCarrinho {
   troca_solicitada?: boolean
   data_recebimento?: string | null
-  recebimento_origem?: 'melhor_envio' | 'manual'
+  recebimento_origem?: 'melhor_envio' | 'manual' | 'retirada'
   recebimento_confirmado_em?: string | null
   preparacao_iniciada_em?: string | null
 }
 
-export type EtapaPedido = 'realizado' | 'pagamento_aprovado' | 'preparando' | 'enviado' | 'entregue'
+export type EtapaPedido = 'realizado' | 'pagamento_aprovado' | 'preparando' | 'enviado' | 'entregue' | 'disponivel_retirada'
 export interface EventoPedido {
   etapa: EtapaPedido
   ocorrido_em: string | null
@@ -46,7 +46,8 @@ export interface Pedido {
   codigo_rastreio?: string | null
   data_entrega?: string | null
   linha_tempo?: EventoPedido[]
-  entrega?: (Endereco & { documento?: string }) | null
+  entrega?: (Endereco & { documento?: string; modalidade?: 'retirada'; retirada?: import('@/types/retirada').ConfigRetirada }) | null
+  retirada?: import('@/types/retirada').RetiradaPedido | null
   pagamento?: PagamentoPedido
   pagamento_expira_em?: string | null
   pode_pagar?: boolean

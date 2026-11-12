@@ -2,6 +2,7 @@ import type { Pedido } from '@/types/loja'
 
 export const FILTROS_PEDIDOS_ADMIN = [
   { id: 'a_enviar', nome: 'A enviar', vazio: 'Nenhum pedido aguardando envio.', descricao: 'Pedidos com pagamento confirmado, prontos para separar ou em preparação.' },
+  { id: 'retiradas', nome: 'Retiradas', vazio: 'Nenhuma retirada pendente.', descricao: 'Pedidos para retirada presencial: preparo, disponibilidade e eventuais reembolsos pendentes.' },
   { id: 'enviados', nome: 'Enviados', vazio: 'Nenhum pedido em transporte.', descricao: 'Pedidos enviados para acompanhar até a entrega ao cliente.' },
   { id: 'entregues', nome: 'Entregues', vazio: 'Nenhum pedido entregue.', descricao: 'Compras que já chegaram ao cliente.' },
   { id: 'aguardando', nome: 'Aguardando pagamento', vazio: 'Nenhum pedido aguardando pagamento.', descricao: 'Compras ainda sem confirmação de pagamento. Não entram na fila de envio.' },
@@ -9,17 +10,19 @@ export const FILTROS_PEDIDOS_ADMIN = [
   { id: 'todos', nome: 'Todos', vazio: 'Nenhum pedido cadastrado.', descricao: 'Histórico completo, incluindo pendentes, cancelados e pedidos antigos.' },
 ] as const
 export type FiltroPedidosAdmin = typeof FILTROS_PEDIDOS_ADMIN[number]['id']
-type PedidoResumo = Pick<Pedido, 'id' | 'status' | 'cliente_email' | 'cliente_nome' | 'pagamento'>
+type PedidoResumo = Pick<Pedido, 'id' | 'status' | 'cliente_email' | 'cliente_nome' | 'pagamento' | 'entrega' | 'retirada'>
 
-export function grupoPedidoAdmin(pedido: Pick<Pedido, 'status' | 'pagamento'>): Exclude<FiltroPedidosAdmin, 'todos'> | 'historico' {
+export function grupoPedidoAdmin(pedido: Pick<Pedido, 'status' | 'pagamento' | 'entrega' | 'retirada'>): Exclude<FiltroPedidosAdmin, 'todos'> | 'historico' {
   const status = pedido.status?.trim().toLowerCase() || ''
   const financeiro = pedido.pagamento?.status?.toLowerCase() || ''
+  if (pedido.retirada?.estado === 'cancelado') return 'historico'
+  if (pedido.retirada?.estado === 'reembolso_pendente') return 'retiradas'
   if (status === 'pagamento_em_analise' || pedido.pagamento?.requer_revisao || Number(pedido.pagamento?.valor_reembolsado) > 0
     || ['refunded', 'charged_back', 'in_mediation'].includes(financeiro)) return 'revisao'
   if (status === 'entregue') return 'entregues'
   if (status === 'enviado') return 'enviados'
   // A confirmação vem do servidor; um status financeiro incompatível bloqueia a fila.
-  if (['pago', 'confirmado', 'processando'].includes(status)) return !financeiro || financeiro === 'approved' ? 'a_enviar' : 'revisao'
+  if (['pago', 'confirmado', 'processando'].includes(status)) return !financeiro || financeiro === 'approved' ? pedido.entrega?.modalidade === 'retirada' ? 'retiradas' : 'a_enviar' : 'revisao'
   if (['pendente', 'aguardando_pagamento'].includes(status)) return 'aguardando'
   return 'historico'
 }

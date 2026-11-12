@@ -1,11 +1,11 @@
 import 'server-only'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { eventosDosItens, instanteRegistrado } from '@/lib/linha-tempo-pedido'
-import type { EtapaPedido, EventoPedido, Identificador, ItemPedido } from '@/types/loja'
+import type { EtapaPedido, EventoPedido, Identificador, ItemPedido, Pedido } from '@/types/loja'
 
-interface PedidoComEventos { id: Identificador; created_at: string; itens: ItemPedido[]; pagamento?: { aprovado_em?: string | null } }
+interface PedidoComEventos { id: Identificador; created_at: string; itens: ItemPedido[]; pagamento?: { aprovado_em?: string | null }; retirada?: Pedido['retirada'] }
 interface Confirmacao { pedido_id: string; evento: 'pagamento_aprovado' | 'enviado'; criado_em: string }
-const ordem: Record<EtapaPedido, number> = { realizado: 1, pagamento_aprovado: 2, preparando: 3, enviado: 4, entregue: 5 }
+const ordem: Record<EtapaPedido, number> = { realizado: 1, pagamento_aprovado: 2, preparando: 3, enviado: 4, disponivel_retirada: 4, entregue: 5 }
 
 // Recebe somente pedidos já autorizados pela API. Nunca retorna payloads da fila de e-mails.
 export async function incluirEventosPedidos<T extends PedidoComEventos>(db: ReturnType<typeof getSupabaseAdmin>, pedidos: T[]) {
@@ -31,6 +31,7 @@ export async function incluirEventosPedidos<T extends PedidoComEventos>(db: Retu
   }))
   return pedidos.map(pedido => {
     const linha: EventoPedido[] = eventosDosItens(pedido.itens)
+    if (pedido.retirada?.disponivel_em) linha.push({ etapa: 'disponivel_retirada', ocorrido_em: pedido.retirada.disponivel_em, data_local: null })
     if (instanteRegistrado(pedido.created_at)) linha.unshift({ etapa: 'realizado', ocorrido_em: pedido.created_at, data_local: null })
     for (const registro of registros.get(String(pedido.id)) || []) {
       if (Date.parse(registro.criado_em) < Date.parse(pedido.created_at)) continue

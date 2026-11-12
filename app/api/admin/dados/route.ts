@@ -7,6 +7,7 @@ import { inferirCategoriaNome, obterCategoria } from '@/lib/categorias'
 import { vitrinesValidas } from '@/lib/selecoes'
 import { resumoPagamentoAdmin } from '@/lib/pedidos-admin'
 import type { Pedido } from '@/types/loja'
+import { incluirRetiradas } from '@/lib/retirada-pedidos'
 
 interface Consulta extends PromiseLike<{ data: unknown; error: { message: string } | null }> {
   eq(campo: string, valor: unknown): Consulta
@@ -80,9 +81,10 @@ export async function POST(request: Request) {
       }
       if (tabela === 'pedidos') {
         const id = filtros.find((f: { campo: string; op: string }) => f.campo === 'id' && f.op === 'eq')?.valor
-        const { data: pedido, error } = await user.db.from('pedidos').select('status,itens').eq('id', id).maybeSingle()
+        const { data: pedido, error } = await user.db.from('pedidos').select('status,itens,entrega').eq('id', id).maybeSingle()
         if (error) throw error
         if (!pedido) throw new ErroHttp(404, 'Pedido não encontrado.')
+        if (pedido.entrega?.modalidade === 'retirada') throw new ErroHttp(409, 'Use as ações de retirada presencial para este pedido.')
         versaoPedido = { status: pedido.status, itens: pedido.itens }
         const atual = String(pedido.status || '').toLowerCase()
         const proximo = lista[0].status
@@ -152,6 +154,11 @@ export async function POST(request: Request) {
       return { ...pedido, data_entrega: dataEntregaDosItens(pedido.itens), pagamento: resumoPagamentoAdmin(pedido as unknown as Pedido) }
     }
     if(tabela==='trocas'){const proteger=(t:Record<string,unknown>)=>({...t,foto_url:typeof t.foto_url==='string'&&t.foto_url.startsWith('private:devolucoes/')?'/api/trocas/'+t.id+'/foto':t.foto_url});result.data=Array.isArray(result.data)?result.data.map(proteger):result.data?proteger(result.data as Record<string,unknown>):result.data}
+    if (tabela === 'pedidos' && result.data) {
+      const lista = Array.isArray(result.data) ? result.data : [result.data]
+      const incluidos = await incluirRetiradas(user.db, lista as Pedido[])
+      result.data = Array.isArray(result.data) ? incluidos : incluidos[0]
+    }
     const resposta = tabela === 'pedidos' ? { ...result, data: Array.isArray(result.data) ? result.data.map(incluirData) : incluirData(result.data) } : result
     return NextResponse.json(resposta, { headers: { 'Cache-Control': 'private, no-store' } })
   } catch (error) { return responderErro(error) }

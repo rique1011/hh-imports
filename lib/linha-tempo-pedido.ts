@@ -19,7 +19,7 @@ export function eventosDosItens(itens: ItemPedido[]): EventoPedido[] {
   const data = dataEntregaDosItens(itens)
   if (data) {
     const instante = instanteDosItens(itens, 'recebimento_confirmado_em')
-    const confirmado = instante && itens.every(item => item.recebimento_origem === 'melhor_envio') && diaNaLoja(new Date(instante)) === data
+    const confirmado = instante && itens.every(item => ['melhor_envio','retirada'].includes(item.recebimento_origem || '')) && diaNaLoja(new Date(instante)) === data
     eventos.push({ etapa: 'entregue', ocorrido_em: confirmado ? instante : null, data_local: data })
   }
   return eventos
