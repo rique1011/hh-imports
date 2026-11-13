@@ -1,7 +1,7 @@
 import NextAuth from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
-import { consumirMfa, emailNormalizado, limitarConta, senhaConfere, senhaForte } from '@/lib/seguranca'
+import { consumirMfa, emailNormalizado, limitarConta, senhaConfere, senhaForte, revogarSessoesNoLogout } from '@/lib/seguranca'
 class AutenticadorNecessario extends Error {}
 const handler=NextAuth({
  providers:[CredentialsProvider({name:'Credenciais',credentials:{email:{type:'email'},password:{type:'password'},codigo:{type:'text'}},
@@ -30,6 +30,7 @@ const handler=NextAuth({
   }
  }} )],
  session:{maxAge:8*60*60},
+ events:{async signOut(evento){if('token' in evento)await revogarSessoesNoLogout(evento.token)}},
  callbacks:{async jwt({token,user}){if(user){token.sub=user.id;token.role=user.role;token.sessaoVersao=user.sessaoVersao;token.mfa=user.mfa;token.senhaAtual=user.senhaAtual}return token},
  async session({session,token}){if(session.user){session.user.role=token.role;session.user.mfa=token.mfa;session.user.senhaAtual=token.senhaAtual} return session}},
  pages:{signIn:'/login'},secret:process.env.NEXTAUTH_SECRET

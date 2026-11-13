@@ -7,6 +7,7 @@ import { processarEnvioAutomatico } from '@/lib/envio-automatico'
 
 import { registrarPagamentoVerificado } from '@/lib/pagamentos'
 import { STATUS_PAGOS } from '@/lib/pagamento-pedido'
+import { lerJson, FalhaSeguranca } from '@/lib/seguranca'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -14,15 +15,17 @@ export const maxDuration = 120
 export async function POST(request: Request) {
   try {
     const url = new URL(request.url)
-    const body = await request.json().catch(() => ({}))
-    const type = body.type || url.searchParams.get('type') || url.searchParams.get('topic')
-    if (type !== 'payment' && !String(body.action || '').startsWith('payment.')) {
+    const body = request.body ? await lerJson(request,65_536) : {}
+    const type = typeof body.type === 'string' ? body.type : url.searchParams.get('type') || url.searchParams.get('topic')
+    if (type !== 'payment' && !(typeof body.action === 'string' && body.action.startsWith('payment.'))) {
       return NextResponse.json({ received: true, ignored: true })
     }
     const queryId = url.searchParams.get('data.id') || url.searchParams.get('id')
-    const paymentId = String(queryId || body.data?.id || '')
-    if (!/^\d+$/.test(paymentId) ||
-        (queryId && body.data?.id && String(body.data.id) !== queryId)) {
+    const dados = body.data && typeof body.data === 'object' && !Array.isArray(body.data) ? body.data as Record<string, unknown> : {}
+    const idCorpo = dados.id
+    const paymentId = String(queryId || idCorpo || '')
+    if ((idCorpo != null && typeof idCorpo !== 'string' && !(typeof idCorpo === 'number' && Number.isSafeInteger(idCorpo)))
+        || !/^\d{1,30}$/.test(paymentId) || (queryId && idCorpo != null && String(idCorpo) !== queryId)) {
       return NextResponse.json({ error: 'Identificador de pagamento invalido.' }, { status: 400 })
     }
     if (!validarAssinatura(request, paymentId)) {
@@ -46,7 +49,8 @@ export async function POST(request: Request) {
     })
     return NextResponse.json({ received: true, pedidoId })
   } catch (error) {
-    console.error('[webhook] Falha no processamento:', error)
+    if (error instanceof FalhaSeguranca) return NextResponse.json({error:error.message},{status:error.status})
+    console.error('[webhook] Falha no processamento. O provedor deve retomar a notificação.')
     // Sem confirmacao persistida, o Mercado Pago deve tentar novamente.
     return NextResponse.json({ error: 'Falha ao processar notificacao.' }, { status: 503 })
   }

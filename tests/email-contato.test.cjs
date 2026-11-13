@@ -10,12 +10,12 @@ process.env.NEXTAUTH_SECRET='fixture-mail'
 process.env.SITE_URL = 'https://loja.example.test'
 
 function setup(accepted = true) {
-  const mensagens = [], configuracoes = [];let count=0
-  const security=loadTs('lib/seguranca');const mocks = {'@/lib/seguranca':{...security,limitar:async()=>{if(++count>3)throw new security.FalhaSeguranca(429,'Limite')},limitarConta:async()=>{}}, nodemailer: { createTransport: config => {
+  const mensagens = [], configuracoes = [], callbacks=[];let count=0
+  const security=loadTs('lib/seguranca');const mocks = {'next/server':{...require('next/server'),after:fn=>callbacks.push(fn)},'@/lib/seguranca':{...security,limitar:async()=>{if(++count>3)throw new security.FalhaSeguranca(429,'Limite')},limitarConta:async()=>{}}, nodemailer: { createTransport: config => {
     configuracoes.push(config)
     return { sendMail: async message => { mensagens.push(message); return { messageId: 'fixture', accepted: accepted ? [message.to] : [] } } }
   } } }
-  return { mensagens, configuracoes, mocks, mail: loadTs('lib/mail', mocks), route: loadTs('app/api/contato/route', mocks) }
+  return { mensagens, configuracoes, mocks, mail: loadTs('lib/mail', mocks), route: loadTs('app/api/contato/route', mocks), flush:async()=>{while(callbacks.length)await callbacks.shift()()} }
 }
 function request(body, options = {}) {
   return new Request('https://loja.example.test/api/contato', { method: 'POST',
@@ -89,6 +89,7 @@ test('cadastro usa o mesmo remetente autenticado, Reply-To e normalização da s
     const route = loadTs(caminho, { ...s.mocks, '@/lib/supabase-admin': { getSupabaseAdmin: () => db } })
     const response = await route.POST(new Request('https://loja.example.test/api/register', { method: 'POST', body: JSON.stringify({ nome: 'Cliente', email: dados.email, senha: 'SenhaExclusivaDeTeste1!' }) }))
     assert.equal(response.status, 200)
+    await s.flush()
   }
   assert.equal(s.mensagens.length, 2)
   assert.equal(s.mensagens[0].from.address, sender); assert.equal(s.mensagens[0].replyTo, contato)

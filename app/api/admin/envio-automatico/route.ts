@@ -1,6 +1,7 @@
 import { after, NextResponse } from 'next/server'
 import { exigirAdmin, responderErro, validarOrigem } from '@/lib/autorizacao'
 import { configEnvioPublica, lerConfigEnvioAutomatico, salvarConfigEnvioAutomatico, processarEnvioAutomatico } from '@/lib/envio-automatico'
+import { limitar, lerJson } from '@/lib/seguranca'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -20,8 +21,9 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     validarOrigem(request)
-    const { db, email } = await exigirAdmin(request)
-    const body = await request.json()
+    const { db, email, id } = await exigirAdmin(request)
+    await limitar(request,'configurar-expedicao',30,600,String(id))
+    const body = await lerJson(request)
     if (!body || typeof body !== 'object' || Array.isArray(body)) return NextResponse.json({ error: 'Configuração inválida.' }, { status: 400, headers })
     const config = await salvarConfigEnvioAutomatico(db, body, email)
     if (config.ativa) after(async () => {

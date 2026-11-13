@@ -25,9 +25,11 @@ export async function validarCupom(db: Banco, email: string, entrada: unknown) {
     if (error || String(dono?.id) !== String(cupom.usuario_id)) throw new ErroHttp(400, 'Cupom indisponível para esta conta.')
   }
   let percentual = Number(cupom?.desconto || 0)
+  let primeiraCompra = false
   if (codigo === 'BEMVINDO10') {
     if (!await boasVindas(db, email)) throw new ErroHttp(400, 'Cupom exclusivo para primeira compra em até 7 dias.')
     percentual = percentual || 10
+    primeiraCompra = true
   }
   if (!percentual && codigo === 'NAOVAEMBORA') percentual = 5
   if (!percentual && /^OFERTA\d+$/.test(codigo)) {
@@ -35,8 +37,9 @@ export async function validarCupom(db: Banco, email: string, entrada: unknown) {
     const { data: bases, error } = await db.from('cupons').select('desconto')
       .eq('ativo', true).is('usuario_id', null).eq('desconto', solicitado - 5).limit(1)
     if (error) throw new Error('Falha ao consultar oferta.')
-    if (bases?.length || (solicitado === 15 && await boasVindas(db, email))) percentual = solicitado
+    if (bases?.length) percentual = solicitado
+    else if (solicitado === 15 && await boasVindas(db, email)) { percentual = solicitado; primeiraCompra = true }
   }
   if (!Number.isFinite(percentual) || percentual <= 0 || percentual > 100) throw new ErroHttp(400, 'Cupom inválido ou expirado.')
-  return { codigo, desconto: percentual }
+  return { codigo, desconto: percentual, primeiraCompra }
 }

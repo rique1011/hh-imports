@@ -9,6 +9,7 @@ import { resumoPagamentoAdmin } from '@/lib/pedidos-admin'
 import type { Pedido } from '@/types/loja'
 import { incluirRetiradas } from '@/lib/retirada-pedidos'
 import { incluirCancelamentos } from '@/lib/cancelamentos'
+import { limitar, lerJson } from '@/lib/seguranca'
 
 interface Consulta extends PromiseLike<{ data: unknown; error: { message: string } | null }> {
   eq(campo: string, valor: unknown): Consulta
@@ -32,7 +33,8 @@ export async function POST(request: Request) {
   try {
     validarOrigem(request)
     const user = await exigirAdmin(request)
-    const body = await request.json()
+    await limitar(request,'dados-admin',600,600,String(user.id))
+    const body = await lerJson(request,131_072)
     if (!(typeof body.tabela === 'string' && Object.hasOwn(recursos, body.tabela))) throw new ErroHttp(400, 'Recurso inválido.')
     const tabela = body.tabela as keyof typeof recursos
     const regra = recursos[tabela]
@@ -44,7 +46,7 @@ export async function POST(request: Request) {
     if (operacao === 'insert' && !['produtos','cupons'].includes(tabela)) throw new ErroHttp(403, 'Criação indisponível neste recurso.')
     if (operacao === 'delete' && !['produtos','cupons'].includes(tabela)) throw new ErroHttp(403, 'Exclusão indisponível neste recurso.')
     if (['update','delete'].includes(operacao) && !filtros.some((f: { campo: string; op: string; valor: unknown }) => f.campo === 'id' && f.op === 'eq' && ['string','number'].includes(typeof f.valor))) throw new ErroHttp(400, 'Informe o identificador do registro.')
-    let valores = body.valores
+    let valores = body.valores as Record<string, unknown> | Record<string, unknown>[]
     let versaoPedido: { status: string; itens: unknown } | null = null
     if (['insert','update'].includes(operacao)) {
       const lista = Array.isArray(valores) ? valores : [valores]
@@ -88,7 +90,10 @@ export async function POST(request: Request) {
         if (pedido.entrega?.modalidade === 'retirada') throw new ErroHttp(409, 'Use as ações de retirada presencial para este pedido.')
         versaoPedido = { status: pedido.status, itens: pedido.itens }
         const atual = String(pedido.status || '').toLowerCase()
-        const proximo = lista[0].status
+        if ('status' in lista[0] && typeof lista[0].status !== 'string') throw new ErroHttp(400, 'Status inválido.')
+        if ('codigo_rastreio' in lista[0] && lista[0].codigo_rastreio !== null &&
+          (typeof lista[0].codigo_rastreio !== 'string' || lista[0].codigo_rastreio.length>100)) throw new ErroHttp(400, 'Rastreio inválido.')
+        const proximo = typeof lista[0].status === 'string' ? lista[0].status : undefined
         if ('data_entrega' in lista[0]) {
           if (!dataRecebimentoValida(lista[0].data_entrega) || lista[0].data_entrega > diaNaLoja()) throw new ErroHttp(400, 'Informe uma data de recebimento válida, sem datas futuras.')
           if ((proximo || atual) !== 'entregue') throw new ErroHttp(400, 'Registre a data de recebimento somente para um pedido entregue.')
@@ -133,12 +138,15 @@ export async function POST(request: Request) {
         query = filtro.op === 'eq' ? query.eq(filtro.campo, filtro.valor) : query.gt(filtro.campo, filtro.valor)
       }
     }
-    if (body.ordem) {
-      if (!campos.has(body.ordem.campo)) throw new ErroHttp(400, 'Ordenação inválida.')
-      query = query.order(body.ordem.campo, { ascending: body.ordem.ascending !== false })
+    if (body.ordem !== undefined) {
+      if (!body.ordem || typeof body.ordem !== 'object' || Array.isArray(body.ordem)) throw new ErroHttp(400, 'Ordenação inválida.')
+      const ordem = body.ordem as Record<string, unknown>
+      if (typeof ordem.campo !== 'string' || !campos.has(ordem.campo)
+        || (ordem.ascending !== undefined && typeof ordem.ascending !== 'boolean')) throw new ErroHttp(400, 'Ordenação inválida.')
+      query = query.order(ordem.campo, { ascending: ordem.ascending !== false })
     }
     if (body.limite) {
-      if (!Number.isSafeInteger(body.limite) || body.limite < 1 || body.limite > 1000) throw new ErroHttp(400, 'Limite inválido.')
+      if (typeof body.limite !== 'number' || !Number.isSafeInteger(body.limite) || body.limite < 1 || body.limite > 1000) throw new ErroHttp(400, 'Limite inválido.')
       query = query.limit(body.limite)
     }
     const result = body.single ? await query.maybeSingle() : await query

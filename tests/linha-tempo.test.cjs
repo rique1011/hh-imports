@@ -35,7 +35,7 @@ test('histórico privado aproveita o instante da confirmação, preserva prepara
   `)
   const client = adapter(db)
   const auth = loadTs('lib/autorizacao'), usuario = { email: 'fixture@example.test', db: client }
-  const mocks = { '@/lib/autorizacao': { ...auth, exigirUsuario: async () => usuario, exigirAdmin: async () => usuario }, '@/lib/cancelamentos': { incluirCancelamentos: async (_db, pedidos) => pedidos } }
+  const mocks = { '@/lib/seguranca':{...loadTs('lib/seguranca'),limitar:async()=>{}},'@/lib/autorizacao': { ...auth, exigirUsuario: async () => usuario, exigirAdmin: async () => usuario }, '@/lib/cancelamentos': { incluirCancelamentos: async (_db, pedidos) => pedidos } }
   const pedidos = loadTs('app/api/pedidos/route', mocks), detalhe = loadTs('app/api/pedidos/[id]/route', mocks)
   const admin = loadTs('app/api/admin/dados/route', mocks)
   const email = 'fixture@example.test'

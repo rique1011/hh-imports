@@ -3,12 +3,18 @@ import { randomUUID } from 'node:crypto'
 import sharp from 'sharp'
 import { exigirUsuario, validarOrigem, responderErro, ErroHttp } from '@/lib/autorizacao'
 import { MAX_BYTES_FOTO_PRODUTO } from '@/lib/fotos-produto'
-import { limitar } from '@/lib/seguranca'
+import { limitar, lerCorpoLimitado } from '@/lib/seguranca'
 export const runtime='nodejs'
 export async function POST(request: Request){try{
  validarOrigem(request);const user=await exigirUsuario(request)
- if(Number(request.headers.get('content-length'))>5*1024*1024+16384)throw new ErroHttp(413,'A imagem deve ter até 5 MB.')
- const form=await request.formData(),file=form.get('arquivo'),tipo=String(form.get('tipo'))
+ await limitar(request,'upload-requisicoes',user.admin?180:30,600,String(user.id))
+ const conteudo=request.headers.get('content-type')||''
+ if(!/^multipart\/form-data\s*;/i.test(conteudo))throw new ErroHttp(415,'Envie a imagem em um formulário válido.')
+ const bytesCorpo=await lerCorpoLimitado(request,5*1024*1024+16384)
+ let form:FormData
+ try{form=await new Response(new Uint8Array(bytesCorpo),{headers:{'Content-Type':conteudo}}).formData()}
+ catch{throw new ErroHttp(400,'Formulário de imagem inválido.')}
+ const file=form.get('arquivo'),tipo=String(form.get('tipo'))
  if(!(file instanceof File)||!['produtos','trocas','aparencia'].includes(tipo))throw new ErroHttp(400,'Imagem inválida.')
  if(tipo!=='trocas'&&!user.admin)throw new ErroHttp(403,'Acesso restrito ao administrador.')
  if(tipo!=='trocas'){

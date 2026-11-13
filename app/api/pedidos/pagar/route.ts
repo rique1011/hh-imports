@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server'
 import { exigirUsuario, validarOrigem, responderErro, ErroHttp } from '@/lib/autorizacao'
 import { criarPreferenciaPedido } from '@/lib/pagamentos'
+import { limitar, lerJson } from '@/lib/seguranca'
 export const runtime = 'nodejs'
 export async function POST(request: Request) {
   try {
     validarOrigem(request)
-    const user = await exigirUsuario(request), { pedidoId } = await request.json()
+    const user = await exigirUsuario(request)
+    await limitar(request,'retomar-pagamento',10,60,String(user.id))
+    const { pedidoId } = await lerJson(request)
     if (!pedidoId) throw new ErroHttp(400, 'Pedido inválido.')
     const { data: pedido, error } = await user.db.from('pedidos').select('*').eq('id', pedidoId).eq('cliente_email', user.email).maybeSingle()
     if (error) throw error

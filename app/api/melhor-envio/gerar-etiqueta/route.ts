@@ -6,6 +6,7 @@ import { ErroMelhorEnvio } from '@/lib/melhor-envio'
 import { processarNotificacoes } from '@/lib/notificacoes'
 import { destinatarioCnpj, documentoFiscalDoPedido } from '@/lib/documento-envio'
 import { consultarEnvioAutomatico, exigirModoManual, lerConfigEnvioAutomatico } from '@/lib/envio-automatico'
+import { limitar, lerJson } from '@/lib/seguranca'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -31,9 +32,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     validarOrigem(request)
-    const { db } = await exigirAdmin(request)
-    const body = await request.json()
+    const { db, id } = await exigirAdmin(request)
+    const body = await lerJson(request)
     const pedidoId = validarPedidoId(body.pedidoId)
+    await limitar(request,'gerar-etiqueta',30,600,String(id))
     await exigirModoManual(db, pedidoId)
     if (body.acao === 'cotar') {
       const pedido = await carregarPedidoEnvio(db, pedidoId)

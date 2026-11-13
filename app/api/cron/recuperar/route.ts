@@ -1,4 +1,3 @@
-import { mensagemErro } from '@/lib/erros'
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { enviarEmailLoja } from '@/lib/mail'
@@ -59,8 +58,8 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({ success: true, disparos: disparos })
-  } catch (error) {
-    console.error('Erro no cron de recuperação:', error)
-    return NextResponse.json({ error: mensagemErro(error) }, { status: 500 })
+  } catch {
+    console.error('[cron] Recuperação de carrinho indisponível.')
+    return NextResponse.json({ error: 'Não foi possível processar a recuperação de carrinhos.' }, { status: 500 })
   }
 }

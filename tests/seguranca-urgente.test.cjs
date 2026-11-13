@@ -2,7 +2,7 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),crypto=re
 const {createDb,adapter,loadTs}=require('./helpers.cjs')
 const email='seguranca@example.test',sku='13faf490-7cb6-4e4f-9106-0f0502c50424',senha='Frase exclusiva da loja 2026!'
 process.env.NEXTAUTH_SECRET='segredo-apenas-para-testes';process.env.MFA_ENCRYPTION_KEY=Buffer.alloc(32,7).toString('base64')
-async function setup(t){const db=await createDb('bigint','bigint');t.after(()=>db.close());const client=adapter(db),mocks={'@/lib/supabase-admin':{getSupabaseAdmin:()=>client},'@/lib/mail':{enviarEmailLoja:async()=>({sucesso:true}),enviarEmailStatus:async()=>({sucesso:true}),escapeHtml:s=>s}}
+async function setup(t){const db=await createDb('bigint','bigint');t.after(()=>db.close());const client=adapter(db),mocks={'next/server':{...require('next/server'),after:()=>{}},'@/lib/supabase-admin':{getSupabaseAdmin:()=>client},'@/lib/mail':{enviarEmailLoja:async()=>({sucesso:true}),enviarEmailStatus:async()=>({sucesso:true}),escapeHtml:s=>s}}
  await db.query("insert into produtos(id,nome,preco,estoque) values($1,'Joia',100,20)",[sku])
  const sec=loadTs('lib/seguranca',mocks);const req=body=>new Request('https://loja.test/api/teste',{method:'POST',headers:{origin:'https://loja.test','content-type':'application/json'},body:JSON.stringify(body)})
  return{db,client,mocks,sec,req}}

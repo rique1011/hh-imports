@@ -64,7 +64,7 @@ function admin() {
  const escritos = [], invalidacoes = [], auth = loadTs('lib/autorizacao')
  const q = { select() { return this }, eq() { return this }, then(resolve, reject) { return Promise.resolve({ data: [{ id: 'p1' }], error: null }).then(resolve, reject) } }
  const db = { from() { return { update(v) { escritos.push(v); return q }, insert(v) { escritos.push(v); return q } } } }
- const route = loadTs('app/api/admin/dados/route', { 'next/cache': { revalidateTag: (...a) => invalidacoes.push(a) }, '@/lib/autorizacao': { ...auth, validarOrigem() {}, exigirAdmin: async () => ({ db }) } })
+ const route = loadTs('app/api/admin/dados/route', { '@/lib/seguranca':{...loadTs('lib/seguranca'),limitar:async()=>{}},'next/cache': { revalidateTag: (...a) => invalidacoes.push(a) }, '@/lib/autorizacao': { ...auth, validarOrigem() {}, exigirAdmin: async () => ({ db }) } })
  const request = (operacao, valores) => new Request('https://loja.test/api/admin/dados', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ tabela: 'produtos', operacao, valores, filtros: [{ campo: 'id', op: 'eq', valor: 'p1' }] }) })
  return { route, escritos, invalidacoes, request }
 }

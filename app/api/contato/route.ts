@@ -1,4 +1,4 @@
-import { limitar } from '@/lib/seguranca'
+import { limitar, lerJson } from '@/lib/seguranca'
 import { NextResponse } from 'next/server'
 import { ErroHttp, responderErro, validarOrigem } from '@/lib/autorizacao'
 import { enviarEmailContato } from '@/lib/mail'
@@ -9,9 +9,7 @@ export async function POST(request: Request) {
   try {
     validarOrigem(request)
     if (!request.headers.get('content-type')?.includes('application/json')) throw new ErroHttp(415, 'Formato de mensagem inválido.')
-    const raw = await request.text()
-    if (raw.length > 12000) throw new ErroHttp(413, 'Sua mensagem excede o tamanho permitido.')
-    const body = JSON.parse(raw)
+    const body = await lerJson(request,12_000)
     if (!body || typeof body !== 'object' || Array.isArray(body)) throw new ErroHttp(400, 'Confira os campos da mensagem.')
     if (body.website) return NextResponse.json({ sucesso: true }, { headers })
     const nome = typeof body.nome === 'string' ? body.nome.trim() : ''

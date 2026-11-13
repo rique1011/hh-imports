@@ -16,6 +16,7 @@ function setup(error = null) {
     }
   } }
   const route = loadTs('app/api/admin/dados/route', {
+    '@/lib/seguranca':{...loadTs('lib/seguranca'),limitar:async()=>{}},
     'next/cache': { revalidateTag: (...args) => invalidacoes.push(args) },
     '@/lib/autorizacao': {
       validarOrigem() {}, exigirAdmin: async () => ({ db }),

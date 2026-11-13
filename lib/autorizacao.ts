@@ -9,8 +9,26 @@ export class ErroHttp extends Error {
 }
 
 export function validarOrigem(request: Request) {
+  const url = new URL(request.url), host = request.headers.get('host')
+  let origemLocal = url.origin
+  // Next pode normalizar request.url para o hostname interno. Host é o
+  // destino HTTP real; não aceitamos X-Forwarded-Host arbitrário do cliente.
+  if (host) {
+    if (/[\s/\\?#@]/.test(host)) throw new ErroHttp(403, 'Origem não autorizada.')
+    try { origemLocal = new URL(`${url.protocol}//${host}`).origin }
+    catch { throw new ErroHttp(403, 'Origem não autorizada.') }
+  }
+  const site = request.headers.get('sec-fetch-site')
+  if (site === 'cross-site') throw new ErroHttp(403, 'Origem não autorizada.')
   const origin = request.headers.get('origin')
-  if (origin && origin !== new URL(request.url).origin) throw new ErroHttp(403, 'Origem não autorizada.')
+  if (origin && origin !== origemLocal) throw new ErroHttp(403, 'Origem não autorizada.')
+  // Cookies são enviados automaticamente pelo navegador. Sem Origin, exige
+  // Referer local; clientes que autenticam por Bearer não dependem de cookies.
+  if (!origin && request.headers.has('cookie')) {
+    let origemReferer = ''
+    try { origemReferer = new URL(request.headers.get('referer') || '').origin } catch {}
+    if (origemReferer !== origemLocal) throw new ErroHttp(403, 'Origem não autorizada.')
+  }
 }
 
 export async function exigirUsuario(request: Request, restrita = false) {
@@ -36,6 +54,6 @@ export async function exigirAdmin(request: Request) {
 export function responderErro(error: unknown) {
   if (error instanceof ErroHttp || error instanceof FalhaSeguranca) return NextResponse.json({ error: error.message }, { status: error.status })
   // Erros do provedor podem conter detalhes internos. A resposta pública é estável.
-  console.error('[api] Operação recusada ou indisponível:', error instanceof Error ? error.message : 'erro do provedor')
+  console.error('[api] Operação recusada ou indisponível.')
   return NextResponse.json({ error: 'Não foi possível concluir a operação.' }, { status: 500 })
 }

@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server'
 import { exigirUsuario, responderErro, ErroHttp } from '@/lib/autorizacao'
 import { CONTACT_EMAIL } from '@/lib/brand'
+import { limitar } from '@/lib/seguranca'
 
 export async function GET(request: Request, props: { params: Promise<{ codigo: string }> }) {
   try {
     const user = await exigirUsuario(request)
+    await limitar(request,'consultar-rastreio',20,60,String(user.id))
     const { codigo } = await props.params
     if (!/^[a-zA-Z0-9-]{5,100}$/.test(codigo)) throw new ErroHttp(400, 'Código inválido.')
     let query = user.db.from('pedidos').select('id').eq('codigo_rastreio', codigo)

@@ -93,11 +93,12 @@ export async function POST(request: Request) {
     const { data: pedido, error: pedidoError } = await db.rpc('hh_checkout_com_resumo', {
       p_email: user.email, p_nome: user.nome, p_chave: chave, p_hash: createHash('sha256').update(JSON.stringify({itens:itens.map(i=>({id:String(i.id),quantidade:i.quantidade,preco:i.preco})),entrega,servico:cotacao?.servico,frete,total,embalagem:!!body.embalagemPresente,cupom:body.codigoCupom||null,cashback})).digest('hex'), p_total: total,
       p_itens: itens, p_cashback: cashback, p_entrega: entrega, p_frete: cotacao,
-      p_resumo: { subtotal, desconto, frete, embalagem, cashback, total },
+      p_resumo: { subtotal, desconto, frete, embalagem, cashback, total, primeira_compra: cupom?.primeiraCompra === true },
     })
     if (pedidoError && /Estoque insuficiente|Produto indisponivel/.test(pedidoError.message)) return NextResponse.json({ error: 'Estoque insuficiente. Atualize sua sacola.' }, { status: 409 })
     if (pedidoError && /tres pedidos|Chave reutilizada/.test(pedidoError.message)) throw new ErroHttp(409,pedidoError.message)
     if (pedidoError && /Configuracao da retirada/.test(pedidoError.message)) throw new ErroHttp(409,'A retirada foi atualizada. Recarregue a sacola antes de continuar.')
+    if (pedidoError && /Beneficio de primeira compra/.test(pedidoError.message)) throw new ErroHttp(409,'O benefício de primeira compra já está reservado em outro pedido ou não está mais disponível. Retome o pagamento do pedido existente ou remova o cupom.')
     if (pedidoError || !pedido) throw new Error('Falha ao criar pedido: ' + (pedidoError?.message || 'Sem resultado.'))
 
     // O trigger ja registrou cliente e admin; falha SMTP nao desfaz a compra.

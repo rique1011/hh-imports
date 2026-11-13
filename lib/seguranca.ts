@@ -41,13 +41,24 @@ export async function limitarConta(request: Request, acao: string, email: string
   await limitar(request, acao + '-ip', limite * 3, segundos)
   await limitar(request, acao + '-conta', limite, segundos, email)
 }
-export async function lerJson(request: Request, max=16_384): Promise<Record<string, unknown>> {
+export async function lerCorpoLimitado(request: Request, max=16_384): Promise<Buffer> {
   if (Number(request.headers.get('content-length')) > max) throw new FalhaSeguranca(413, 'Requisição muito grande.')
   const reader = request.body?.getReader(); if (!reader) throw new FalhaSeguranca(400, 'Dados inválidos.')
   const partes: Uint8Array[]=[]; let total=0
   while (true) { const {value,done}=await reader.read(); if (done) break; total+=value.length; if(total>max){await reader.cancel(); throw new FalhaSeguranca(413,'Requisição muito grande.')} partes.push(value) }
-  try { const body=JSON.parse(Buffer.concat(partes).toString('utf8')); if (!body || typeof body!=='object' || Array.isArray(body)) throw Error(); return body }
+  return Buffer.concat(partes)
+}
+export async function lerJson(request: Request, max=16_384): Promise<Record<string, unknown>> {
+  const bytes=await lerCorpoLimitado(request,max)
+  try { const body=JSON.parse(bytes.toString('utf8')); if (!body || typeof body!=='object' || Array.isArray(body)) throw Error(); return body }
   catch { throw new FalhaSeguranca(400, 'Dados inválidos.') }
+}
+
+export async function revogarSessoesNoLogout(token: { sub?: string; email?: string | null; sessaoVersao?: unknown } | null) {
+  if (!token?.sub || !token.email || !Number.isSafeInteger(token.sessaoVersao) || Number(token.sessaoVersao)<1) return
+  const { error }=await getSupabaseAdmin().from('usuarios').update({sessao_versao:Number(token.sessaoVersao)+1})
+    .eq('id',token.sub).eq('email',token.email.toLowerCase().trim()).eq('sessao_versao',token.sessaoVersao).select('id')
+  if(error) throw new FalhaSeguranca(503,'Não foi possível registrar a saída no servidor.')
 }
 function chaveMfa() {
   const k=process.env.MFA_ENCRYPTION_KEY

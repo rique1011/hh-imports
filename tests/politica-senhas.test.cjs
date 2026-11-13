@@ -3,20 +3,21 @@ const { createDb, adapter, loadTs } = require('./helpers.cjs')
 const cliente = 'cliente8@example.test', admin = 'admin15@example.test', antiga = 'Frase exclusiva atual 2026!', curta = 'Joia2026'
 process.env.NEXTAUTH_SECRET = 'fixture-politicas-senhas'
 async function setup(t) {
- const db = await createDb('bigint','bigint');t.after(()=>db.close());const client=adapter(db),emails=[]
- const mocks={'@/lib/supabase-admin':{getSupabaseAdmin:()=>client},'@/lib/mail':{escapeHtml:x=>x,enviarEmailLoja:async(...args)=>{emails.push(args);return{sucesso:true}}}}
+ const db = await createDb('bigint','bigint');t.after(()=>db.close());const client=adapter(db),emails=[],callbacks=[]
+ const mocks={'next/server':{...require('next/server'),after:fn=>callbacks.push(fn)},'@/lib/supabase-admin':{getSupabaseAdmin:()=>client},'@/lib/mail':{escapeHtml:x=>x,enviarEmailLoja:async(...args)=>{emails.push(args);return{sucesso:true}}}}
  let options
  loadTs('app/api/auth/[...nextauth]/route',{...mocks,'next-auth':config=>{options=config;return()=>{}},'next-auth/providers/credentials':config=>config})
  const login=(email,password)=>options.providers[0].authorize({email,password},{headers:{}})
  const req=body=>new Request('https://loja.test/api/teste',{method:'POST',headers:{origin:'https://loja.test'},body:JSON.stringify(body)})
  const sec=loadTs('lib/seguranca',mocks)
  const criar=async(email,administrador=false)=>{await db.query('insert into usuarios(email,nome,senha,email_verificado,senha_politica_versao,perfil,role) values($1,$2,$3,true,1,$4,$4)',[email,'Pessoa Teste',await bcrypt.hash(antiga,4),administrador?'admin':'cliente']);return(await db.query('select * from usuarios where email=$1',[email])).rows[0]}
- return{db,client,mocks,emails,login,req,sec,criar}
+ return{db,client,mocks,emails,login,req,sec,criar,flush:async()=>{while(callbacks.length)await callbacks.shift()()}}
 }
 test('cadastro aceita oito caracteres, rejeita sete e mantém confirmação de e-mail antes de entrar',async t=>{
  const s=await setup(t),cadastro=loadTs('app/api/register/route',s.mocks)
  assert.equal((await cadastro.POST(s.req({nome:'Cliente Teste',email:cliente,senha:'Joia026'}))).status,400)
  assert.equal((await cadastro.POST(s.req({nome:'Cliente Teste',email:cliente,senha:curta,role:'admin'}))).status,200)
+ await s.flush()
  await assert.rejects(s.login(cliente,curta))
  const codigo=s.emails[0][2].match(/<strong>(\d{6})<\/strong>/)[1]
  assert.equal((await loadTs('app/api/verificar/route',s.mocks).POST(s.req({email:cliente,codigo}))).status,200)

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { exigirUsuario, validarOrigem, responderErro, ErroHttp } from '@/lib/autorizacao'
+import { limitar, lerJson } from '@/lib/seguranca'
 
 import { listarEnderecos } from '@/lib/enderecos-servidor'
 import { normalizarEndereco, enderecoPadrao } from '@/lib/enderecos'
@@ -24,7 +25,8 @@ export async function POST(request: Request) {
   try {
     validarOrigem(request)
     const user = await exigirUsuario(request)
-    const body = await request.json()
+    await limitar(request,'atualizar-cadastro',30,600,String(user.id))
+    const body = await lerJson(request)
     const campos = ['cpf_cnpj','whatsapp','data_nascimento'] as const
     const update: Record<string, string> = {}
     for (const campo of campos) {

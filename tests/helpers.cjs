@@ -53,7 +53,7 @@ exports.createDb = async function createDb(idType = 'uuid', usuarioIdType = 'uui
   await db.exec(fs.readFileSync(path.join(root,'supabase/migrations',aparencia),'utf8'))
   await db.exec('CREATE TABLE categorias(id uuid primary key default gen_random_uuid(),nome text not null,slug text unique not null);' +
     'CREATE TABLE trocas(id uuid primary key default gen_random_uuid(),pedido_id text not null,produto_id uuid,usuario_id ' + usuarioIdType + ',motivo text not null,foto_url text,status text default \'analise_pendente\',criado_em timestamptz default now(),unique(pedido_id,produto_id));')
-  for (const final of ['_categorias_editaveis.sql','_devolucoes_fluxo_seguro.sql','_menu_campanhas_editavel.sql','_retirada_presencial.sql','_cancelamento_pedidos_entrega.sql']) {
+  for (const final of ['_categorias_editaveis.sql','_devolucoes_fluxo_seguro.sql','_menu_campanhas_editavel.sql','_retirada_presencial.sql','_cancelamento_pedidos_entrega.sql','_cupom_primeira_compra_atomico.sql']) {
     const file=fs.readdirSync(path.join(root,'supabase/migrations')).find(f=>f.endsWith(final))
     await db.exec(fs.readFileSync(path.join(root,'supabase/migrations',file),'utf8'))
   }

@@ -145,7 +145,7 @@ test('conferência usa a etiqueta vinculada e persiste entrega, prazo e notifica
   await t.test('correção do admin identifica a data como manual e preserva os itens comerciais', async () => {
     const s = await criar({ status: 'entregue', itens: [{ ...item, data_recebimento: '2026-10-31', recebimento_origem: 'melhor_envio', recebimento_confirmado_em: '2026-11-01T01:30:00.000Z' }] })
     const auth = loadTs('lib/autorizacao')
-    const admin = loadTs('app/api/admin/dados/route', { '@/lib/autorizacao': { ...auth, exigirAdmin: async () => ({ db: client }) } })
+    const admin = loadTs('app/api/admin/dados/route', { '@/lib/seguranca':{...loadTs('lib/seguranca'),limitar:async()=>{}},'@/lib/autorizacao': { ...auth, exigirAdmin: async () => ({ db: client }) } })
     assert.equal((await admin.POST(editar(s.pedido.id, { status: 'entregue', data_entrega: '2026-11-02' }))).status, 200)
     assert.deepEqual((await ler(s.pedido.id)).itens, [{ ...item, data_recebimento: '2026-11-02', recebimento_origem: 'manual', recebimento_confirmado_em: null }])
   })
@@ -164,7 +164,7 @@ test('conferência usa a etiqueta vinculada e persiste entrega, prazo e notifica
       }
       return query
     } }
-    const admin = loadTs('app/api/admin/dados/route', { '@/lib/autorizacao': { ...auth, exigirAdmin: async () => ({ db: raced }) } })
+    const admin = loadTs('app/api/admin/dados/route', { '@/lib/seguranca':{...loadTs('lib/seguranca'),limitar:async()=>{}},'@/lib/autorizacao': { ...auth, exigirAdmin: async () => ({ db: raced }) } })
     assert.equal((await admin.POST(editar(s.pedido.id, { status: 'enviado', codigo_rastreio: s.pedido.codigo_rastreio }))).status, 409)
     assert.equal((await ler(s.pedido.id)).status, 'entregue')
     assert.equal((await ler(s.pedido.id)).itens[0].data_recebimento, '2026-10-31')
