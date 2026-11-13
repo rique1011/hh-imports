@@ -43,6 +43,8 @@ export default function Modal({ children, onClose, labelledBy, className = '' }:
     ) || []).filter(element => element.getClientRects().length > 0)
     const frame = requestAnimationFrame(() => (focaveis()[0] || painelRef.current)?.focus({ preventScroll: true }))
     const teclado = (event: KeyboardEvent) => {
+      const abertos = document.querySelectorAll('[data-modal-overlay]')
+      if (abertos[abertos.length - 1] !== overlayRef.current) return
       if (event.key === 'Escape') { event.preventDefault(); fecharRef.current(); return }
       if (event.key !== 'Tab') return
       const elementos = focaveis()
@@ -65,7 +67,7 @@ export default function Modal({ children, onClose, labelledBy, className = '' }:
 
   if (!hidratado) return null
   return createPortal(
-    <div ref={overlayRef} className="modal-overlay">
+    <div ref={overlayRef} data-modal-overlay className="modal-overlay">
       <div ref={painelRef} role="dialog" aria-modal="true" aria-labelledby={labelledBy} tabIndex={-1}
         className={`modal-panel ${className}`}>
         {children}

@@ -2,14 +2,14 @@ import 'server-only'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import {
   enviarEmailPedidoRecebido, enviarEmailStatus, notificarAdminNovoPedido,
-  notificarAdminPagamentoAprovado, enviarEmailRetirada, type PedidoEmail, type ResultadoEmail,
+  notificarAdminPagamentoAprovado, enviarEmailRetirada, enviarEmailCancelamento, type PedidoEmail, type ResultadoEmail,
 } from '@/lib/mail'
 
 interface Notificacao {
   id: number
   lease_id: string
   pedido_id: string
-  evento: 'novo_pedido' | 'pagamento_aprovado' | 'enviado' | 'entregue' | 'retirada_disponivel' | 'retirada_lembrete' | 'retirada_cancelamento' | 'retirada_reembolsada' | 'retirada_atencao'
+  evento: 'novo_pedido' | 'pagamento_aprovado' | 'enviado' | 'entregue' | 'retirada_disponivel' | 'retirada_lembrete' | 'retirada_cancelamento' | 'retirada_reembolsada' | 'retirada_atencao' | 'cancelamento_solicitado' | 'cancelamento_reembolsado' | 'cancelamento_atencao'
   destinatario: 'cliente' | 'admin'
   tentativas: number
   payload: PedidoEmail
@@ -17,6 +17,17 @@ interface Notificacao {
 
 async function enviarNotificacao(item: Notificacao): Promise<ResultadoEmail> {
   const pedido = item.payload
+  if (item.evento.startsWith('cancelamento_')) {
+    const { data, error } = await getSupabaseAdmin().from('pedido_cancelamentos').select('estado').eq('pedido_id', item.pedido_id).maybeSingle()
+    if (error || !data) throw Error('Não foi possível conferir o cancelamento antes do aviso.')
+    if (item.evento !== 'cancelamento_reembolsado' && data.estado === 'cancelado') return { sucesso: true, messageId: 'aviso-obsoleto' }
+    return enviarEmailCancelamento(pedido, item.evento, item.destinatario === 'admin')
+  }
+  if (['novo_pedido', 'pagamento_aprovado', 'enviado'].includes(item.evento)) {
+    const { data, error } = await getSupabaseAdmin().from('pedido_cancelamentos').select('estado').eq('pedido_id', item.pedido_id).maybeSingle()
+    if (error) throw Error('Não foi possível conferir o cancelamento antes do aviso do pedido.')
+    if (data) return { sucesso: true, messageId: 'aviso-obsoleto' }
+  }
   if (item.evento.startsWith('retirada_')) {
     const { data, error } = await getSupabaseAdmin().from('pedido_retiradas').select('estado').eq('pedido_id', item.pedido_id).maybeSingle()
     if (error || !data) throw Error('Não foi possível conferir o estado da retirada antes do aviso.')

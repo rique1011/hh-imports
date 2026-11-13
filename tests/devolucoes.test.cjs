@@ -32,7 +32,7 @@ test('API protege o prazo e o admin registra recebimento sem alterar os itens co
   const user = { id: 17, email: 'fixture@example.test', db: adapter(db) }
   const mocks = { '@/lib/autorizacao': { ...auth, exigirUsuario: async () => user, exigirAdmin: async () => user }, '@/lib/seguranca': {...loadTs('lib/seguranca'),limitar:async()=>{}}, 'next/server': {...require('next/server'),after:()=>{}} }
   const route = loadTs('app/api/trocas/route', mocks)
-  const admin = loadTs('app/api/admin/dados/route', mocks)
+  const admin = loadTs('app/api/admin/dados/route', { ...mocks, '@/lib/cancelamentos': { incluirCancelamentos: async (_db, pedidos) => pedidos } })
   process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://fixture.supabase.co'
   const produto = '11111111-1111-4111-8111-111111111111'
   const item = { id: produto, nome: 'Colar', foto: '/icon.svg', quantidade: 1, preco: 100 }

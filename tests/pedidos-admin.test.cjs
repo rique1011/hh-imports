@@ -47,7 +47,7 @@ test('pagamentos quitados com créditos ou sem cobrança continuam na fila confi
 test('API administrativa devolve o resumo financeiro para filtrar revisão sem vazar metadados do provedor', async () => {
   const p=pedido(41,'enviado',{status:'approved',requer_revisao:true,valor_reembolsado:5,preferencia_id:'privado',init_point:'https://privado.test'})
   const q={select(){return this},order(){return this},then(resolve,reject){return Promise.resolve({data:[p],error:null}).then(resolve,reject)}}
-  const auth=loadTs('lib/autorizacao'),route=loadTs('app/api/admin/dados/route',{'@/lib/autorizacao':{...auth,exigirAdmin:async()=>({db:{from:()=>q}})}})
+  const auth=loadTs('lib/autorizacao'),route=loadTs('app/api/admin/dados/route',{'@/lib/autorizacao':{...auth,exigirAdmin:async()=>({db:{from:()=>q,rpc:async()=>({data:[{pedido_id:'41',pode_cancelar:false,cancelamento:null}],error:null})}})}})
   const r=await route.POST(new Request('https://loja.test/api/admin/dados',{method:'POST',body:JSON.stringify({tabela:'pedidos',operacao:'select'})}))
   assert.equal(r.status,200);const data=(await r.json()).data
   assert.equal(data[0].pagamento.requer_revisao,true);assert.equal(grupoPedidoAdmin(data[0]),'revisao')

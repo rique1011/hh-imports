@@ -243,6 +243,7 @@ test('disparo do painel exige administrador e cron exige segredo', async t => {
   assert.equal(callbacks.length, 1)
   process.env.CRON_SECRET = 'segredo-cron-dos-testes'
   const cron = loadTs('app/api/cron/notificacoes/route.ts', {
+    '@/lib/supabase-admin': { getSupabaseAdmin: () => s.client },
     '@/lib/etiquetas': { retomarEtiquetasPendentes: async () => ({ consultadas: 0, concluidas: 0 }) },
     '@/lib/notificacoes': { processarNotificacoes: async () => ({ processadas: 0, enviadas: 0, falhas: 0 }) },
   })

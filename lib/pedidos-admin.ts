@@ -3,6 +3,7 @@ import type { Pedido } from '@/types/loja'
 export const FILTROS_PEDIDOS_ADMIN = [
   { id: 'a_enviar', nome: 'A enviar', vazio: 'Nenhum pedido aguardando envio.', descricao: 'Pedidos com pagamento confirmado, prontos para separar ou em preparação.' },
   { id: 'retiradas', nome: 'Retiradas', vazio: 'Nenhuma retirada pendente.', descricao: 'Pedidos para retirada presencial: preparo, disponibilidade e eventuais reembolsos pendentes.' },
+  { id: 'cancelamentos', nome: 'Reembolsos', vazio: 'Nenhum reembolso de cancelamento pendente.', descricao: 'Pedidos com entrega cancelados antes do envio. Acompanhe a confirmação do reembolso e retome pendências.' },
   { id: 'enviados', nome: 'Enviados', vazio: 'Nenhum pedido em transporte.', descricao: 'Pedidos enviados para acompanhar até a entrega ao cliente.' },
   { id: 'entregues', nome: 'Entregues', vazio: 'Nenhum pedido entregue.', descricao: 'Compras que já chegaram ao cliente.' },
   { id: 'aguardando', nome: 'Aguardando pagamento', vazio: 'Nenhum pedido aguardando pagamento.', descricao: 'Compras ainda sem confirmação de pagamento. Não entram na fila de envio.' },
@@ -10,11 +11,13 @@ export const FILTROS_PEDIDOS_ADMIN = [
   { id: 'todos', nome: 'Todos', vazio: 'Nenhum pedido cadastrado.', descricao: 'Histórico completo, incluindo pendentes, cancelados e pedidos antigos.' },
 ] as const
 export type FiltroPedidosAdmin = typeof FILTROS_PEDIDOS_ADMIN[number]['id']
-type PedidoResumo = Pick<Pedido, 'id' | 'status' | 'cliente_email' | 'cliente_nome' | 'pagamento' | 'entrega' | 'retirada'>
+type PedidoResumo = Pick<Pedido, 'id' | 'status' | 'cliente_email' | 'cliente_nome' | 'pagamento' | 'entrega' | 'retirada' | 'cancelamento'>
 
-export function grupoPedidoAdmin(pedido: Pick<Pedido, 'status' | 'pagamento' | 'entrega' | 'retirada'>): Exclude<FiltroPedidosAdmin, 'todos'> | 'historico' {
+export function grupoPedidoAdmin(pedido: Pick<Pedido, 'status' | 'pagamento' | 'entrega' | 'retirada' | 'cancelamento'>): Exclude<FiltroPedidosAdmin, 'todos'> | 'historico' {
   const status = pedido.status?.trim().toLowerCase() || ''
   const financeiro = pedido.pagamento?.status?.toLowerCase() || ''
+  if (pedido.cancelamento?.estado === 'cancelado') return 'historico'
+  if (pedido.cancelamento?.estado === 'reembolso_pendente' || status === 'cancelamento_pendente') return 'cancelamentos'
   if (pedido.retirada?.estado === 'cancelado') return 'historico'
   if (pedido.retirada?.estado === 'reembolso_pendente') return 'retiradas'
   if (status === 'pagamento_em_analise' || pedido.pagamento?.requer_revisao || Number(pedido.pagamento?.valor_reembolsado) > 0

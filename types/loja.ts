@@ -48,6 +48,8 @@ export interface Pedido {
   linha_tempo?: EventoPedido[]
   entrega?: (Endereco & { documento?: string; modalidade?: 'retirada'; retirada?: import('@/types/retirada').ConfigRetirada }) | null
   retirada?: import('@/types/retirada').RetiradaPedido | null
+  cancelamento?: import('@/types/cancelamento').CancelamentoPedido | null
+  pode_cancelar?: boolean
   pagamento?: PagamentoPedido
   pagamento_expira_em?: string | null
   pode_pagar?: boolean

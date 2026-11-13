@@ -16,6 +16,7 @@ export interface PedidoEmail {
   itens?: { nome: string; quantidade: number; preco?: number }[]
   modalidade?: string
   retirada?: RetiradaPedido
+  cancelamento?: import('@/types/cancelamento').CancelamentoPedido
 }
 
 export type ResultadoEmail =
@@ -165,6 +166,18 @@ export async function enviarEmailRetirada(pedido: PedidoEmail, evento: string, a
     texto = '<p>Confira o pedido e a carteira do Mercado Pago no painel. O reembolso não foi marcado como concluído.</p>'
   }
   return enviarEmailLoja(admin ? CONTACT_EMAIL : pedido.cliente_email, titulo + ' — #' + pedido.id, texto + resumoPedido(pedido) + '<p><a href="' + escapeHtml(getSiteUrl('/minha-conta?aba=pedidos')) + '">Acompanhar pedido</a></p>')
+}
+
+export async function enviarEmailCancelamento(pedido: PedidoEmail, evento: string, admin = false): Promise<ResultadoEmail> {
+  const concluido = evento === 'cancelamento_reembolsado'
+  const titulo = admin ? 'Atenção: reembolso pendente' : concluido ? 'Cancelamento com reembolso confirmado' : 'Cancelamento solicitado'
+  const texto = admin
+    ? '<p>O reembolso ainda não foi confirmado. Confira o pagamento e o saldo no Mercado Pago. O pedido está bloqueado para envio. Consulte a aba Reembolsos no painel para acompanhar ou retomar a conferência.</p>'
+    : concluido
+      ? '<p>O cancelamento e o reembolso integral do valor pago, incluindo o frete cobrado, foram confirmados. Os créditos usados voltaram ao saldo da loja. O prazo para o valor aparecer em sua conta ou fatura depende do meio de pagamento.</p>'
+      : '<p>Registramos o cancelamento do seu pedido e bloqueamos o envio. O reembolso integral está em processamento pelo meio de pagamento original. Os créditos usados voltam ao saldo após a conclusão. Avisaremos quando o reembolso for confirmado.</p>'
+  return enviarEmailLoja(admin ? (process.env.ADMIN_EMAIL?.trim() || CONTACT_EMAIL) : pedido.cliente_email, titulo + ' — #' + pedido.id,
+    texto + resumoPedido(pedido) + '<p><a href="' + escapeHtml(getSiteUrl(admin ? '/admin/pedidos' : '/minha-conta?aba=pedidos&pedido=' + pedido.id)) + '">Acompanhar pedido</a></p>')
 }
 
 export async function notificarAdminNovoPedido(pedido: PedidoEmail) {

@@ -2,6 +2,7 @@
 import Modal from '@/components/Modal'
 import EtiquetaMelhorEnvio from '@/components/admin/EtiquetaMelhorEnvio'
 import RetiradaPedidoInfo from '@/components/RetiradaPedido'
+import CancelamentoPedidoInfo from '@/components/CancelamentoPedido'
 import EnvioAutomaticoConfig from '@/components/admin/EnvioAutomaticoConfig'
 import type { ResultadoEtiqueta } from '@/types/envio'
 
@@ -53,6 +54,7 @@ export default function TelaPedidos() {
       .then(({ data, error }) => {
         if (error) throw error
         setPedidos(data || [])
+        setPedidoSelecionado(atual => atual ? (data || []).find((p: Pedido) => String(p.id) === String(atual.id)) || atual : null)
         setErro('')
       })
       .catch(() => setErro('Não foi possível carregar os pedidos. Atualize a lista para tentar novamente.'))
@@ -139,7 +141,7 @@ export default function TelaPedidos() {
   const pedidosFiltrados = filtrarPedidosAdmin(pedidos, filtro, busca)
   const filtroAtual = FILTROS_PEDIDOS_ADMIN.find(f => f.id === filtro)!
   const podeOperarSelecionado = !!pedidoSelecionado && ['a_enviar', 'enviados', 'entregues'].includes(grupoPedidoAdmin(pedidoSelecionado))
-  const quantidades: Record<FiltroPedidosAdmin, number> = { a_enviar: 0, retiradas: 0, enviados: 0, entregues: 0, aguardando: 0, revisao: 0, todos: pedidos.length }
+  const quantidades: Record<FiltroPedidosAdmin, number> = { a_enviar: 0, retiradas: 0, cancelamentos: 0, enviados: 0, entregues: 0, aguardando: 0, revisao: 0, todos: pedidos.length }
   for (const pedido of pedidos) { const grupo = grupoPedidoAdmin(pedido); if (grupo !== 'historico') quantidades[grupo]++ }
 
   const formatarZapParaLink = (numero: string) => {
@@ -219,7 +221,7 @@ export default function TelaPedidos() {
                     </td>
                     <td className="p-4">
                       <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${getStatusColor(grupoPedidoAdmin(pedido) === 'revisao' ? 'pagamento_em_analise' : pedido.status)}`}>
-                        {grupoPedidoAdmin(pedido) === 'revisao' ? 'Revisão financeira' : pedido.status || 'Pendente'}
+                        {grupoPedidoAdmin(pedido) === 'revisao' ? 'Revisão financeira' : pedido.cancelamento?.estado === 'reembolso_pendente' ? 'Reembolso em processamento' : pedido.status || 'Pendente'}
                       </span>
                     </td>
                     <td className="p-4 text-center">
@@ -342,12 +344,13 @@ export default function TelaPedidos() {
               {/* Formulário de Atualização */}
               <div className={`rounded-xl border p-4 text-sm leading-6 ${podeOperarSelecionado ? 'border-hb-gold/30 bg-hb-gold/5 text-gray-300' : 'border-amber-900 bg-amber-950/20 text-amber-200'}`}>
                 <p className="font-medium">Pagamento: {nomePagamento(pedidoSelecionado)}</p>
-                <p className="mt-1 text-xs">{pedidoSelecionado.retirada ? 'Retirada presencial. Use as ações abaixo para avisar o cliente e confirmar a entrega com o código.' : podeOperarSelecionado ? 'Pagamento confirmado. Confira os dados da entrega e acompanhe a etiqueta abaixo.' : grupoPedidoAdmin(pedidoSelecionado) === 'revisao' ? 'Confira a pendência financeira antes de preparar ou postar este pedido.' : 'Este pedido não está liberado para envio. A liberação depende da confirmação do pagamento.'}</p>
+                <p className="mt-1 text-xs">{pedidoSelecionado.cancelamento ? 'Cancelamento registrado. O envio está bloqueado. Acompanhe a confirmação do reembolso abaixo.' : pedidoSelecionado.retirada ? 'Retirada presencial. Use as ações abaixo para avisar o cliente e confirmar a entrega com o código.' : podeOperarSelecionado ? 'Pagamento confirmado. Confira os dados da entrega e acompanhe a etiqueta abaixo.' : grupoPedidoAdmin(pedidoSelecionado) === 'revisao' ? 'Confira a pendência financeira antes de preparar ou postar este pedido.' : 'Este pedido não está liberado para envio. A liberação depende da confirmação do pagamento.'}</p>
               </div>
               {pedidoSelecionado.retirada && <RetiradaPedidoInfo pedido={pedidoSelecionado} admin onAtualizado={async()=>{await carregarPedidos();setModalAberta(false)}}/>}
+              <CancelamentoPedidoInfo key={'cancelamento-' + pedidoSelecionado.id} pedido={pedidoSelecionado} admin disabled={gerandoEtiqueta || salvando} onAtualizado={carregarPedidos} />
               {!pedidoSelecionado.retirada && podeOperarSelecionado && <EtiquetaMelhorEnvio
                 key={pedidoSelecionado.id} pedidoId={String(pedidoSelecionado.id)} onAtualizado={etiquetaAtualizada} onOcupado={setGerandoEtiqueta} />}
-              {!pedidoSelecionado.retirada && <form id="form-pedido" onSubmit={handleSalvarAlteracoes} className="bg-hb-black p-5 rounded-xl border border-gray-800 space-y-4">
+              {!pedidoSelecionado.retirada && !pedidoSelecionado.cancelamento && <form id="form-pedido" onSubmit={handleSalvarAlteracoes} className="bg-hb-black p-5 rounded-xl border border-gray-800 space-y-4">
                 <h3 className="text-[10px] font-black text-hb-gold uppercase tracking-widest mb-4 flex items-center gap-2"><Truck size={14}/> Logística e Status</h3>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -392,7 +395,7 @@ export default function TelaPedidos() {
                 <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Total do Pedido</p>
                 <p className="text-xl font-black text-hb-gold">R$ {Number(pedidoSelecionado.total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
               </div>
-              {!pedidoSelecionado.retirada && <button type="submit" form="form-pedido" disabled={salvando || gerandoEtiqueta || !podeOperarSelecionado} className="bg-hb-gold text-hb-black px-4 sm:px-8 py-3 rounded font-bold uppercase tracking-widest text-[10px] flex items-center gap-2 hover:bg-hb-goldLight transition disabled:opacity-50">
+              {!pedidoSelecionado.retirada && !pedidoSelecionado.cancelamento && <button type="submit" form="form-pedido" disabled={salvando || gerandoEtiqueta || !podeOperarSelecionado} className="bg-hb-gold text-hb-black px-4 sm:px-8 py-3 rounded font-bold uppercase tracking-widest text-[10px] flex items-center gap-2 hover:bg-hb-goldLight transition disabled:opacity-50">
                 {salvando ? <Loader2 size={16} className="animate-spin" /> : <><CheckCircle2 size={16} /> Salvar Alterações</>}
               </button>}
             </div>

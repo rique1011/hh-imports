@@ -8,6 +8,7 @@ import { vitrinesValidas } from '@/lib/selecoes'
 import { resumoPagamentoAdmin } from '@/lib/pedidos-admin'
 import type { Pedido } from '@/types/loja'
 import { incluirRetiradas } from '@/lib/retirada-pedidos'
+import { incluirCancelamentos } from '@/lib/cancelamentos'
 
 interface Consulta extends PromiseLike<{ data: unknown; error: { message: string } | null }> {
   eq(campo: string, valor: unknown): Consulta
@@ -156,7 +157,7 @@ export async function POST(request: Request) {
     if(tabela==='trocas'){const proteger=(t:Record<string,unknown>)=>({...t,foto_url:typeof t.foto_url==='string'&&t.foto_url.startsWith('private:devolucoes/')?'/api/trocas/'+t.id+'/foto':t.foto_url});result.data=Array.isArray(result.data)?result.data.map(proteger):result.data?proteger(result.data as Record<string,unknown>):result.data}
     if (tabela === 'pedidos' && result.data) {
       const lista = Array.isArray(result.data) ? result.data : [result.data]
-      const incluidos = await incluirRetiradas(user.db, lista as Pedido[])
+      const incluidos = await incluirCancelamentos(user.db, await incluirRetiradas(user.db, lista as Pedido[]), true)
       result.data = Array.isArray(result.data) ? incluidos : incluidos[0]
     }
     const resposta = tabela === 'pedidos' ? { ...result, data: Array.isArray(result.data) ? result.data.map(incluirData) : incluirData(result.data) } : result

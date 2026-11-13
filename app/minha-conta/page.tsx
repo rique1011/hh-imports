@@ -7,6 +7,7 @@ import { nomePagamento, pedidoNaoConcluido, prazoPagamento, STATUS_PAGOS } from 
 const EnderecosConta = dynamic(() => import('@/components/EnderecosConta'))
 import LinhaTempoPedido from '@/components/LinhaTempoPedido'
 import RetiradaPedidoInfo from '@/components/RetiradaPedido'
+import CancelamentoPedidoInfo from '@/components/CancelamentoPedido'
 
 import Image from 'next/image'
 
@@ -204,7 +205,7 @@ function ConteudoMinhaConta() {
   }
 
   useEffect(() => {
-    if (status !== 'authenticated' || abaAtiva !== 'pedidos' || !pedidos.some(p => p.status.toLowerCase() === 'pendente')) return
+    if (status !== 'authenticated' || abaAtiva !== 'pedidos' || !pedidos.some(p => p.status.toLowerCase() === 'pendente' || p.cancelamento?.estado === 'reembolso_pendente')) return
     const atualizar = () => { if (!document.hidden) recarregarPedidos().catch(() => {}) }
     const timer = setInterval(atualizar, 15_000)
     document.addEventListener('visibilitychange', atualizar)
@@ -212,8 +213,10 @@ function ConteudoMinhaConta() {
   }, [status, abaAtiva, pedidos, recarregarPedidos])
   const visiveis = pedidos.filter(p => (searchParams.get('pedido') === String(p.id)) || filtroPedidos === 'todos' || (pedidoNaoConcluido(p, agoraDevolucao) ? filtroPedidos === 'incompletos' : filtroPedidos === 'compras'))
 
-  const getStatusFormatado = (status: string, retirada?: Pedido['retirada']) => {
+  const getStatusFormatado = (status: string, retirada?: Pedido['retirada'], cancelamento?: Pedido['cancelamento']) => {
     const s = status?.toLowerCase()
+    if (cancelamento?.estado === 'cancelado') return { titulo: 'CANCELADO · REEMBOLSO CONFIRMADO', cor: 'text-gray-300' }
+    if (cancelamento?.estado === 'reembolso_pendente' || s === 'cancelamento_pendente') return { titulo: 'REEMBOLSO EM PROCESSAMENTO', cor: 'text-yellow-500' }
     if (s === 'pagamento_em_analise') return { titulo: 'PAGAMENTO EM CONFERÊNCIA', cor: 'text-hb-gold' }
     if (retirada?.estado === 'disponivel') return { titulo: 'PRONTO PARA RETIRAR', cor: 'text-hb-gold' }
     if (retirada?.estado === 'retirado') return { titulo: 'PEDIDO RETIRADO', cor: 'text-hb-gold' }
@@ -434,7 +437,7 @@ function ConteudoMinhaConta() {
               ) : (
                 <div className="space-y-6 md:space-y-8">
                   {visiveis.map((pedido) => {
-                    const statusInfo = getStatusFormatado(pedido.status, pedido.retirada)
+                    const statusInfo = getStatusFormatado(pedido.status, pedido.retirada, pedido.cancelamento)
                     const expandido = String(pedidoExpandido) === String(pedido.id)
                     const endereco = pedido.entrega || {}
                     const podePagar = pedido.status.toLowerCase() === 'pendente' && Date.parse(prazoPagamento(pedido)) > agoraDevolucao && pedido.pode_pagar !== false
@@ -538,6 +541,7 @@ function ConteudoMinhaConta() {
                             </div>
 
                             <RetiradaPedidoInfo pedido={pedido} onAtualizado={recarregarPedidos}/>
+                            <CancelamentoPedidoInfo pedido={pedido} onAtualizado={recarregarPedidos}/>
                             <LinhaTempoPedido pedido={pedido} />
 
                           </div>
